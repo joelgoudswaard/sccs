@@ -1,0 +1,686 @@
+# =============================================================================
+# Singularity Camper Control System (SCCS)
+# Distribution template: sccs.conf.dist
+#
+# First install:
+#   cp config/sccs.conf.dist config/sccs.conf
+#   then edit config/sccs.conf (secrets, sensors, Victron, screens, Sonos).
+#
+# Updates (git pull):
+#   Never overwrite a live config/sccs.conf with this file.
+#   Diff against sccs.conf.dist and merge new keys by hand.
+#   Restart the app after editing sccs.conf.
+# =============================================================================
+
+[system]
+# Secret key used by Flask for session management and security.
+# Generate once per install, e.g.:
+#   python3 -c "import secrets; print(secrets.token_urlsafe(48))"
+secret_key = CHANGE_ME_TO_A_LONG_RANDOM_STRING
+
+# IP address the web server binds to.
+# Use 0.0.0.0 to allow access from phones, tablets, and other devices on the network.
+host = 0.0.0.0
+
+# Port the web interface runs on.
+port = 5000
+
+# Flask debug mode (auto-reloader, verbose logs). Keep false in production.
+debug = false
+
+# Development mode: show Settings-tab diagnostic tools (force phase, GPS
+# simulate, force reed, toast test panel). Leave false for normal camper use.
+development_mode = false
+
+
+[logging]
+# Default logging level for the entire application.
+# Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+level = INFO
+
+# Suppress noisy log messages from Flask's built-in web server
+suppress_werkzeug = true
+
+# Suppress noisy log messages from SocketIO engine
+suppress_engineio = true
+
+# Suppress noisy log messages from SocketIO itself
+suppress_socketio = true
+
+# Folder where log files are stored (daily rotating files)
+log_directory = logs
+
+# After a power cut the RTC may be wrong until NTP syncs. SCCS waits this many
+# seconds for NTP before choosing Day/Evening/Night and running startup lights.
+# Set to 0 to skip waiting. Log lines always include +uptime since boot.
+clock_sync_timeout_s = 120
+
+# Number of days to keep old log files (31 days = roughly one month)
+log_retention_days = 31
+
+
+# =============================================================================
+# LIGHTING & RAMP CONTROL
+# =============================================================================
+
+[lighting]
+# Ramp time in milliseconds for manual changes from the web interface (sliders, buttons, etc.)
+ui_ramp_time_ms = 1000
+
+# Crossfade duration for bug-mode UI controls (slider fill, toggle, chip, icons)
+ui_bug_mode_crossfade_ms = 1000
+
+# Ramp time in milliseconds for changes triggered by reed switches / doors
+reed_ramp_time_ms = 2000
+
+# Ramp time in milliseconds when activating manual scenes
+scene_ramp_time_ms = 4000
+
+# Ramp time in milliseconds during automatic Day → Evening → Night phase transitions
+phase_ramp_time_ms = 4000
+
+# =============================================================================
+# HARDWARE MAPPINGS
+# =============================================================================
+
+[esp32]
+#   ESP32-1 PWM outs:
+#     ch 1 → GPIO 4 (pin 1-4)    ch 2 → GPIO 5 (pin 1-5)
+#     ch 3 → GPIO 6 (pin 1-6)    ch 4 → GPIO 7 (pin 1-7)
+#     ch 5 → GPIO 8 (pin 1-8)    ch 6 → GPIO 9 (pin 1-9)
+#     ch 13 → GPIO 10 (pin 1-10) ch 14 → GPIO 11 (pin 1-11)
+#   ESP32-2 PWM outs:
+#     ch 7 → GPIO 4 (pin 2-4)    ch 8 → GPIO 5 (pin 2-5)
+#     ch 9 → GPIO 6 (pin 2-6)    ch 10 → GPIO 7 (pin 2-7)
+#     ch 11 → GPIO 8 (pin 2-8)   ch 12 → GPIO 9 (pin 2-9)
+#     ch 15 → GPIO 10 (pin 2-10) ch 16 → GPIO 11 (pin 2-11)
+#   Analog:
+#     water level     → ESP32-1 GPIO 1 (pin 1-1)
+#     future analog 1 → ESP32-2 GPIO 1 (pin 2-1)
+#     future analog 2 → ESP32-2 GPIO 2 (pin 2-2)
+#
+# [lights] pin fields use ESP pin IDs (e.g. 1-4 or 1-13|1-12|1-11 for rgb_bug)
+# Configured lights use ESP pin IDs below.
+# Boot: dtoverlay=uart3,uart4 under [pi4], or uart2-pi5,uart3-pi5 under [pi5].
+serial_ports = /dev/ttyAMA2, /dev/ttyAMA3
+
+# Baud rate for ESP32 serial protocol
+baud_rate = 115200
+
+# Timeout in seconds when reading responses from the MCU
+timeout = 0.5
+
+# Settle time after opening each ESP serial port (seconds).
+init_delay = 0.5
+
+# Ignore hardware state feedback for this long after a UI light change (seconds).
+optimistic_lock_duration = 2.5
+
+# Extra delay after sending a command (seconds)
+command_delay = 0.08
+response_delay = 0.04
+
+# Ramp times used when directly controlling RGB bug lights
+rgb_red_switch_ramp_ms = 180
+rgb_mode_switch_ramp_ms = 250
+
+# =============================================================================
+# LIGHTING & GPIO
+# =============================================================================
+
+[lights]
+# Format: internal_name = Friendly Name | type | pin(s) | icon | order
+# Types: pwm, rgb_bug
+# Order: Determines what order the lights render on the front end.
+#        You control the exact order of everything (dimmers + relays).
+#
+# Pin fields are ESP pin IDs ({ESP}-{module GPIO}), e.g. 1-4 = ESP32-1 GPIO 4.
+# rgb_bug pins are white | red | green.
+# Spare PWM channels (not assigned): 1-10, 1-11, 2-10, 2-11.
+
+kitchen_panel     = Kitchen Panel     | rgb_bug | 1-4 | 1-5 | 1-6 | fa-utensils     | 1
+kitchen_bench     = Kitchen Bench     | pwm     | 1-7        | fa-mug-hot       | 2
+storage_panel     = Storage Panel     | pwm     | 1-8        | fa-boxes-stacked | 3
+rear_drawer       = Rear Drawer       | pwm     | 1-9        | fa-archive       | 4
+accent            = Accent Lights     | pwm     | 2-4        | fa-lightbulb     | 5
+rooftop_tent      = Rooftop Tent      | pwm     | 2-5        | fa-tent          | 6
+awning            = Awning Lights     | rgb_bug | 2-6 | 2-7 | 2-8 | fa-umbrella      | 7
+ensuite           = Ensuite           | pwm     | 2-9        | fa-bath          | 8
+
+[gpio]
+# Format: internal_name = Friendly Name | pin | active_high | initial_state | icon | order
+# The order can be mixed and matched with the above lights.
+# active_high: true = GPIO high energizes the relay (this PCB); false = active-low modules.
+
+floodlights         = Floodlights       | 22 | true  | false | fa-lightbulb     | 20
+# water_circuit     = Water Circuit     | 10 | true  | false | fa-faucet        | 21
+# lighting_circuit  = Lighting Circuit  | 11 | true  | false | fa-lightbulb     | 22
+# fridge_oven       = Fridge + Oven     |  6 | true  | false | fa-kitchen-set   | 23
+
+[reeds]
+# Reed inputs on the SCCS PCB (external pull-up; reed closes to GND = active low).
+# Matches kicad/SCCS-RPI.kicad_sch i1 ("Reed Switches") and Reed Switch 1–8:
+#
+#   Reed  i1 pins  Function         GPIO
+#   1     1 / 2    Kitchen Bench      23
+#   2     3 / 4    Kitchen Panel      24
+#   3     5 / 6    Storage Panel      25
+#   4     7 / 8    Rear Drawer         7
+#   5     9 / 10   Rooftop Tent       12
+#   6    11 / 12   Spare              16
+#   7    13 / 14   Spare              20
+#   8    15 / 16   Spare              21
+#
+# i1 pin 5 is Storage Panel (Reed 3), not Reed 5. Reed 5 is pins 9/10.
+# Pin 16 sits next to the 12V inlet; pin 1 is the opposite end of i1.
+# Unconnected channels read open. Only a short on that pair should close it.
+#
+# Format: internal_name = Friendly Name | pin | pull_up | bounce_time | icon | order | controls:light1,light2,...
+# - pull_up: true = Pi internal pull-up; false = external pull-up only (disable internal)
+# - Leave the controls field empty to control a light with same internal name, otherwise:
+# - controls:lightname         to control a single light
+# - controls:light1,light2     to control multiple lights (separate with commas)
+#
+# Named functions mapped to reed channels 1–5 below; 6–8 reserved.
+
+kitchen_bench     = Kitchen Bench     | 23 | false | 0.05 | fa-mug-hot       | 11 |
+kitchen_panel     = Kitchen Panel     | 24 | false | 0.05 | fa-utensils      | 10 | kitchen_panel
+storage_panel     = Storage Panel     | 25 | false | 0.05 | fa-boxes-stacked | 12 |
+rear_drawer       = Rear Drawer       |  7 | false | 0.05 | fa-archive       | 13 |
+rooftop_tent      = Rooftop Tent      | 12 | false | 0.05 | fa-tent          | 14 |
+# spare_reed_6    = Spare Reed 6      | 16 | false | 0.05 | fa-door-open     | 15 |
+# spare_reed_7    = Spare Reed 7      | 20 | false | 0.05 | fa-door-open     | 16 |
+# spare_reed_8    = Spare Reed 8      | 21 | false | 0.05 | fa-door-open     | 17 |
+
+[esp32 analog]
+# Analog inputs on the ESP32s (pin IDs = {ESP}-{module GPIO}).
+# Each input has a 150 Ω pull-up to 3V3 on the PCB (see [sensors] water_pullup_ohms).
+water_esp = 1
+water_pin = 1
+# analog_1_esp = 2
+# analog_1_pin = 1
+# analog_2_esp = 2
+# analog_2_pin = 2
+
+[reeds.interlocks]
+# Format: controlled_reed = required_reed1, required_reed2, ...
+kitchen_bench = kitchen_panel
+
+
+# =============================================================================
+# REMOTE TOUCHSCREENS
+# SCCS-controlled touchscreens turned on/off over SSH
+# =============================================================================
+
+[screens]
+# Format:
+# internal_name = Friendly Name | linked_reed | host | username | brightness_path | icon | day | evening | night | blank_path | mac
+#
+# Fields:
+#   linked_reed       → Must exactly match an internal_name from [reeds]
+#   host              → Fixed IPv4 on the van LAN (e.g. 10.10.10.10).
+#                       Must NOT be the host Pi (LAN gateway, typically 10.10.10.1),
+#                       network/broadcast, or another screen's address.
+#   username          → SSH username on the remote Pi (required even with passwordless SSH)
+#   brightness_path   → Remote control target (see below)
+#   icon              → Font Awesome icon for the System tab (optional, default fa-display)
+#   day / evening / night → Brightness percent (0–100) while the linked reed is open.
+#                           Defaults: day 100, evening 30, night 5. Reed closed = 0%.
+#   blank_path        → Optional full power-off helper when brightness hits 0%:
+#                         kscreen:HDMI-A-1 — KDE Wayland DPMS via kscreen-doctor
+#                         /sys/class/graphics/fb0/blank — framebuffer blank (simple fb)
+#                       Brightness 0% alone may leave HDMI panels faintly lit.
+#                       Sysfs blank needs one-time panel sudo setup (installer menu 8).
+#   mac               → Ethernet MAC for DHCP reservation (installer menu 6 / 8)
+#
+# Installer menu 8 (or --screens) scans the wired LAN, lets you pick a client,
+# SSHs in (username/password once), probes brightness/blank paths, writes this
+# section, installs passwordless SSH + sudoers, and refreshes Pi-hole DHCP.
+#
+# brightness_path options:
+#   sysfs blank/backlight — e.g. /sys/class/graphics/fb0/blank
+#       0 = awake, 1 or 4 = blanked (passwordless sudo tee after installer menu 8).
+#   sysfs backlight — e.g. /sys/class/backlight/*/brightness
+#   D-Bus KDE brightness — dbus:org.kde.ScreenBrightness:/org/kde/ScreenBrightness/display0
+#       Prefer blank_path=kscreen:<connector> for full DPMS off on Wayland HDMI.
+#   D-Bus screensaver — dbus:org.freedesktop.ScreenSaver
+#
+# Notes:
+# - Prefer menu 8 to discover panels on the van LAN (or edit this section by hand).
+# - Run menu 6 first so Pi-hole DHCP/DNS and the wired LAN are up.
+# - Screens tile reports remote state (sysfs, D-Bus brightness, or GetActive).
+#
+# Example (written automatically by menu 8, or uncomment and edit by hand):
+# kitchen          = Kitchen         | kitchen_panel | 10.10.10.10 | joel  | dbus:org.kde.ScreenBrightness:/org/kde/ScreenBrightness/display0 | fa-utensils | 100 | 30 | 5 | kscreen:HDMI-A-1 | 02:00:00:00:10:10
+
+
+[reed_monitor]
+# Reed debouncing — two layers:
+#   reed_stable_polls  Consecutive matching GPIO reads before a transition is accepted.
+#                      At the default 200ms poll interval, 3 polls ≈ 600ms the line must
+#                      stay at the new level. Brief noise spikes in shared conduit are ignored.
+#   reed_debounce_ms   Minimum milliseconds between accepted transitions (extra guard
+#                      against slow flip-flop after a real edge).
+reed_stable_polls = 3
+reed_debounce_ms = 250
+
+
+[background_sync]
+# How often (in seconds) the system forces a full state read from the ESP32
+# to keep the UI and internal state synchronized
+sync_interval = 45
+
+
+# =============================================================================
+# AMBIENT LIGHTING
+# Lights that automatically react to phase changes and reed states
+# =============================================================================
+[ambient]
+# Lights that will also turn on whenever one or more reed switches are open.
+# Day ramps to 0, specify a custom level if desired.
+# IMPORTANT: The light name (e.g. kitchen_panel) MUST exactly match 
+# an internal light name defined in the [lights] section above.
+# If the name doesn't match, that light will be ignored and a warning generated.
+
+[ambient.awning]
+evening = 10,white
+night   = 5,red
+
+[ambient.accent]
+evening = 10
+night   = 1
+
+# What should happen to ambient lights when ALL reed switches are closed during evening and night?
+# Options:
+#   off          = turn them completely off (default)
+#   dim         = use the "night" level
+all_closed_action = off
+
+
+# =============================================================================
+# REED PHASE LIGHT LEVELS
+# What brightness each light should go to when its reed is opened
+# =============================================================================
+# IMPORTANT: The light name (e.g. kitchen_panel) MUST exactly match 
+# an internal light name defined in the [lights] section above.
+# If the name doesn't match, that light will be ignored and a warning generated.
+# Omit a phase key (day / evening / night) for no automation action in that phase
+# (hardware is left unchanged). Set e.g. day = 0 to force the light off.
+
+[reed_phases.kitchen_panel]
+day     = 100,white
+evening = 5,white
+night   = 1,red
+
+[reed_phases.kitchen_bench]
+day     = 100
+evening = 30
+night   = 0
+
+[reed_phases.storage_panel]
+day     = 100
+evening = 20
+night   = 5
+
+[reed_phases.rear_drawer]
+day     = 0
+evening = 50
+night   = 10
+
+[reed_phases.rooftop_tent]
+day     = 0
+evening = 10
+night   = 1
+
+# =============================================================================
+# PHASES & DAY/NIGHT AUTOMATION
+# =============================================================================
+
+[phases]
+# Minutes after sunrise before the "Day" phase begins
+day_offset_minutes = 45
+
+# Minutes before sunset before the "Evening" phase begins
+evening_offset_minutes = 45
+
+# Fixed clock time when Night is allowed to start (minutes from midnight).
+# Half-hour steps from 19:30 (1170) to midnight (1440). Legacy night_start_hour
+# is still read if this key is missing.
+night_start_minutes = 1200
+night_start_hour = 20
+
+# Seconds to wait for a valid GPS fix at startup before using fallback sun times
+gps_startup_timeout = 900
+
+# Seconds without a GPS fix before switching to fallback sun calculations
+gps_loss_timeout = 3600
+
+
+# =============================================================================
+# SCENES
+# =============================================================================
+# Each scene gets its own section: [scenes.internal_name]
+# Scene buttons appear in the UI in the order defined by the "order =" key
+# Scenes use the ramp time defined in [lighting] → scene_ramp_time_ms
+# Scenes only affect lights when their controlling reed is open (ambient lights will trigger only if at least one reed is open)
+# If you activate a scene then open the reed, that reed/light will follow it's normal behaviour (i.e. wont' ramp to scene level)
+#
+#    Define individual lights and their target brightness in % (and colour for bug-mode capable lights).
+#    Any lights not included in a scene will be ignored.
+#    You can reference a phase instead of a fixed value:
+#    accent = night
+#    This will automatically pull the brightness (and colour if defined) from either:
+#      - [reed_phases.<lightname>] (preferred)
+#      - [ambient.<lightname>]     (fallback)
+#
+#
+# Special operators:
+#   all_off         = true     Turn all lights off (per-light entries override, e.g. accent = 2)
+#   evening_levels  = true     Apply evening levels from reed_phases + ambient
+#   night_levels    = true     Apply night levels from reed_phases + ambient
+#   day_levels      = true     Apply day levels from reed_phases + ambient
+#
+# You can combine a special operator with other lights or phase references:
+#   evening_levels = true
+#   kitchen_bench  = 85
+#   ensuite        = 100
+#   accent         = night
+#   rooftop_tent   = night
+#
+# Example:
+# [scenes.evening_mood]
+# evening_levels = true
+# accent         = night        # override ambient/reed phase
+# kitchen_panel  = 60
+# ensuite        = 100
+#
+# IMPORTANT:
+# - The light name (e.g. kitchen_panel) MUST exactly match an internal light name
+#   defined in the [lights] section (and optionally [ambient] or [reed_phases]).
+# - If a phase (day/evening/night) is used but no value is defined for that light
+#   in reed_phases or ambient, a warning is logged and the light is skipped.
+# - If the name doesn't match any light, that entry will be ignored with a warning.
+
+
+[scenes.bedtime]
+name        = Bedtime
+icon        = fa-moon
+order       = 1
+description = Dim lights when heading to bed
+
+kitchen_panel   = 1,white
+kitchen_bench   = 1
+storage_panel   = 1
+accent          = night
+awning          = night,white
+rooftop_tent    = 1
+ensuite         = 10
+
+
+[scenes.bathroom]
+name        = Bathroom
+icon        = fa-bath
+order       = 2
+description = Use the bathroom in the middle of the night
+
+accent       = night
+rooftop_tent = 2
+ensuite      = 10
+
+
+[scenes.goodnight]
+name        = Goodnight
+icon        = fa-bed
+order       = 3
+description = All lights off except a dim accent nightlight
+
+all_off = true
+accent  = 1
+
+
+[scenes.evening]
+name        = Evening
+icon        = fa-cloud-sun
+order       = 4
+description = Set/reset lights to evening levels
+
+evening_levels = true
+
+
+[scenes.night]
+name        = Night
+icon        = fa-cloud-moon
+order       = 5
+description = Set/reset lights to night levels
+
+night_levels = true
+
+
+[scenes.all_off]
+name        = All Off
+icon        = fa-power-off
+order       = 6
+description = Turn everything off
+
+all_off = true
+
+
+# =============================================================================
+# GPS
+# =============================================================================
+
+[gps]
+# Serial ports tried (in order) for the GPS module.
+# Module: u-blox NEO-M9N-00B on GPIO 0 TX / GPIO 1 RX.
+# Boot: dtoverlay=uart2 under [pi4], or dtoverlay=uart1-pi5 under [pi5].
+# Device node is typically /dev/ttyAMA1 on both.
+# GPIO 14/15 are reserved for onboard Bluetooth — do not use /dev/serial0 here.
+serial_ports = /dev/ttyAMA1
+
+# NEO-M9N default UART baud rate:
+baud_rate = 38400
+
+# Serial timeout for GPS reads (seconds)
+timeout = 0.8
+
+# Fallback location when no GPS fix is available
+fallback_latitude = -37.191
+fallback_longitude = 145.711
+fallback_name = Alexandra
+fallback_timezone = Australia/Melbourne
+
+# Minimum movement distance (km) before updating suburb name
+movement_threshold_km = 2.0
+
+# How often (seconds) suburb name is re-looked up
+suburb_update_interval = 3600
+
+# How often (seconds) sunrise/sunset times are refreshed
+sun_update_interval = 3600
+
+# How often (seconds) GPS data is broadcast to connected clients
+broadcast_interval = 10
+
+# Minimum time (seconds) between GPS fix lost/acquired toast messages
+toast_cooldown = 3.0
+
+
+# =============================================================================
+# TANK CAPACITIES
+# =============================================================================
+
+[tanks]
+# Fresh water tank capacity in litres (shown under the % on the water tile)
+water_litres = 160
+
+
+# =============================================================================
+# SENSORS (Water level + Temperature)
+# =============================================================================
+
+[sensors]
+# How often (seconds) all sensors are read and broadcast to the UI
+update_interval = 5
+
+# Water level — fuel-sender resistance divider on ESP32-1 GPIO 1 (pin 1-1):
+#   3V3 -- 150 Ω pull-up -- sense -- sender -- GND
+# All three analog inputs (1-1, 2-1, 2-2) use 150 Ω pull-ups to 3V3.
+# Standard automotive sender: empty ≈ 240 Ω (high R), full ≈ 33 Ω (low R).
+# Open / no sensor → sense ≈ 3V3 → 0%.
+#
+# Expected sense voltages at 3.3 V rail (ideal):
+#   empty 240 Ω → ~2.03 V   full 33 Ω → ~0.60 V
+water_pullup_ohms = 150
+water_resistance_empty = 240
+water_resistance_full = 33
+# ESP32-S3 analogRead full-scale (12-bit). Set 1023 only if firmware scales to 10-bit.
+water_adc_max = 4095
+
+# 1-Wire DS18B20 — single bus on GPIO 3 (SCCS).
+# Must match: dtoverlay=w1-gpio,gpiopin=3 in /boot/firmware/config.txt
+# Find sensor IDs with: ls /sys/bus/w1/devices/ | grep ^28
+# Outside defaults to the first 28* device on the bus if ID left blank.
+# Fridge/freezer optional — leave IDs blank until installed.
+#
+# If you see "Configured 1-Wire sensor not present" warnings, the ID in config
+# does not match any device on the bus. The log will list available sensors.
+outside_temp_bus_gpio = 3
+fridge_temp_bus_gpio  = 3
+freezer_temp_bus_gpio = 3
+
+# Leave blank until sensors are on the bus (ls /sys/bus/w1/devices/ | grep ^28).
+# Outside defaults to the first 28* device if left blank.
+outside_temp_sensor =
+fridge_temp_sensor  =
+freezer_temp_sensor =
+
+# =============================================================================
+# WS281X (addressable LED data outs on the Pi)
+# =============================================================================
+# Output 1 → GPIO 18, output 2 → GPIO 27 (BCM).
+
+[ws281x]
+output_1_gpio = 18
+output_2_gpio = 27
+# output_1_count = 0
+# output_2_count = 0
+
+# =============================================================================
+# VICTRON (SmartShunt battery monitor + MPPT SmartSolar charger via BLE)
+# =============================================================================
+# Uses the victron_ble library (passive BLE "Instant Readout" advertisements).
+# Obtain MAC + key from VictronConnect app: device → gear → Product info →
+# "Instant readout via Bluetooth" → Show.
+
+[victron]
+# SmartShunt (or BMV) - provides battery voltage, SoC, current, etc.
+# Fill in MAC addresses + 32-char advertisement keys (VictronConnect → device → gear → Product info).
+shunt_address =
+shunt_key     =
+
+# MPPT SmartSolar (or BlueSolar) - provides solar_power (W), yield, charge state
+mppt_address  =
+mppt_key      =
+
+# Seconds between UI broadcasts even if values haven't changed much
+scan_interval = 2
+
+# Seconds without a BLE advert before a device is marked stale/offline in the UI.
+# Victron Instant Readout can gap for minutes (range, interference, low solar) — keep this generous.
+stale_timeout = 600
+
+
+# =============================================================================
+# TOAST NOTIFICATIONS
+# =============================================================================
+
+[toasts]
+# Default display duration for normal toasts (milliseconds)
+default_duration = 5000
+
+# How long error toasts stay on screen (milliseconds)
+error_duration = 8000
+
+# How long warning toasts stay on screen (milliseconds)
+warning_duration = 6000
+
+# How long the rooftop tent safety warning toast stays visible before auto-clearing
+# (shown when someone tries to turn on the tent light while the tent is physically closed)
+rooftop_tent_safety_warning_timeout = 30
+
+
+# =============================================================================
+# UI / THEMES
+# =============================================================================
+[ui]
+# Default theme when active_theme.json is missing or invalid.
+# Should match one of your actual theme filenames (without .css)
+default_theme = base
+
+
+# =============================================================================
+# HOMEKIT
+# In-process HAP bridge. Off by default. Phone must be on van Wi-Fi.
+# Remote Siri needs a Home hub (HomePod / Apple TV) on this LAN.
+# Restart SCCS after changing this section.
+# =============================================================================
+
+[homekit]
+enabled = false
+name = SCCS
+# 8-digit Home app setup code. Generated on first enable if left blank.
+pin =
+port = 51826
+# Bind HAP + mDNS to the van LAN only — never 0.0.0.0 / WAN / USB hotspot.
+bind_address = 10.10.10.1
+persist_file = config/homekit.state
+low_battery_percent = 20
+
+
+# =============================================================================
+# MATTER / GOOGLE HOME
+# In-process-owned matter.js bridge. Off by default. Phone must be on van Wi-Fi.
+# Remote Gemini needs a Nest Hub / Nest Mini on this LAN.
+# Requires IPv6 link-local on the LAN (installer menu 6).
+# Restart SCCS after changing this section.
+# =============================================================================
+
+[matter]
+enabled = false
+name = SCCS
+port = 5540
+bind_address = 10.10.10.1
+persist_file = config/matter.state
+
+
+# =============================================================================
+# SONOS INTEGRATION
+# =============================================================================
+
+[sonos]
+# IP of the Pi interface on the Sonos LAN (avoids scanning the wrong NIC / WAN)
+interface_addr = 10.10.10.1
+
+# Preferred speaker name (partial match, case-insensitive)
+player_name =
+
+# If the preferred speaker is not found, automatically use the first available speaker?
+# Set to false if you only want to use the exact preferred speaker (useful if you have many Sonos devices)
+auto_select_first = true
+
+# How often the poller checks the current track/state (seconds)
+poll_interval = 3
+
+# Minimum time between full network discoveries (seconds)
+discovery_interval = 300
+
+# Timeout for discovery scan
+discovery_timeout = 8
+
+# Default volume when first connecting to a speaker (0-100)
+# Set to -1 to leave the speaker's current volume untouched
+default_volume = -1
+
+# =============================================================================
+# END OF CONFIGURATION
+# =============================================================================

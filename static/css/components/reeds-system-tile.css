@@ -1,0 +1,345 @@
+/* System tab — reed switch panel grid */
+
+#tile-reeds-system {
+    display: flex;
+    flex-direction: column;
+    min-height: var(--tile-min-height);
+    min-width: 0;
+}
+
+.reeds-system-tile__empty {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    line-height: 1.4;
+}
+
+.reeds-system-tile__body {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--space-system-body-gap);
+    min-width: 0;
+}
+
+.reeds-system-tile__summary {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding-bottom: var(--space-system-summary-pad);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.reeds-system-tile__headline {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    line-height: 1.25;
+    font-variant-numeric: tabular-nums;
+}
+
+.reeds-system-tile__detail {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-muted);
+    line-height: 1.35;
+}
+
+.reeds-system-tile__detail.is-warning {
+    color: var(--color-sun);
+}
+
+.reeds-system-tile__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(var(--system-card-min), 1fr));
+    gap: 0.75rem;
+    width: 100%;
+}
+
+.reeds-system-tile__card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    min-width: 0;
+    padding: 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: calc(var(--tile-radius) * 2 / 3);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-inset-highlight);
+}
+
+.reeds-system-tile__panel {
+    position: relative;
+    width: 100%;
+}
+
+.reeds-system-tile__frame {
+    container-type: inline-size;
+    position: relative;
+    aspect-ratio: 5 / 4;
+    padding: 0.45rem 0.45rem 0.45rem 0.65rem;
+    border-radius: calc(var(--tile-radius) * 0.35);
+    background: var(--color-device-frame);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+}
+
+.reeds-system-tile__gap {
+    position: absolute;
+    top: 0.55rem;
+    bottom: 0.55rem;
+    left: 0.55rem;
+    width: 3px;
+    border-radius: 2px;
+    background: transparent;
+    opacity: 0;
+    transition:
+        opacity var(--duration-fast) ease,
+        box-shadow var(--duration-fast) ease;
+}
+
+.reeds-system-tile__card.is-open .reeds-system-tile__gap {
+    opacity: 1;
+    background: var(--color-accent);
+    box-shadow: 0 0 12px var(--color-accent-glow);
+}
+
+.reeds-system-tile__leaf {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    border-radius: calc(var(--tile-radius) * 0.22);
+    background: color-mix(in srgb, var(--color-bg) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent);
+    color: var(--color-text-muted);
+    transform-origin: left center;
+    overflow: hidden;
+    transition:
+        transform var(--duration-fast) ease,
+        background var(--duration-fast) ease,
+        color var(--duration-fast) ease,
+        border-color var(--duration-fast) ease,
+        box-shadow var(--duration-fast) ease,
+        opacity var(--duration-fast) ease;
+}
+
+.reeds-system-tile__leaf i {
+    font-size: clamp(1.1rem, 20cqw, 2rem);
+}
+
+.reeds-system-tile__card.is-closed .reeds-system-tile__leaf {
+    transform: rotate(0deg);
+    background: color-mix(in srgb, var(--color-bg) 55%, transparent);
+    color: var(--color-text-muted);
+    opacity: 1;
+    box-shadow: none;
+}
+
+.reeds-system-tile__card.is-open .reeds-system-tile__leaf {
+    transform: rotate(-16deg);
+    background:
+        radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--color-accent) 28%, transparent), transparent 68%),
+        color-mix(in srgb, var(--color-bg) 92%, var(--color-accent));
+    border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
+    color: var(--color-accent);
+    opacity: 1;
+    box-shadow: inset 0 0 12px color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.reeds-system-tile__pin {
+    position: absolute;
+    top: -0.2rem;
+    right: -0.15rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--color-sun) 18%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-sun) 45%, transparent);
+    color: var(--color-sun);
+    font-size: var(--font-size-2xs);
+    line-height: 1;
+}
+
+.reeds-system-tile__status-badge {
+    margin: 0;
+    padding: 0.35rem 0.65rem;
+    border-radius: var(--radius-pill);
+    border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+    background: color-mix(in srgb, var(--tile-bg) 88%, transparent);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    text-align: center;
+}
+
+.reeds-system-tile__status-badge.is-open {
+    border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
+    color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.reeds-system-tile__title {
+    margin: 0;
+    overflow: hidden;
+    font-size: var(--font-size-title);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    line-height: 1.25;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.reeds-system-tile__segmented {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--color-border);
+    border-radius: calc(var(--tile-radius) * 0.3);
+    background: var(--color-surface-inset);
+}
+
+html.light .reeds-system-tile__segmented {
+    background: var(--color-surface-inset-light);
+}
+
+.reeds-system-tile__segment {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    min-height: calc(var(--size-mode-btn-height) - 8px);
+    padding: 0 0.35rem;
+    border: none;
+    border-radius: calc(var(--tile-radius) * 0.22);
+    background: transparent;
+    color: var(--color-text-muted);
+    font: inherit;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.2;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition:
+        background var(--duration-fast) ease,
+        color var(--duration-fast) ease,
+        transform var(--duration-fast) ease;
+}
+
+.reeds-system-tile__segment:hover {
+    color: var(--color-text);
+    background: var(--color-surface-active);
+}
+
+.reeds-system-tile__segment.is-selected {
+    background: var(--color-accent);
+    color: var(--color-text-on-accent);
+}
+
+.reeds-system-tile__card.is-closed .reeds-system-tile__segment[data-reed-action="closed"].is-selected {
+    background: var(--color-surface-active);
+    color: var(--color-text);
+}
+
+.reeds-system-tile__footer {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.1rem;
+}
+
+.reeds-system-tile__source {
+    display: flex;
+    flex-direction: column;
+    gap: 0.12rem;
+    min-width: 0;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-muted);
+    line-height: 1.25;
+}
+
+.reeds-system-tile__source-primary,
+.reeds-system-tile__source-secondary {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.reeds-system-tile__source-secondary {
+    font-size: var(--font-size-2xs);
+    color: var(--color-text-muted);
+}
+
+.reeds-system-tile__source.is-override .reeds-system-tile__source-primary {
+    color: var(--color-sun);
+}
+
+.reeds-system-tile__clear {
+    flex-shrink: 0;
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition:
+        border-color var(--duration-fast) ease,
+        color var(--duration-fast) ease,
+        background var(--duration-fast) ease;
+}
+
+.reeds-system-tile__clear:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--color-sun) 55%, transparent);
+    color: var(--color-sun);
+    background: color-mix(in srgb, var(--color-sun) 10%, transparent);
+}
+
+.reeds-system-tile__segment:active {
+    transform: scale(0.98);
+}
+
+.reeds-system-tile__clear:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+@media (max-width: 30rem) {
+    .reeds-system-tile__grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .reeds-system-tile__leaf,
+    .reeds-system-tile__gap,
+    .reeds-system-tile__segment {
+        transition: none;
+    }
+
+    .reeds-system-tile__segment:active {
+        transform: none;
+    }
+}

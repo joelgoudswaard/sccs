@@ -1,0 +1,197 @@
+/* Appearance tile — theme preview, picker, and colour scheme */
+
+#tile-appearance,
+#tile-appearance-system {
+    display: flex;
+    flex-direction: column;
+    min-height: var(--tile-min-height);
+    height: 100%;
+    min-width: 0;
+}
+
+#tile-appearance .tile__label,
+#tile-appearance-system .tile__label {
+    flex-shrink: 0;
+    line-height: 1.2;
+}
+
+.appearance-tile__body {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.55rem;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+}
+
+.appearance-tile__field {
+    display: block;
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+}
+
+.appearance-tile__select {
+    display: block;
+    width: 100%;
+    min-height: calc(var(--size-mode-btn-height) - 4px);
+    padding: 0 1.35rem 0 0.55rem;
+    border: 1px solid var(--color-border);
+    border-radius: calc(var(--tile-radius) * 0.35);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    font-size: var(--font-size-title);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-title);
+    cursor: pointer;
+    appearance: none;
+    background-image:
+        linear-gradient(45deg, transparent 50%, var(--color-text-muted) 50%),
+        linear-gradient(135deg, var(--color-text-muted) 50%, transparent 50%);
+    background-position:
+        calc(100% - 10px) calc(50% - 3px),
+        calc(100% - 6px) calc(50% - 3px);
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition:
+        background-color var(--duration-fast) ease,
+        border-color var(--duration-fast) ease,
+        color var(--duration-fast) ease;
+}
+
+html.dark .appearance-tile__select {
+    color-scheme: dark;
+}
+
+html.light .appearance-tile__select {
+    color-scheme: light;
+}
+
+.appearance-tile__select:hover {
+    border-color: var(--color-accent-border);
+    background-color: var(--color-surface-active);
+}
+
+.appearance-tile__select:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px var(--color-accent-glow);
+}
+
+.appearance-tile__checkbox {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: 0.45rem;
+    min-width: 0;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-muted);
+    line-height: 1.25;
+    cursor: pointer;
+    user-select: none;
+}
+
+.appearance-tile__checkbox input {
+    flex-shrink: 0;
+    width: 0.95rem;
+    height: 0.95rem;
+    margin: 0;
+    accent-color: var(--color-accent);
+    cursor: pointer;
+}
+
+.appearance-tile__footer {
+    display: flex;
+    flex-shrink: 0;
+    width: 100%;
+    margin-top: auto;
+    padding-top: 0.15rem;
+}
+
+.appearance-tile__segmented {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px;
+    width: 100%;
+    padding: 2px;
+    border: 1px solid var(--color-border);
+    border-radius: calc(var(--tile-radius) * 0.35);
+    background: var(--color-surface-inset);
+}
+
+html.light .appearance-tile__segmented {
+    background: var(--color-surface-inset-light);
+}
+
+.appearance-tile__segment.mode-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    width: 100%;
+    min-height: calc(var(--size-mode-btn-height) - 8px);
+    height: auto;
+    padding: 0 0.45rem;
+    border: none;
+    border-radius: calc(var(--tile-radius) * 0.28);
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    white-space: nowrap;
+}
+
+.appearance-tile__segment.mode-btn .mode-btn__icon {
+    font-size: 0.72rem;
+    line-height: 1;
+    color: inherit;
+    opacity: 0.85;
+}
+
+.appearance-tile__segment.mode-btn[data-mode="dark"] .mode-btn__icon {
+    color: var(--color-moon);
+}
+
+.appearance-tile__segment.mode-btn[data-mode="light"] .mode-btn__icon {
+    color: var(--color-sun);
+}
+
+.appearance-tile__segment.mode-btn:hover {
+    color: var(--color-text);
+    background: var(--color-surface-active);
+    border-color: transparent;
+}
+
+.appearance-tile__segment.mode-btn.active {
+    background: var(--color-accent);
+    border-color: transparent;
+    color: var(--color-text-on-accent);
+}
+
+.appearance-tile__segment.mode-btn.active .mode-btn__icon {
+    color: inherit;
+    opacity: 1;
+}
+
+.appearance-tile__segment.mode-btn:active {
+    transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .appearance-tile__segment.mode-btn {
+        transition: none;
+    }
+
+    .appearance-tile__segment.mode-btn:active {
+        transform: none;
+    }
+}

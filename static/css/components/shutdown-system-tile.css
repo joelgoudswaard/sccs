@@ -1,0 +1,141 @@
+/* System tab — host and touchscreen shutdown */
+
+#tile-shutdown-system {
+    display: flex;
+    flex-direction: column;
+    min-height: var(--tile-min-height);
+    min-width: 0;
+}
+
+.shutdown-system-tile__body {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--space-system-body-gap);
+    min-width: 0;
+}
+
+.shutdown-system-tile__summary {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding-bottom: var(--space-system-summary-pad);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.shutdown-system-tile__headline {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    line-height: 1.25;
+}
+
+.shutdown-system-tile__detail {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-muted);
+    line-height: 1.35;
+}
+
+.shutdown-system-tile__detail.is-warning {
+    color: var(--color-sun);
+}
+
+.shutdown-system-tile__targets {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.shutdown-system-tile__target {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: calc(var(--tile-radius) * 2 / 3);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-inset-highlight);
+}
+
+.shutdown-system-tile__target.is-offline {
+    border-color: color-mix(in srgb, var(--color-status-offline) 35%, var(--color-border));
+}
+
+.shutdown-system-tile__target-icon {
+    flex-shrink: 0;
+    width: 1.1rem;
+    font-size: 1rem;
+    color: var(--color-text-muted);
+    text-align: center;
+}
+
+.shutdown-system-tile__target-copy {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.shutdown-system-tile__target-label {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    line-height: 1.25;
+}
+
+.shutdown-system-tile__target-detail {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-muted);
+    line-height: 1.3;
+}
+
+.shutdown-system-tile__target.is-offline .shutdown-system-tile__target-detail {
+    color: var(--color-status-offline-text);
+}
+
+.shutdown-system-tile__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border: 1px solid color-mix(in srgb, var(--color-status-offline) 45%, var(--color-border));
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--color-status-offline) 12%, var(--color-surface));
+    color: var(--color-status-offline-text);
+    font: inherit;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    touch-action: manipulation;
+    transition:
+        background var(--duration-fast) ease,
+        border-color var(--duration-fast) ease,
+        color var(--duration-fast) ease,
+        opacity var(--duration-fast) ease;
+}
+
+.shutdown-system-tile__btn:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--color-status-offline) 65%, var(--color-border));
+    background: color-mix(in srgb, var(--color-status-offline) 18%, var(--color-surface));
+}
+
+.shutdown-system-tile__btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+#tile-shutdown-system.is-shutting-down .shutdown-system-tile__btn {
+    cursor: wait;
+}

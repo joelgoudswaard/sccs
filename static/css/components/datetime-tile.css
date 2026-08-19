@@ -1,0 +1,216 @@
+/* Date & time tile — sun/moon arc, clock, sunrise/sunset */
+
+#tile-datetime {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-datetime-gap);
+    width: 100%;
+    min-width: 0;
+    min-height: var(--tile-min-height);
+    height: 100%;
+    overflow: visible;
+}
+
+.datetime-tile__body {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+}
+
+.datetime-tile__main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--space-datetime-gap);
+    min-height: 0;
+}
+
+.datetime-tile__date {
+    font-size: var(--font-size-datetime-date);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    line-height: 1.2;
+}
+
+.datetime-tile__curve-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-datetime-phase-gap);
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding-top: var(--space-datetime-curve-pad-y);
+    padding-bottom: var(--space-datetime-curve-pad-y);
+}
+
+.datetime-tile__curve-wrap {
+    display: flex;
+    flex: 0 1 var(--size-datetime-curve-width);
+    align-items: flex-start;
+    width: var(--size-datetime-curve-width);
+    max-width: 58%;
+    min-width: 0;
+    height: var(--size-datetime-curve-height);
+    overflow: visible;
+}
+
+.datetime-tile__phases {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-datetime-gap);
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.datetime-tile__phase-line {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 0.75em;
+    align-items: center;
+    margin: 0;
+    font-size: var(--font-size-title);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.35;
+    white-space: nowrap;
+}
+
+.datetime-tile__phase-label {
+    color: var(--color-text-muted);
+}
+
+.datetime-tile__phase-time {
+    color: var(--color-text);
+    text-align: right;
+    min-width: 0;
+    overflow-x: clip;
+    text-overflow: ellipsis;
+}
+
+.datetime-tile__curve {
+    position: relative;
+    width: 100%;
+    height: var(--size-datetime-curve-height);
+    overflow: visible;
+}
+
+.datetime-tile__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.datetime-tile__path {
+    fill: none;
+    stroke-linecap: round;
+    transition: stroke-opacity 1s ease-in-out;
+}
+
+.datetime-tile__path--day,
+.datetime-tile__path--night {
+    stroke: var(--color-accent);
+}
+
+.datetime-tile__path--day {
+    stroke-width: var(--stroke-datetime-day);
+}
+
+.datetime-tile__path--night {
+    stroke-width: var(--stroke-datetime-night);
+}
+
+.datetime-tile__glow,
+.datetime-tile__orb {
+    transition: fill var(--duration-fast) ease, opacity var(--duration-fast) ease;
+}
+
+.datetime-tile__orb--day {
+    fill: var(--color-sun);
+}
+
+.datetime-tile__glow--day {
+    fill: var(--color-sun);
+    opacity: var(--opacity-sun-glow);
+}
+
+.datetime-tile__orb--night {
+    fill: var(--color-moon);
+}
+
+.datetime-tile__glow--night {
+    fill: var(--color-moon);
+    opacity: var(--opacity-moon-glow);
+}
+
+.datetime-tile__path--day.is-active {
+    stroke-opacity: var(--opacity-datetime-day);
+}
+
+.datetime-tile__path--day.is-dim {
+    stroke-opacity: var(--opacity-datetime-day-dim);
+}
+
+.datetime-tile__path--night.is-active {
+    stroke-opacity: var(--opacity-datetime-night);
+}
+
+.datetime-tile__path--night.is-dim {
+    stroke-opacity: var(--opacity-datetime-night-dim);
+}
+
+.datetime-tile__footer {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-datetime-gap);
+    padding-top: var(--space-datetime-footer-pad);
+    border-top: 1px solid var(--color-border);
+}
+
+.datetime-tile__sun-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-nav-icon-gap);
+    flex: 0 0 auto;
+    font-size: var(--font-size-title);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text);
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.datetime-tile__sun-icon {
+    font-size: var(--font-size-title);
+    color: var(--color-sun);
+}
+
+.datetime-tile__moon-icon {
+    font-size: var(--font-size-title);
+    color: var(--color-text-label);
+}
+
+.datetime-tile__time {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: var(--font-size-datetime-time);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    text-align: center;
+    line-height: 1.2;
+    letter-spacing: 0.02em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .datetime-tile__path,
+    .datetime-tile__glow,
+    .datetime-tile__orb {
+        transition: none;
+    }
+}

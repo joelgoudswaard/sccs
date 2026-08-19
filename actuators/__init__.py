@@ -1,0 +1,1 @@
+"""Hardware actuators — dumb command executors."""

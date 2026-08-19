@@ -1,0 +1,285 @@
+/*
+ * SCCS Design Tokens
+ *
+ * THEME ARCHITECTURE:
+ *   - tokens.css  → canonical :root variable set (source of truth)
+ *   - base.css    → layout & components; must only reference var(--*)
+ *   - themes/*.css → override 8–15 semantic tokens per theme via [data-theme="name"]
+ *
+ * Sizing: fixed px values — nothing scales with viewport width.
+ *
+ * Naming:
+ *   --color-*     colours
+ *   --space-*     spacing
+ *   --size-*      fixed dimensions
+ *   --radius-*    border radii
+ *   --shadow-*    box shadows
+ *   --blur-*      backdrop-filter blur
+ *   --font-*      typography
+ *   --duration-*  transition durations
+ *   --ease-*      easing curves
+ *   --z-*         stacking order
+ */
+
+:root {
+    /* ── Accent ── */
+    --color-accent: #4fc3f7;
+    --color-accent-hover: #38bdf8;
+    --color-accent-deep: #0284c7;
+    --color-accent-light: rgba(125, 211, 252, 0.95);
+    --color-accent-glow: rgba(79, 195, 247, 0.35);
+    --color-accent-border: rgba(79, 195, 247, 0.25);
+
+    /* ── Backgrounds & surfaces ── */
+    --color-bg: #0a0a12;
+    --color-bg-elevated: rgba(14, 14, 22, 0.92);
+    --color-surface: rgba(24, 24, 38, 0.85);
+    --color-surface-active: rgba(40, 40, 60, 0.95);
+
+    /* ── Tiles (themes override these) ── */
+    --tile-bg: rgba(24, 24, 38, 0.85);
+    --tile-bg-hover: rgba(32, 32, 52, 0.92);
+    --tile-border: rgba(255, 255, 255, 0.1);
+    --tile-radius: 24px;
+    --tile-padding: 20px;
+    --tile-list-glow-bleed: 14px;
+    --tile-min-height: 150px;
+    --tile-shine: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, transparent 50%);
+    --tile-inner-border: rgba(255, 255, 255, 0.04);
+    --tile-shadow-drop: 0 14px 48px -12px rgba(0, 0, 0, 0.75);
+    --tile-shadow-inset-top: rgba(255, 255, 255, 0.08);
+    --tile-shadow-inset-bottom: rgba(0, 0, 0, 0.35);
+    --tile-hover-lift: -2px;
+    --shadow-dark: rgba(0, 0, 0, 0.55);
+    --shadow-light: rgba(255, 255, 255, 0.08);
+
+    /* ── Borders & highlights ── */
+    --color-border: rgba(255, 255, 255, 0.1);
+    --color-highlight-subtle: rgba(255, 255, 255, 0.04);
+
+    /* ── Text ── */
+    --color-text: #e8eaf0;
+    --color-text-muted: #8b93a8;
+    --color-text-label: #bae6fd;
+    --color-text-on-accent: #ffffff;
+
+    /* ── Shadows ── */
+    --shadow-inset-highlight: 0 1px 0 var(--color-highlight-subtle) inset;
+    --shadow-drop-sm: 0 4px 20px rgba(0, 0, 0, 0.35);
+    --shadow-drop-md: 0 4px 24px rgba(0, 0, 0, 0.4);
+    --shadow-accent-glow: 0 0 12px var(--color-accent-glow);
+
+    /* ── Effects ── */
+    --blur-header: blur(16px);
+    --blur-surface: blur(12px);
+    --blur-tile: blur(20px);
+
+    /* ── Layout (2560px viewport − 2× main horizontal padding) ── */
+    --size-content-max: 2520px;
+
+    /* ── Header & nav ── */
+    --size-header-height: 64px;
+    --size-nav-height: 56px;
+    --size-nav-icon: 18px;
+    --space-pill-pad-inset: 5px;
+    --space-nav-pad-y: 6px;
+    --space-pill-pad-x: 9px;
+    --line-height-nav: 1.45;
+    --space-nav-gap: 4px;
+    --space-nav-item-x: 14px;
+    --space-nav-icon-gap: 7px;
+    --font-size-nav-icon: 15px;
+    --line-height-title: 1.3;
+    --size-title-max: 340px;
+
+    /* ── Spacing ── */
+    --space-header-x: 20px;
+    --space-header-y: 10px;
+    --space-header-gap: 16px;
+    --space-main-y: 24px;
+    --space-main-x: 20px;
+    --space-main-bottom: 40px;
+    /* Horizontal bleed into outer padding so tile box-shadows are not clipped */
+    --content-shadow-bleed: 20px;
+    --space-heading-bottom: 8px;
+    --space-tile-gap: 16px;
+    --space-system-body-gap: 1rem;
+    --space-system-summary-pad: 0.75rem;
+    --space-span2-content-inline: clamp(2rem, 11vw, 4.75rem);
+
+    /* ── Mode buttons (appearance tile) ── */
+    --size-mode-btn-height: var(--size-nav-height);
+    --size-progress-bar: 8px;
+    --system-card-min: 9.5rem;
+    --space-mode-btn-gap: 8px;
+    --space-mode-btn-inset: 8px;
+    --space-mode-btn-x: 12px;
+
+    /* ── Radii ── */
+    --radius-pill: 9999px;
+    --radius-sm: calc(var(--tile-radius) * 0.35);
+
+    /* ── Typography ── */
+    --font-family: system-ui, -apple-system, sans-serif;
+    --font-size-root: 16px;
+
+    /* Type scale — all sizes derive from --font-size-root */
+    --font-size-2xs: calc(var(--font-size-root) * 0.65);   /* 10.4px */
+    --font-size-xs: calc(var(--font-size-root) * 0.625);   /* 10px */
+    --font-size-sm: calc(var(--font-size-root) * 0.8125);  /* 13px */
+    --font-size-md: var(--font-size-root);                 /* 16px */
+    --font-size-lg: calc(var(--font-size-root) * 1.125);   /* 18px */
+    --font-size-xl: calc(var(--font-size-root) * 1.5);     /* 24px */
+
+    /* Semantic aliases */
+    --font-size-body: var(--font-size-md);
+    --font-size-title: var(--font-size-sm);
+    --font-size-nav: var(--font-size-title);
+    --font-size-tile-label: calc(var(--font-size-root) * 0.85); /* 13.6px */
+    --letter-spacing-tile-label: 0.6px;
+    --opacity-tile-label: 0.9;
+    --font-size-tile-value: var(--font-size-lg);
+    --font-size-datetime-time: var(--font-size-lg);
+    --font-size-datetime-date: var(--font-size-lg);
+    --font-size-tile-icon: var(--font-size-xl);
+
+    /* ── Surfaces & meters ── */
+    --color-surface-inset: rgba(0, 0, 0, 0.2);
+    --color-surface-inset-light: rgba(0, 0, 0, 0.04);
+    --color-device-frame: rgba(0, 0, 0, 0.28);
+    --color-overlay-scrim: rgba(0, 0, 0, 0.72);
+    --color-metric-surface: rgba(0, 0, 0, 0.14);
+    --color-meter-warm-start: #d97706;
+    --color-meter-warm-mid: #f59e0b;
+    --color-meter-warm-end: #fcd34d;
+    --color-meter-hot-start: #dc2626;
+    --color-meter-hot-end: #fca5a5;
+    --color-phase-night-start: #475569;
+    --color-phase-night-end: #64748b;
+
+    /* ── Date/time tile ── */
+    --color-sun: #fbbf24;
+    --color-sun-glow: rgba(251, 191, 36, 0.28);
+    --opacity-sun-glow: 0.28;
+    --color-moon: #e2e8f0;
+    --color-moon-glow: rgba(226, 232, 240, 0.45);
+    --opacity-moon-glow: 0.45;
+    --space-datetime-gap: 2px;
+    --space-datetime-phase-gap: 12px;
+    --space-datetime-curve-pad-y: 1.2em;
+    --space-datetime-footer-pad: 10px;
+    --space-datetime-pad-y: 12px;
+    --size-datetime-curve-height: 52px;
+    --size-datetime-curve-width: 240px;
+    --size-sun-orb: 10.5px;
+    --size-sun-glow: 15.5px;
+    --stroke-datetime-day: 3.5px;
+    --stroke-datetime-night: 3px;
+    --opacity-datetime-day: 0.85;
+    --opacity-datetime-night: 0.6;
+    --opacity-datetime-day-dim: 0.1;
+    --opacity-datetime-night-dim: 0.1;
+    --font-size-heading: var(--font-size-xl);
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --line-height-base: 1.5;
+
+    /* ── Motion ── */
+    --duration-fast: 0.2s;
+    --duration-nav: 0.25s;
+    --duration-page-fade: 0.45s;
+    --duration-tile-list-fade: 1s;
+    /* Bug-mode UI colour crossfade; matches lighting.ui_ramp_time_ms in sccs.conf */
+    --duration-bug-mode-crossfade: 1s;
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* ── Status indicators ── */
+    --color-status-online: #22c55e;
+    --color-status-online-text: #4ade80;
+    --color-status-offline: #ef4444;
+    --color-status-offline-text: #f87171;
+    --color-status-online-glow: rgba(34, 197, 94, 0.45);
+    --color-status-offline-glow: rgba(239, 68, 68, 0.35);
+    --size-status-dot: 8px;
+
+    /* ── Focus rings ── */
+    --focus-ring-width: 2px;
+    --focus-ring-offset: 2px;
+
+    /* ── Toasts ── */
+    --toast-success: #10b981;
+    --toast-error: #f43f5e;
+    --toast-warning: #fbbf24;
+    --toast-info: #38bdf8;
+    --toast-text: #ffffff;
+
+    /* ── Z-index ── */
+    --z-header: 100;
+    --z-nav-item: 1;
+    --z-offline: 5000;
+    --z-dialog: 6000;
+    --z-toast: 10000;
+
+    /* ── Lighting controls ── */
+    --color-slider-bg: rgba(148, 163, 184, 0.25);
+    --color-toggle-handle: rgba(241, 245, 249, 0.98);
+    --color-accent-glow-strong: rgba(79, 195, 247, 0.9);
+    --color-bug: #e11d48;
+    --color-bug-glow: rgba(225, 29, 72, 0.9);
+    --color-bug-gradient-start: #f43f5e;
+    --color-bug-gradient-end: #fb7185;
+    --color-bug-mode-glow: rgba(225, 29, 72, 0.25);
+    --color-slider-thumb-inner-light: rgba(255, 255, 255, 0.55);
+    --color-slider-thumb-inner-dark: rgba(0, 0, 0, 0.6);
+}
+
+@media (min-width: 64rem) {
+    :root {
+        --size-nav-max: 36rem;
+    }
+}
+
+/* 9-col layout @ 16px root → 157.5rem; content max snaps columns to whole px */
+@media (min-width: 157.5625rem) {
+    :root {
+        /* (max − 2×main-x − 8×gap) / 9 → 258px columns */
+        --size-content-max: 2522px;
+        --space-tile-gap: 20px;
+        --tile-padding: 24px;
+        --tile-min-height: 168px;
+        --size-datetime-curve-width: 280px;
+        --size-nav-max: 42rem;
+    }
+}
+
+/* ── Light mode (class toggled on <html> by dark-mode.js) ── */
+html.light {
+    --color-bg: #f5f5f5;
+    --color-bg-elevated: rgba(255, 255, 255, 0.94);
+    --color-surface: rgba(248, 248, 248, 0.88);
+    --color-surface-active: rgba(255, 255, 255, 0.95);
+    --color-border: rgba(203, 213, 225, 0.65);
+    --color-highlight-subtle: rgba(0, 0, 0, 0.04);
+
+    --color-text: #1e2937;
+    --color-text-muted: #64748b;
+    --color-text-label: #0e7490;
+
+    --tile-bg: rgba(255, 255, 255, 0.9);
+    --tile-bg-hover: rgba(255, 255, 255, 0.95);
+    --tile-border: rgba(203, 213, 225, 0.65);
+    --tile-shine: linear-gradient(135deg, rgba(255, 255, 255, 0.45) 0%, transparent 50%);
+    --tile-inner-border: rgba(0, 0, 0, 0.04);
+    --tile-shadow-drop: 0 8px 25px -8px rgba(0, 0, 0, 0.12);
+    --tile-shadow-inset-top: rgba(255, 255, 255, 0.45);
+    --tile-shadow-inset-bottom: rgba(0, 0, 0, 0.14);
+    --shadow-dark: rgba(0, 0, 0, 0.14);
+    --shadow-light: rgba(255, 255, 255, 0.75);
+
+    --shadow-drop-sm: 0 4px 20px rgba(0, 0, 0, 0.12);
+    --shadow-drop-md: 0 8px 25px -8px rgba(0, 0, 0, 0.12);
+
+    --color-surface-inset: rgba(0, 0, 0, 0.04);
+    --color-device-frame: rgba(0, 0, 0, 0.06);
+    --color-metric-surface: rgba(0, 0, 0, 0.03);
+}

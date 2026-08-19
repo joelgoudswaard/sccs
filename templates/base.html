@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="neuglass">
+<head>
+    <style id="sccs-boot-hide">html:not(.theme-ready){visibility:hidden}</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="format-detection" content="telephone=no">
+    <title>The Singularity Camper Control System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='fontawesome/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/themes/neuglass.css') }}" data-theme-link="true">
+    <script>
+        (function () {
+            var html = document.documentElement;
+            var themeBase = {{ url_for('static', filename='css/themes/') | tojson }};
+            window.SCCS = window.SCCS || {};
+            window.SCCS.developmentMode = {{ development_mode | default(false) | tojson }};
+            try {
+                var mode = localStorage.getItem('sccs-color-mode');
+                html.classList.add(mode === 'light' ? 'light' : 'dark');
+
+                var theme = localStorage.getItem('sccs-theme') || 'neuglass';
+                html.setAttribute('data-theme', theme);
+                if (theme !== 'neuglass') {
+                    document.querySelector('link[data-theme-link]')?.remove();
+                    var link = document.createElement('link');
+                    link.rel = 'stylesheet';
+                    link.href = themeBase + theme + '.css';
+                    link.setAttribute('data-theme-link', 'true');
+                    document.head.appendChild(link);
+                }
+            } catch (e) { /* ignore private browsing */ }
+
+            /* Failsafe: never leave the page blank if boot.js fails to load (e.g. static 404). */
+            setTimeout(function () {
+                html.classList.add('theme-ready');
+            }, 1600);
+        })();
+    </script>
+    <noscript>
+        <style>html{visibility:visible!important}</style>
+    </noscript>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon/favicon.ico') }}?v=sccs1">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon/sccs-16.png') }}?v=sccs1">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon/sccs-32.png') }}?v=sccs1">
+    <link rel="icon" type="image/png" sizes="48x48" href="{{ url_for('static', filename='favicon/sccs-48.png') }}?v=sccs1">
+    <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='favicon/sccs-64.png') }}?v=sccs1">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='favicon/sccs-180.png') }}?v=sccs1">
+    <link rel="manifest" href="{{ url_for('static', filename='favicon/site.webmanifest') }}?v=sccs1">
+
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <div id="offline-overlay"
+         class="offline-overlay is-hidden"
+         hidden
+         role="alertdialog"
+         aria-modal="true"
+         aria-labelledby="offline-title"
+         aria-describedby="offline-detail"
+         aria-hidden="true">
+        <div class="offline-overlay__banner" id="offline-banner">
+            <i class="fa-solid fa-circle-exclamation offline-overlay__icon" aria-hidden="true"></i>
+            <div class="offline-overlay__text">
+                <p class="offline-overlay__title" id="offline-title">System Offline</p>
+                <p class="offline-overlay__detail" id="offline-detail">Waiting to reconnect…</p>
+            </div>
+            <div class="offline-overlay__spinner" aria-hidden="true"></div>
+        </div>
+    </div>
+
+    <div id="shutdown-confirm-dialog"
+         class="confirm-dialog is-hidden"
+         hidden
+         role="alertdialog"
+         aria-modal="true"
+         aria-labelledby="shutdown-confirm-title"
+         aria-describedby="shutdown-confirm-message"
+         aria-hidden="true">
+        <div class="confirm-dialog__panel">
+            <div class="confirm-dialog__header">
+                <i class="fa-solid fa-power-off confirm-dialog__icon" aria-hidden="true"></i>
+                <div class="confirm-dialog__copy">
+                    <p class="confirm-dialog__title" id="shutdown-confirm-title">Shut down all devices?</p>
+                    <p class="confirm-dialog__message" id="shutdown-confirm-message">
+                        This will power off SCCS Core and all configured touchscreens. This cannot be undone.
+                    </p>
+                </div>
+            </div>
+            <ul class="confirm-dialog__targets" id="shutdown-confirm-targets" aria-label="Devices to shut down"></ul>
+            <div class="confirm-dialog__actions">
+                <button type="button" class="confirm-dialog__cancel" id="shutdown-confirm-cancel">Cancel</button>
+                <button type="button" class="confirm-dialog__confirm" id="shutdown-confirm-confirm">Shut down</button>
+            </div>
+        </div>
+    </div>
+
+    <header class="site-header">
+        <div class="site-header__inner">
+            <div class="site-title-track">
+                <svg class="site-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="36" height="36" aria-hidden="true">
+                    <circle cx="50" cy="50" r="34" fill="none" stroke="#c7c7c7" stroke-width="1" stroke-dasharray="2 4"></circle>
+                    <circle cx="50.00" cy="16.00" r="6.4" fill="currentColor"></circle>
+                    <circle cx="79.44" cy="33.00" r="6.4" fill="#9a9a9a"></circle>
+                    <circle cx="79.44" cy="67.00" r="6.4" fill="currentColor"></circle>
+                    <circle cx="50.00" cy="84.00" r="6.4" fill="#9a9a9a"></circle>
+                    <circle cx="20.56" cy="67.00" r="6.4" fill="currentColor"></circle>
+                    <circle cx="20.56" cy="33.00" r="6.4" fill="#9a9a9a"></circle>
+                    <circle cx="50" cy="50" r="13" fill="currentColor"></circle>
+                </svg>
+                <div class="site-title-lockup">
+                    <span class="site-title-line1">Singularity</span>
+                    <span class="site-title-line2">Camper Control System</span>
+                </div>
+            </div>
+            <nav class="nav-pill" role="tablist" aria-label="Main navigation">
+                <span class="nav-pill__indicator" aria-hidden="true"></span>
+                {% for item in nav_items %}
+                <button type="button"
+                        id="nav-{{ item.id }}"
+                        class="nav-pill__item{% if active_page == item.id %} active{% endif %}"
+                        role="tab"
+                        aria-selected="{{ 'true' if active_page == item.id else 'false' }}"
+                        data-section="{{ item.id }}">
+                    <i class="fa-solid {{ item.icon }}" aria-hidden="true"></i>
+                    <span>{{ item.label }}</span>
+                </button>
+                {% endfor %}
+            </nav>
+            <button type="button"
+                    class="fullscreen-btn"
+                    id="fullscreen-btn"
+                    aria-label="Enter fullscreen"
+                    aria-pressed="false">
+                <i id="fullscreen-icon" class="fa-solid fa-expand" aria-hidden="true"></i>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <div id="toast-container" aria-live="polite" aria-relevant="additions"></div>
+
+    <script src="{{ url_for('static', filename='js/boot.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/theme-manager.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dark-mode.js') }}"></script>
+    <script src="{{ url_for('static', filename='nav.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/fullscreen.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

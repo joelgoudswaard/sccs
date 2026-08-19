@@ -1,0 +1,280 @@
+/* Obsidian */
+/*
+ * True-black OLED with cold steel-blue accents — Minimal's icy sibling.
+ * Austere, near-monochrome, no backdrop blur, no canvas flair.
+ */
+
+[data-theme="obsidian"] {
+    --color-accent: #94a3b8;
+    --color-accent-hover: #cbd5e1;
+    --color-accent-deep: #64748b;
+    --color-accent-glow: rgba(148, 163, 184, 0.38);
+    --color-accent-border: rgba(148, 163, 184, 0.34);
+    --color-accent-glow-strong: rgba(203, 213, 225, 0.55);
+
+    --color-bg: #000000;
+    --color-bg-elevated: rgba(8, 10, 14, 0.88);
+    --color-surface: rgba(14, 16, 22, 0.96);
+    --color-surface-active: rgba(18, 20, 28, 0.98);
+
+    --color-border: rgba(148, 163, 184, 0.14);
+    --color-highlight-subtle: rgba(255, 255, 255, 0.025);
+
+    --color-text: #f1f5f9;
+    --color-text-muted: #6b7a8f;
+    --color-text-label: #b8c5d6;
+    --color-text-on-accent: #0a0e14;
+
+    --tile-bg: rgba(8, 10, 14, 0.86);
+    --tile-bg-hover: rgba(18, 22, 30, 0.82);
+    --tile-border: rgba(148, 163, 184, 0.12);
+    --tile-shine: none;
+    --tile-inner-border: rgba(255, 255, 255, 0.04);
+    --tile-shadow-drop: 0 14px 48px -12px rgba(0, 0, 0, 0.78);
+    --tile-shadow-inset-top: rgba(255, 255, 255, 0.09);
+    --tile-shadow-inset-bottom: rgba(0, 0, 0, 0.38);
+    --tile-hover-lift: -1px;
+    --tile-radius: 18px;
+
+    --shadow-dark: rgba(0, 0, 0, 0.78);
+    --shadow-light: rgba(255, 255, 255, 0.03);
+    --shadow-drop-sm: 0 4px 16px rgba(0, 0, 0, 0.48);
+    --shadow-drop-md: 0 6px 20px rgba(0, 0, 0, 0.52);
+
+    --color-slider-bg: rgba(40, 48, 60, 0.32);
+    --color-toggle-handle: #f8fafc;
+    --color-bug-glow: rgba(225, 29, 72, 0.88);
+
+    --blur-header: none;
+    --blur-surface: none;
+    --blur-tile: none;
+}
+
+html.light[data-theme="obsidian"] {
+    --color-bg: #f8fafc;
+    --color-bg-elevated: rgba(255, 255, 255, 0.94);
+    --color-surface: rgba(248, 250, 252, 0.96);
+    --color-surface-active: rgba(255, 255, 255, 0.98);
+    --color-border: rgba(100, 116, 139, 0.32);
+
+    --color-text: #0f172a;
+    --color-text-muted: #64748b;
+    --color-text-label: #475569;
+    --color-text-on-accent: #ffffff;
+
+    --color-accent: #64748b;
+    --color-accent-hover: #94a3b8;
+    --color-accent-deep: #475569;
+    --color-accent-glow: rgba(100, 116, 139, 0.32);
+    --color-accent-border: rgba(100, 116, 139, 0.3);
+    --color-accent-glow-strong: rgba(148, 163, 184, 0.42);
+
+    --tile-bg: rgba(255, 255, 255, 0.94);
+    --tile-bg-hover: rgba(255, 255, 255, 0.98);
+    --tile-border: rgba(148, 163, 184, 0.28);
+    --tile-inner-border: rgba(0, 0, 0, 0.04);
+    --tile-shadow-drop: 0 8px 24px -8px rgba(15, 23, 42, 0.1);
+    --tile-shadow-inset-top: rgba(255, 255, 255, 0.65);
+    --tile-shadow-inset-bottom: rgba(15, 23, 42, 0.06);
+
+    --color-slider-bg: rgba(226, 232, 240, 0.72);
+    --color-toggle-handle: #ffffff;
+}
+
+/* ── Flat OLED canvas ── */
+
+[data-theme="obsidian"] body {
+    background: #000000 !important;
+}
+
+html.light[data-theme="obsidian"] body {
+    background: #f8fafc !important;
+}
+
+[data-theme="obsidian"] body::before,
+[data-theme="obsidian"] body::after {
+    background: none !important;
+    content: none !important;
+}
+
+/* ── Frosted-obsidian panels ── */
+
+[data-theme="obsidian"] .tile,
+[data-theme="obsidian"] .slider-card,
+[data-theme="obsidian"] .scene-btn,
+[data-theme="obsidian"] .nav-pill {
+    overflow: visible !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+[data-theme="obsidian"] .tile::before,
+[data-theme="obsidian"] .slider-card::before,
+[data-theme="obsidian"] .scene-btn::before,
+[data-theme="obsidian"] .nav-pill::before {
+    content: none !important;
+    display: none !important;
+}
+
+[data-theme="obsidian"] .tile::after,
+[data-theme="obsidian"] .slider-card::after,
+[data-theme="obsidian"] .scene-btn::after,
+[data-theme="obsidian"] .nav-pill::after {
+    content: none !important;
+    display: none !important;
+}
+
+[data-theme="obsidian"] .site-header::before {
+    border-bottom-color: rgba(148, 163, 184, 0.14);
+    box-shadow: 0 6px 22px -12px rgba(0, 0, 0, 0.6);
+}
+
+/* ── Sliders ── */
+
+[data-theme="obsidian"] .slider-track {
+    background: var(--color-slider-bg) !important;
+    border-radius: 9999px;
+    height: var(--size-progress-bar);
+    top: 50%;
+    transform: translateY(-50%);
+    box-shadow: none !important;
+}
+
+[data-theme="obsidian"] .slider-fill {
+    background: linear-gradient(to right, var(--color-accent-deep), var(--color-accent), var(--color-accent-hover)) !important;
+    box-shadow: 0 0 6px var(--color-accent-glow) !important;
+    height: var(--size-progress-bar);
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+[data-theme="obsidian"] .slider-thumb {
+    background: #ffffff !important;
+    border: 2.5px solid var(--color-accent) !important;
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.58),
+        0 0 0 3px rgba(148, 163, 184, 0.12) !important;
+    width: 64px;
+    height: 64px;
+}
+
+[data-theme="obsidian"] .slider-fill::after {
+    background: linear-gradient(to right, #e11d48, #f43f5e) !important;
+}
+
+[data-theme="obsidian"] .slider-fill.bug-mode {
+    box-shadow: 0 0 8px var(--color-bug-glow) !important;
+}
+
+[data-theme="obsidian"] .slider-thumb.bug-mode {
+    border-color: #e11d48 !important;
+}
+
+[data-theme="obsidian"] .slider-thumb::after {
+    box-shadow: 0 0 0 4px rgba(225, 29, 72, 0.22) !important;
+}
+
+/* ── Toggles ── */
+
+[data-theme="obsidian"] .toggle-pill,
+[data-theme="obsidian"] .relay-toggle,
+[data-theme="obsidian"] .bug-mode-chip {
+    background: rgba(14, 16, 22, 0.96) !important;
+    border: 1px solid rgba(148, 163, 184, 0.16) !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.42) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+html.light[data-theme="obsidian"] .toggle-pill,
+html.light[data-theme="obsidian"] .relay-toggle,
+html.light[data-theme="obsidian"] .bug-mode-chip {
+    background: #e2e8f0 !important;
+}
+
+[data-theme="obsidian"] .toggle-pill.on,
+[data-theme="obsidian"] .relay-toggle.on {
+    background: var(--color-accent) !important;
+    border-color: var(--color-accent-border) !important;
+    box-shadow: 0 0 10px var(--color-accent-glow-strong) !important;
+}
+
+[data-theme="obsidian"] .toggle-pill .toggle-knob,
+[data-theme="obsidian"] .relay-toggle .relay-knob {
+    background: var(--color-toggle-handle) !important;
+    border: 2px solid rgba(241, 245, 249, 0.88) !important;
+    box-shadow:
+        0 3px 8px rgba(0, 0, 0, 0.48),
+        inset 0 -2px 3px rgba(255, 255, 255, 0.55) !important;
+}
+
+html.light[data-theme="obsidian"] .toggle-pill .toggle-knob,
+html.light[data-theme="obsidian"] .relay-toggle .relay-knob {
+    border-color: var(--color-accent) !important;
+}
+
+[data-theme="obsidian"] .toggle-pill.on .toggle-knob,
+[data-theme="obsidian"] .relay-toggle.on .relay-knob {
+    border-color: #ffffff !important;
+    box-shadow:
+        0 3px 8px rgba(0, 0, 0, 0.48),
+        0 0 5px rgba(255, 255, 255, 0.55) !important;
+}
+
+[data-theme="obsidian"] .toggle-pill::after,
+[data-theme="obsidian"] .relay-toggle::after {
+    background: #e11d48 !important;
+}
+
+[data-theme="obsidian"] .toggle-pill.bug-mode.on,
+[data-theme="obsidian"] .relay-toggle.bug-mode.on,
+[data-theme="obsidian"] .bug-mode-chip.is-active {
+    box-shadow: 0 0 12px var(--color-bug-glow) !important;
+}
+
+[data-theme="obsidian"] .bug-mode-chip.is-active {
+    border-color: var(--color-bug) !important;
+}
+
+/* ── Icons & values ── */
+
+[data-theme="obsidian"] .tile__icon {
+    color: var(--color-accent-hover);
+    filter: drop-shadow(0 0 4px var(--color-accent-glow));
+}
+
+[data-theme="obsidian"] .tile__value,
+[data-theme="obsidian"] .tile-value {
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+[data-theme="obsidian"] .slider-card-title i {
+    filter: drop-shadow(0 0 4px var(--color-accent-glow));
+}
+
+/* ── Scenes & hover ── */
+
+[data-theme="obsidian"] .tile:hover,
+[data-theme="obsidian"] .slider-card:hover,
+[data-theme="obsidian"] .scene-btn:hover:not(.active) {
+    transform: translateY(-1px) !important;
+    border-color: rgba(148, 163, 184, 0.22) !important;
+}
+
+[data-theme="obsidian"] .scene-btn.active {
+    background: rgba(148, 163, 184, 0.1) !important;
+    color: var(--color-text) !important;
+    border-color: var(--color-accent) !important;
+    box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.22) !important;
+}
+
+[data-theme="obsidian"] .scene-btn.active i {
+    color: var(--color-accent-hover) !important;
+    filter: drop-shadow(0 0 4px var(--color-accent-glow));
+}
+
+[data-theme="obsidian"] .slider-card.rooftop-disabled {
+    filter: brightness(0.65) grayscale(0.6);
+    opacity: 0.74;
+}

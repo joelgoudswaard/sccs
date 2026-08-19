@@ -1,0 +1,14 @@
+// Allow SCCS (systemd service running as a netdev group member) to scan and
+// manage Wi-Fi via NetworkManager. This grants permission even without an
+// active desktop login session (which is the case for the background sccs
+// service).
+polkit.addRule(function(action, subject) {
+    if (subject.isInGroup("netdev")) {
+        if (action.id == "org.freedesktop.NetworkManager.network-control" ||
+            action.id == "org.freedesktop.NetworkManager.wifi.scan" ||
+            action.id == "org.freedesktop.NetworkManager.settings.modify.system" ||
+            action.id == "org.freedesktop.NetworkManager.settings.modify.own") {
+            return polkit.Result.YES;
+        }
+    }
+});

@@ -1,0 +1,148 @@
+/* Water tile — circular gauge with % inside, fills tile */
+
+#tile-water {
+    display: flex;
+    flex-direction: column;
+    min-height: var(--tile-min-height);
+    min-width: 0;
+    /* Clip the ring if a sibling tile (e.g. power) stretches the row taller
+       than this tile is wide — otherwise height:100% + aspect-ratio overflows. */
+    overflow: hidden;
+}
+
+#tile-water .tile__label {
+    flex-shrink: 0;
+    line-height: 1.2;
+    margin-bottom: 0;
+}
+
+#tile-water .water-tile__gauge-wrap {
+    position: relative;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 0;
+    min-width: 0;
+    padding-block: 4px;
+    overflow: hidden;
+    /* Size container so the gauge can use cqi/cqb for min(width, height). */
+    container-type: size;
+}
+
+#tile-water .water-tile__gauge {
+    --ring-circ: 326.726;
+    --water-level: 0;
+    position: relative;
+    display: grid;
+    place-items: center;
+    /* Fit the smaller of available width/height so a tall stretched row never
+       grows the circle past the tile edges (mid breakpoints: power text wrap). */
+    width: min(100%, 100cqi, 100cqb);
+    height: min(100%, 100cqi, 100cqb);
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: 1;
+    justify-self: center;
+    align-self: center;
+}
+
+/* Fallback when container queries are unavailable: width-bound square. */
+@supports not (width: 1cqi) {
+    #tile-water .water-tile__gauge {
+        width: 100%;
+        height: auto;
+        max-height: 100%;
+    }
+}
+
+#tile-water .water-tile__ring {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+    overflow: visible;
+}
+
+#tile-water .water-tile__ring-track,
+#tile-water .water-tile__ring-fill {
+    fill: none;
+    stroke-width: 9;
+}
+
+#tile-water .water-tile__ring-track {
+    stroke: var(--color-highlight-subtle);
+    stroke-linecap: round;
+}
+
+#tile-water .water-tile__ring-fill {
+    stroke: var(--color-accent);
+    stroke-linecap: butt;
+    stroke-dasharray: var(--ring-circ);
+    stroke-dashoffset: var(--ring-offset, var(--ring-circ));
+    filter: drop-shadow(0 0 8px var(--color-accent-glow));
+    transition:
+        stroke-dashoffset var(--duration-fast) var(--ease-standard),
+        stroke var(--duration-fast) ease,
+        filter var(--duration-fast) ease;
+}
+
+#tile-water .water-tile__readout {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+#tile-water .water-tile__percent {
+    margin: 0;
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+#tile-water .water-tile__litres {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-accent);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    text-shadow:
+        0 0 6px var(--color-accent-glow),
+        0 0 12px var(--color-accent-glow-strong);
+    transition:
+        color var(--duration-fast) ease,
+        text-shadow var(--duration-fast) ease;
+}
+
+/*
+ * Continuous low-water warn (JS sets --water-level-color / --water-level-glow):
+ *   >50%  normal accent
+ *   50→20% orange fading to red
+ *   ≤20%  full red
+ */
+#tile-water.is-level-warn .water-tile__ring-fill {
+    stroke: var(--water-level-color);
+    filter: drop-shadow(0 0 8px var(--water-level-glow));
+}
+
+#tile-water.is-level-warn .water-tile__litres {
+    color: var(--water-level-color);
+    text-shadow:
+        0 0 6px color-mix(in srgb, var(--water-level-color) 45%, transparent),
+        0 0 12px var(--water-level-glow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #tile-water .water-tile__ring-fill {
+        transition: none;
+    }
+}

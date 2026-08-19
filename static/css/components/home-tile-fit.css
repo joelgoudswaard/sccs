@@ -1,0 +1,9 @@
+/* Home layout fit for 1280×800 kiosk when content is shorter than the viewport */
+
+html.home-tile-fit-1280 main {
+    padding-bottom: 20px;
+}
+
+html.home-tile-fit-1280 #home .tile-grid > .tile {
+    min-height: 0;
+}

@@ -1,0 +1,422 @@
+<section id="home" class="page-section active" role="tabpanel" aria-labelledby="nav-home">
+    <div class="page-content">
+        <div class="tile-grid">
+            <article class="tile tile--span-2" id="tile-power">
+                <i class="fa-solid fa-bolt tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">Battery &amp; Solar</p>
+                <div class="power-tile__body">
+                    <div class="power-tile__hero">
+                        <div class="power-tile__metric">
+                            <span class="power-tile__metric-label">Battery</span>
+                            <span class="power-tile__metric-value" id="power-soc" aria-live="polite">—%</span>
+                        </div>
+                        <div class="power-tile__metric">
+                            <span class="power-tile__metric-label">Remaining</span>
+                            <span class="power-tile__metric-value" id="power-ttg">—</span>
+                        </div>
+                        <div class="power-tile__metric">
+                            <span class="power-tile__metric-label">Solar</span>
+                            <span class="power-tile__metric-value power-tile__metric-value--solar" id="power-solar">— A</span>
+                        </div>
+                        <div class="water-tile__gauge-wrap power-tile__gauge-wrap">
+                        <div
+                            class="water-tile__gauge"
+                            id="power-soc-gauge"
+                            role="meter"
+                            aria-valuemin="0"
+                            aria-valuemax="100"
+                            aria-valuenow="0"
+                            aria-label="Battery state of charge"
+                        >
+                            <div class="water-tile__gauge-track">
+                                <div class="water-tile__gauge-markers" aria-hidden="true">
+                                    <span></span><span></span><span></span>
+                                </div>
+                                <div class="water-tile__gauge-fill" id="power-soc-fill" style="--water-level: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="power-tile__marker-labels" aria-hidden="true">
+                            <span data-label="0"></span>
+                            <span data-label="25"></span>
+                            <span data-label="50"></span>
+                            <span data-label="75"></span>
+                            <span data-label="100"></span>
+                        </div>
+                        </div>
+                    </div>
+                    <div class="power-tile__footer">
+                        <div class="power-tile__meta">
+                            <i class="fa-solid fa-battery-half power-tile__meta-icon" aria-hidden="true"></i>
+                            <span class="power-tile__meta-label">Current</span>
+                            <span class="power-tile__meta-value" id="power-current">— A</span>
+                        </div>
+                        <p class="power-tile__voltage" id="power-voltage">— V / —°C</p>
+                        <div class="power-tile__meta">
+                            <i class="fa-solid fa-solar-panel power-tile__meta-icon power-tile__meta-icon--solar" aria-hidden="true"></i>
+                            <span class="power-tile__meta-label">Today</span>
+                            <span class="power-tile__meta-value" id="power-yield-today">— kWh</span>
+                        </div>
+                    </div>
+                </div>
+            </article>
+            <article class="tile" id="tile-water">
+                <i class="fa-solid fa-droplet tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">Water</p>
+                <div class="water-tile__gauge-wrap">
+                    <div
+                        class="water-tile__gauge"
+                        id="water-gauge"
+                        role="meter"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        aria-valuenow="0"
+                        aria-label="Fresh water tank level"
+                    >
+                        <svg class="water-tile__ring" viewBox="0 0 120 120" aria-hidden="true">
+                            <circle class="water-tile__ring-track" cx="60" cy="60" r="52"></circle>
+                            <circle class="water-tile__ring-fill" id="water-gauge-fill" cx="60" cy="60" r="52"></circle>
+                        </svg>
+                        <div class="water-tile__readout" aria-live="polite">
+                            <p class="water-tile__percent" id="water-percent">—%</p>
+                            <p class="water-tile__litres" id="water-litres" hidden>— L</p>
+                        </div>
+                    </div>
+                </div>
+            </article>
+            <article class="tile" id="tile-network">
+                <i class="fa-solid fa-wifi tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">Network</p>
+                <div class="network-tile__body">
+                    <div class="network-tile__status">
+                        <i class="fa-solid fa-globe network-tile__status-icon is-online" aria-hidden="true"></i>
+                        <span class="network-tile__status-text">—</span>
+                    </div>
+                    <p class="network-tile__iface">
+                        Via <span class="network-tile__iface-name">—</span>
+                    </p>
+                    <div class="network-tile__row network-tile__row--signal">
+                        <span class="network-tile__row-label">Signal:</span>
+                        <span class="network-tile__row-value">—</span>
+                    </div>
+                    <div class="network-tile__footer">
+                        <div class="network-tile__row network-tile__latency">
+                            <span class="network-tile__row-label">Latency</span>
+                            <span class="network-tile__row-value network-tile__ping">—</span>
+                        </div>
+                        <div class="network-tile__row network-tile__throughput" aria-label="Transfer rates">
+                            <span class="network-tile__row-label">Traffic</span>
+                            <span class="network-tile__row-value network-tile__throughput-values">
+                                <span class="network-tile__speed">↓—</span>
+                                <span class="network-tile__speed">↑—</span>
+                                <span class="network-tile__speed-unit">KB/s</span>
+                            </span>
+                        </div>
+                        <div class="network-tile__row network-tile__link-speed-row" hidden>
+                            <span class="network-tile__row-label">Link speed</span>
+                            <span class="network-tile__row-value network-tile__link-speed">—</span>
+                        </div>
+                    </div>
+                </div>
+            </article>
+            <article class="tile tile--span-2" id="tile-datetime">
+                <i class="fa-solid fa-clock tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">Date &amp; Time</p>
+                <div class="datetime-tile__body">
+                    <div class="datetime-tile__main">
+                        <p class="datetime-tile__date" id="tile-date">—</p>
+                        <div class="datetime-tile__curve-row">
+                            <div class="datetime-tile__curve-wrap">
+                                <div class="datetime-tile__curve" id="sun-curve">
+                                    <svg class="datetime-tile__svg" aria-hidden="true">
+                                        <path id="day-path" class="datetime-tile__path datetime-tile__path--day is-active"></path>
+                                        <path id="night-path" class="datetime-tile__path datetime-tile__path--night is-dim"></path>
+                                        <circle id="sun-glow" class="datetime-tile__glow datetime-tile__glow--day" r="15.5"></circle>
+                                        <circle id="sun-position" class="datetime-tile__orb datetime-tile__orb--day" r="10.5"></circle>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="datetime-tile__phases" aria-label="Lighting phase times">
+                                <p class="datetime-tile__phase-line">
+                                    <span class="datetime-tile__phase-label">Day:</span>
+                                    <span class="datetime-tile__phase-time" id="phase-day">—</span>
+                                </p>
+                                <p class="datetime-tile__phase-line">
+                                    <span class="datetime-tile__phase-label">Evening:</span>
+                                    <span class="datetime-tile__phase-time" id="phase-evening">—</span>
+                                </p>
+                                <p class="datetime-tile__phase-line">
+                                    <span class="datetime-tile__phase-label">Night:</span>
+                                    <span class="datetime-tile__phase-time" id="phase-night">—</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="datetime-tile__footer">
+                        <div class="datetime-tile__sun-meta">
+                            <i class="fa-solid fa-sun datetime-tile__sun-icon" aria-hidden="true"></i>
+                            <span class="datetime-tile__sun-time" id="sunrise">—</span>
+                        </div>
+                        <p class="datetime-tile__time" id="tile-time">—</p>
+                        <div class="datetime-tile__sun-meta">
+                            <i class="fa-solid fa-moon datetime-tile__moon-icon" aria-hidden="true"></i>
+                            <span class="datetime-tile__sun-time" id="sunset">—</span>
+                        </div>
+                    </div>
+                </div>
+            </article>
+            <article class="tile tile--span-2 tile--span-rows-2" id="tile-climate">
+                <i class="fa-solid fa-cloud tile__icon" id="climate-weather-icon" aria-hidden="true"></i>
+                <p class="tile__label">Weather</p>
+                <div class="climate-tile__body">
+                    <div class="climate-tile__head">
+                        <div class="climate-tile__temp-block">
+                            <p class="climate-tile__temp" id="temp-outside" aria-live="polite">—°C</p>
+                            <div class="climate-tile__detail">
+                                <p class="climate-tile__summary" id="weather-summary">—</p>
+                                <p class="climate-tile__daily-range" id="weather-daily-range-wrap" hidden>
+                                    <span class="climate-tile__daily-range-label">Today</span>
+                                    <span class="climate-tile__daily-range-value" id="weather-daily-range">—° – —°</span>
+                                </p>
+                                <p class="climate-tile__feels" id="weather-feels">Feels —°C</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="climate-tile__forecast" aria-label="24-hour temperature forecast">
+                        <div class="climate-tile__forecast-arc" id="weather-forecast-arc">
+                            <svg class="climate-tile__forecast-svg" aria-hidden="true">
+                                <g id="weather-forecast-grid" class="climate-tile__forecast-grid"></g>
+                                <line id="weather-forecast-now-line" class="climate-tile__forecast-now-line"></line>
+                                <path id="weather-forecast-path" class="climate-tile__forecast-path"></path>
+                                <circle id="weather-current-marker" class="climate-tile__forecast-marker" r="5"></circle>
+                            </svg>
+                            <span id="weather-forecast-tooltip" class="climate-tile__forecast-tooltip" role="tooltip" hidden></span>
+                            <div class="climate-tile__forecast-extrema" id="weather-forecast-extrema"></div>
+                            <div class="climate-tile__forecast-axis" id="weather-forecast-axis"></div>
+                        </div>
+                    </div>
+
+                    <div class="climate-tile__outlook" id="weather-outlook" aria-label="4-day forecast" hidden></div>
+
+                    <div class="climate-tile__cold-strip" id="climate-cold-strip" hidden>
+                        <div class="climate-tile__cold-item" id="climate-fridge-item" hidden>
+                            <i class="fa-solid fa-kitchen-set climate-tile__cold-icon" aria-hidden="true"></i>
+                            <span class="climate-tile__cold-label">Fridge</span>
+                            <span class="climate-tile__cold-temp" id="temp-fridge">—°C</span>
+                            <span class="climate-tile__cold-status" id="fridge-status">—</span>
+                        </div>
+                        <div class="climate-tile__cold-item" id="climate-freezer-item" hidden>
+                            <i class="fa-solid fa-icicles climate-tile__cold-icon climate-tile__cold-icon--freezer" aria-hidden="true"></i>
+                            <span class="climate-tile__cold-label">Freezer</span>
+                            <span class="climate-tile__cold-temp" id="temp-freezer">—°C</span>
+                        </div>
+                    </div>
+
+                    <div class="climate-tile__footer">
+                        <div class="climate-tile__meta" aria-label="Humidity">
+                            <i class="fa-solid fa-droplet climate-tile__meta-icon" aria-hidden="true"></i>
+                            <span class="climate-tile__meta-value" id="temp-humidity">—%</span>
+                        </div>
+                        <p class="climate-tile__hint" id="weather-hint" aria-live="polite">—</p>
+                        <div class="climate-tile__meta" aria-label="Tonight low">
+                            <i class="fa-solid fa-moon climate-tile__meta-icon climate-tile__meta-icon--moon" aria-hidden="true"></i>
+                            <span class="climate-tile__meta-value" id="weather-low-tonight">—°</span>
+                        </div>
+                    </div>
+                </div>
+            </article>
+            <article class="tile tile--span-2" id="tile-system">
+                <i class="fa-solid fa-microchip tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">System</p>
+                <div class="system-tile__body">
+                    <div class="system-tile__panel">
+                        <ul class="system-tile__modules" aria-label="Module connectivity">
+                            <li class="system-tile__module is-unknown" id="system-module-mppt">
+                                <span class="system-tile__icon" aria-hidden="true">
+                                    <i class="fa-solid fa-solar-panel"></i>
+                                </span>
+                                <span class="system-tile__name">Solar</span>
+                                <span class="system-tile__state" aria-live="polite">—</span>
+                            </li>
+                            <li class="system-tile__module is-unknown" id="system-module-shunt">
+                                <span class="system-tile__icon" aria-hidden="true">
+                                    <i class="fa-solid fa-battery-half"></i>
+                                </span>
+                                <span class="system-tile__name">Shunt</span>
+                                <span class="system-tile__state" aria-live="polite">—</span>
+                            </li>
+                            <li class="system-tile__module is-unknown" id="system-module-esp32">
+                                <span class="system-tile__icon" aria-hidden="true">
+                                    <i class="fa-solid fa-microchip"></i>
+                                </span>
+                                <span class="system-tile__name">Lighting</span>
+                                <span class="system-tile__state" aria-live="polite">—</span>
+                            </li>
+                            <li class="system-tile__module is-unknown" id="system-module-gps">
+                                <span class="system-tile__icon" aria-hidden="true">
+                                    <i class="fa-solid fa-satellite-dish"></i>
+                                </span>
+                                <span class="system-tile__name">GPS</span>
+                                <span class="system-tile__state" aria-live="polite">—</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="system-tile__panel system-tile__panel--aside">
+                        <dl class="system-tile__host" aria-label="Host stats">
+                            <div class="system-tile__stat">
+                                <dt class="system-tile__stat-label">CPU temp</dt>
+                                <dd class="system-tile__stat-value" id="system-core-temp" aria-live="polite">—°C</dd>
+                            </div>
+                            <div class="system-tile__stat">
+                                <dt class="system-tile__stat-label">Uptime</dt>
+                                <dd class="system-tile__stat-value" id="system-uptime" aria-live="polite">—</dd>
+                            </div>
+                            <div class="system-tile__stat">
+                                <dt class="system-tile__stat-label">CPU</dt>
+                                <dd class="system-tile__stat-value" id="system-cpu" aria-live="polite">—%</dd>
+                            </div>
+                            <div class="system-tile__stat">
+                                <dt class="system-tile__stat-label">Memory</dt>
+                                <dd class="system-tile__stat-value" id="system-memory" aria-live="polite">—%</dd>
+                            </div>
+                        </dl>
+                    </div>
+                </div>
+            </article>
+            <article class="tile" id="tile-gps">
+                <i class="fa-solid fa-location-dot tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">Location</p>
+                <div class="location-tile__body">
+                    <div class="location-tile__place">
+                        <p class="tile__value" id="gps-location">—</p>
+                        <p class="location-tile__coords" id="gps-coords">—</p>
+                        <p class="location-tile__altitude">
+                            <span class="location-tile__altitude-label">Altitude:</span>
+                            <span class="location-tile__altitude-value" id="gps-altitude">—</span>
+                        </p>
+                    </div>
+                    <div class="location-tile__footer">
+                        <div class="location-tile__meta">
+                            <i class="fa-solid fa-satellite-dish location-tile__meta-icon" aria-hidden="true"></i>
+                            <span class="location-tile__meta-label">Satellites:</span>
+                            <span class="location-tile__meta-value" id="gps-satellites">— / —</span>
+                        </div>
+                    </div>
+                </div>
+            </article>
+            <article class="tile" id="tile-lighting-home">
+                <i class="fa-solid fa-lightbulb tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">Lighting</p>
+                <div class="lighting-home-tile__body">
+                    <p class="lighting-home-tile__placeholder is-visible" id="lighting-home-placeholder">Loading lights…</p>
+                    <p class="lighting-home-tile__empty" id="lighting-home-empty" aria-hidden="true">All off</p>
+                    <ul class="lighting-home-tile__list" id="lighting-home-list" aria-label="Active lights"></ul>
+                </div>
+            </article>
+            <article class="tile tile--span-2" id="tile-sonos">
+                <div class="sonos-tile__top">
+                    <div class="sonos-tile__meta">
+                        <p class="tile__label" id="sonos-tile-label">Sonos</p>
+                        <div class="sonos-tile__now-playing">
+                            <p class="sonos-tile__track" id="sonos-track"><span class="sonos-tile__marquee-text">—</span></p>
+                            <p class="sonos-tile__artist" id="sonos-artist"><span class="sonos-tile__marquee-text">—</span></p>
+                        </div>
+                    </div>
+                    <img
+                        class="sonos-tile__art"
+                        id="sonos-art"
+                        alt=""
+                        width="76"
+                        height="76"
+                        decoding="async"
+                        hidden
+                    >
+                </div>
+                <div class="sonos-tile__body">
+                    <div class="sonos-tile__progress">
+                        <div
+                            class="sonos-tile__progress-bar"
+                            id="sonos-progress"
+                            role="progressbar"
+                            aria-valuemin="0"
+                            aria-valuemax="100"
+                            aria-valuenow="0"
+                            aria-label="Track progress"
+                        >
+                            <div class="sonos-tile__progress-fill" id="sonos-progress-fill"></div>
+                        </div>
+                        <div class="sonos-tile__times">
+                            <span id="sonos-elapsed">0:00</span>
+                            <span id="sonos-remaining">-0:00</span>
+                        </div>
+                    </div>
+                    <div class="sonos-tile__controls-row">
+                        <div class="sonos-tile__transport" role="group" aria-label="Playback controls">
+                            <button type="button" class="sonos-tile__transport-btn" id="sonos-prev" aria-label="Previous track">
+                                <i class="fa-solid fa-backward-step" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="sonos-tile__transport-btn sonos-tile__transport-btn--primary" id="sonos-play" aria-label="Pause">
+                                <i class="fa-solid fa-pause" id="sonos-play-icon" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="sonos-tile__transport-btn" id="sonos-next" aria-label="Next track">
+                                <i class="fa-solid fa-forward-step" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div class="sonos-tile__volume-group">
+                            <button type="button" class="sonos-tile__mute-btn" id="sonos-mute" aria-label="Mute" aria-pressed="false">
+                                <i class="fa-solid fa-volume-high" id="sonos-mute-icon" aria-hidden="true"></i>
+                            </button>
+                            <span class="sonos-tile__volume-readout" aria-live="polite">
+                                <span class="sonos-tile__volume-label">Volume</span>
+                                <span class="sonos-tile__volume-pct" id="sonos-volume-pct">—%</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </article>
+            <article class="tile" id="tile-reeds" aria-label="Panels">
+                <i class="fa-solid fa-door-open tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">Panels</p>
+                <div class="reed-tile__body">
+                    <p class="reed-tile__placeholder is-visible" id="reed-home-placeholder">Loading panels…</p>
+                    <p class="reed-tile__empty" id="reed-home-empty" aria-hidden="true">All closed</p>
+                    <ul class="reed-tile__list" id="reed-home-list" aria-label="Open panels"></ul>
+                </div>
+            </article>
+            <article class="tile" id="tile-appearance">
+                <i class="fa-solid fa-palette tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">Appearance</p>
+                <div class="appearance-tile__body">
+                    <label class="appearance-tile__field" for="theme-select">
+                        <select id="theme-select" class="appearance-tile__select" data-theme-select aria-label="Visual theme">
+                            <option value="claymorphism">Claymorphism</option>
+                            <option value="glassmorphism">Glassmorphism</option>
+                            <option value="neuglass">Neumorphism</option>
+                            <option value="cyberpunk">Cyberpunk</option>
+                            <option value="ember">Ember</option>
+                            <option value="industrial">Industrial</option>
+                            <option value="nebula">Nebula</option>
+                            <option value="minimal">OLED Minimal</option>
+                            <option value="obsidian">Obsidian</option>
+                            <option value="terminal">Terminal</option>
+                            <option value="void">Void</option>
+                        </select>
+                    </label>
+                    <div class="appearance-tile__footer">
+                        <div class="appearance-tile__segmented" role="group" aria-label="Colour scheme">
+                            <button type="button" class="appearance-tile__segment mode-btn active" id="btn-dark" data-mode="dark" aria-label="Dark mode">
+                                <i class="fa-solid fa-moon mode-btn__icon" aria-hidden="true"></i>
+                                <span>Dark</span>
+                            </button>
+                            <button type="button" class="appearance-tile__segment mode-btn" id="btn-light" data-mode="light" aria-label="Light mode">
+                                <i class="fa-solid fa-sun mode-btn__icon" aria-hidden="true"></i>
+                                <span>Light</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+        </div>
+    </div>
+</section>

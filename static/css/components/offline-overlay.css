@@ -1,0 +1,107 @@
+/* Full-screen overlay when Socket.IO is disconnected */
+
+.offline-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-offline);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding:
+        env(safe-area-inset-top, 0)
+        env(safe-area-inset-right, 0)
+        env(safe-area-inset-bottom, 0)
+        env(safe-area-inset-left, 0);
+    background: var(--color-overlay-scrim);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-sizing: border-box;
+    height: 100dvh;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--duration-page-fade) var(--ease-standard);
+}
+
+.offline-overlay.is-visible {
+    pointer-events: auto;
+    opacity: 1;
+}
+
+.offline-overlay.is-hidden {
+    visibility: hidden;
+}
+
+.offline-overlay__banner {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    width: min(92vw, 640px);
+    padding: 24px 32px;
+    border-radius: var(--tile-radius);
+    background: var(--toast-error);
+    color: #ffffff;
+    box-shadow: var(--shadow-drop-md);
+}
+
+.offline-overlay__icon {
+    font-size: var(--font-size-xl);
+    flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .offline-overlay__icon {
+        animation: offline-pulse 1.6s ease-in-out infinite;
+    }
+}
+
+@keyframes offline-pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.55;
+    }
+}
+
+.offline-overlay__text {
+    flex: 1;
+    min-width: 0;
+}
+
+.offline-overlay__title {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.offline-overlay__detail {
+    margin-top: 4px;
+    font-size: var(--font-size-sm);
+    opacity: 0.92;
+    font-weight: 400;
+}
+
+.offline-overlay__spinner {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border: 2px solid color-mix(in srgb, #ffffff 35%, transparent);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .offline-overlay__spinner {
+        animation: offline-spin 0.9s linear infinite;
+    }
+}
+
+@keyframes offline-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

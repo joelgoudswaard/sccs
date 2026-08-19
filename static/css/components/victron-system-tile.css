@@ -1,0 +1,206 @@
+/* System tab — Victron BLE device detail */
+
+#tile-victron-system {
+    display: flex;
+    flex-direction: column;
+    min-height: var(--tile-min-height);
+    min-width: 0;
+}
+
+.victron-system-tile__body {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--space-system-body-gap);
+    min-width: 0;
+}
+
+.victron-system-tile__summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.35rem 0.75rem;
+    padding-bottom: var(--space-system-summary-pad);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.victron-system-tile__summary-main {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+}
+
+.victron-system-tile__status-dot {
+    flex-shrink: 0;
+    width: var(--size-status-dot);
+    height: var(--size-status-dot);
+    border-radius: 50%;
+    background: var(--color-text-muted);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-border) 60%, transparent);
+}
+
+#tile-victron-system.is-live .victron-system-tile__status-dot {
+    background: var(--color-status-online);
+    box-shadow: 0 0 8px var(--color-status-online-glow);
+}
+
+#tile-victron-system.is-stale .victron-system-tile__status-dot {
+    background: var(--color-sun);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--color-sun) 45%, transparent);
+}
+
+#tile-victron-system.is-unconfigured .victron-system-tile__status-dot {
+    background: var(--color-text-muted);
+    box-shadow: none;
+}
+
+.victron-system-tile__headline {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+}
+
+.victron-system-tile__detail {
+    margin: 0.15rem 0 0;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-muted);
+    line-height: 1.35;
+}
+
+.victron-system-tile__updated {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-label);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    line-height: 1.35;
+}
+
+.victron-system-tile__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+
+@media (max-width: 720px) {
+    .victron-system-tile__grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.victron-system-tile__card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    min-width: 0;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid var(--color-border);
+    border-radius: calc(var(--tile-radius) * 0.3);
+    background: var(--color-metric-surface);
+}
+
+.victron-system-tile__card.is-stale {
+    opacity: 0.82;
+}
+
+.victron-system-tile__card.is-unconfigured {
+    opacity: 0.65;
+}
+
+.victron-system-tile__card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.victron-system-tile__card-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1.2;
+}
+
+.victron-system-tile__device-status {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-label);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.victron-system-tile__device-status.is-live {
+    color: var(--color-status-online);
+}
+
+.victron-system-tile__device-status.is-stale {
+    color: var(--color-sun);
+}
+
+.victron-system-tile__device-status.is-off {
+    color: var(--color-text-muted);
+}
+
+.victron-system-tile__facts {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 0.65rem;
+    row-gap: 0.35rem;
+    margin: 0;
+}
+
+.victron-system-tile__fact-label {
+    margin: 0;
+    min-width: 0;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-muted);
+    line-height: 1.25;
+}
+
+.victron-system-tile__fact-value {
+    margin: 0;
+    min-width: 0;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    line-height: 1.35;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.victron-system-tile__fact-value.is-nowrap {
+    white-space: nowrap;
+}
+
+.victron-system-tile__fact-value.is-negative {
+    color: var(--color-accent-cool, var(--color-text));
+}
+
+.victron-system-tile__fact-value.is-positive {
+    color: var(--color-sun);
+}
+
+.victron-system-tile__empty {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    line-height: 1.4;
+}

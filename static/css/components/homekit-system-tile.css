@@ -1,0 +1,157 @@
+/* System tab — HomeKit pairing */
+
+#tile-homekit-system,
+#tile-matter-system {
+    display: flex;
+    flex-direction: column;
+    min-height: var(--tile-min-height);
+    min-width: 0;
+}
+
+/* Author display:flex above beats the UA [hidden] rule — keep hide working. */
+#tile-homekit-system[hidden],
+#tile-matter-system[hidden] {
+    display: none !important;
+}
+
+.homekit-system-tile__body {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--space-system-body-gap);
+    min-width: 0;
+}
+
+.homekit-system-tile__summary {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding-bottom: var(--space-system-summary-pad);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.homekit-system-tile__headline {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    line-height: 1.25;
+}
+
+.homekit-system-tile__detail {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-muted);
+    line-height: 1.35;
+}
+
+.homekit-system-tile__detail.is-warning {
+    color: var(--color-sun);
+}
+
+.homekit-system-tile__pair {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    min-width: 0;
+}
+
+.homekit-system-tile__qr {
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    width: 7.25rem;
+    height: 7.25rem;
+    padding: 0.4rem;
+    overflow: hidden;
+    border-radius: calc(var(--tile-radius) * 2 / 3);
+    background: #fff;
+    box-shadow: var(--shadow-inset-highlight);
+}
+
+.homekit-system-tile__qr svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+}
+
+.homekit-system-tile__code-block {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.homekit-system-tile__code-label {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.homekit-system-tile__code {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.06em;
+}
+
+.homekit-system-tile__hint {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-muted);
+    line-height: 1.35;
+}
+
+.homekit-system-tile__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: auto;
+}
+
+.homekit-system-tile__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0.65rem 0.9rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.homekit-system-tile__btn:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--color-text) 18%, var(--color-border));
+}
+
+.homekit-system-tile__btn:disabled {
+    opacity: 0.55;
+    cursor: wait;
+}
+
+.homekit-system-tile__btn--confirm {
+    border-color: color-mix(in srgb, var(--color-status-offline) 45%, var(--color-border));
+    background: color-mix(in srgb, var(--color-status-offline) 12%, var(--color-surface));
+    color: var(--color-status-offline-text);
+}
+
+.homekit-system-tile__btn--ghost {
+    background: transparent;
+}

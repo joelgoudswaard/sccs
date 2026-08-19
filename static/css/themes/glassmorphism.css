@@ -1,0 +1,443 @@
+/* Glassmorphism */
+/*
+ * Atmospheric canvas + faux-glass panels (translucent fill + noise).
+ * No per-element backdrop-filter — avoids compositor blur-band glitches
+ * in Chrome, Firefox, and on wide / animated layouts.
+ */
+
+[data-theme="glassmorphism"] {
+    --color-accent: #67e8f9;
+    --color-accent-hover: #5eead4;
+    --color-accent-deep: #0891b2;
+    --color-accent-light: rgba(165, 243, 252, 0.95);
+    --color-accent-glow: rgba(103, 232, 249, 0.55);
+    --color-accent-border: rgba(103, 232, 249, 0.38);
+    --color-accent-glow-strong: rgba(56, 189, 248, 0.72);
+
+    --color-bg: #060a14;
+    --color-bg-elevated: rgba(10, 16, 30, 0.52);
+    --color-surface: rgba(255, 255, 255, 0.07);
+    --color-surface-active: rgba(255, 255, 255, 0.11);
+
+    --color-border: rgba(103, 232, 249, 0.16);
+    --color-highlight-subtle: rgba(103, 232, 249, 0.05);
+
+    --color-text: #f0f9ff;
+    --color-text-muted: #94a3b8;
+    --color-text-label: #a5f3fc;
+    --color-text-on-accent: #042f2e;
+
+    --tile-border: rgba(103, 232, 249, 0.16);
+    --tile-shine: none;
+    --tile-inner-border: rgba(103, 232, 249, 0.1);
+    --tile-shadow-drop: 0 18px 48px -16px rgba(0, 0, 0, 0.68);
+    --tile-shadow-inset-top: transparent;
+    --tile-shadow-inset-bottom: transparent;
+    --tile-hover-lift: -2px;
+    --tile-radius: 24px;
+
+    --shadow-dark: rgba(0, 0, 0, 0.55);
+    --shadow-light: rgba(255, 255, 255, 0.14);
+    --shadow-drop-sm: 0 8px 28px rgba(0, 0, 0, 0.38);
+    --shadow-drop-md: 0 12px 36px rgba(0, 0, 0, 0.42);
+    --shadow-accent-glow: 0 0 18px var(--color-accent-glow);
+
+    --color-slider-bg: rgba(255, 255, 255, 0.09);
+    --color-toggle-handle: rgba(255, 255, 255, 0.96);
+
+    --blur-header: none;
+    --blur-surface: none;
+    --blur-tile: none;
+
+    --glass-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.07'/%3E%3C/svg%3E");
+    --glass-tile: rgba(12, 18, 34, 0.8);
+    --glass-tile-hover: rgba(18, 26, 46, 0.88);
+    --glass-header: rgba(8, 12, 22, 0.92);
+    --glass-nav: rgba(12, 18, 34, 0.84);
+    --glass-panel: rgba(14, 20, 36, 0.78);
+    --glass-panel-hover: rgba(18, 26, 46, 0.86);
+    --glass-control: rgba(255, 255, 255, 0.1);
+
+    --tile-bg: var(--glass-tile);
+    --tile-bg-hover: var(--glass-tile-hover);
+}
+
+html.light[data-theme="glassmorphism"] {
+    --color-bg: #e8f4fc;
+    --color-bg-elevated: rgba(255, 255, 255, 0.58);
+    --color-surface: rgba(255, 255, 255, 0.62);
+    --color-surface-active: rgba(255, 255, 255, 0.78);
+    --color-border: rgba(56, 189, 248, 0.28);
+
+    --color-text: #0f172a;
+    --color-text-muted: #64748b;
+    --color-text-label: #0284c7;
+    --color-text-on-accent: #ffffff;
+
+    --color-accent: #38bdf8;
+    --color-accent-hover: #0ea5e9;
+    --color-accent-glow: rgba(56, 189, 248, 0.45);
+    --color-accent-border: rgba(56, 189, 248, 0.38);
+    --color-accent-glow-strong: rgba(14, 165, 233, 0.55);
+
+    --tile-border: rgba(56, 189, 248, 0.28);
+    --tile-inner-border: rgba(56, 189, 248, 0.1);
+    --tile-shadow-drop: 0 16px 40px -14px rgba(15, 23, 42, 0.16);
+    --tile-shadow-inset-top: transparent;
+    --tile-shadow-inset-bottom: transparent;
+
+    --color-slider-bg: rgba(255, 255, 255, 0.55);
+    --glass-tile: rgba(255, 255, 255, 0.74);
+    --glass-tile-hover: rgba(255, 255, 255, 0.84);
+    --glass-header: rgba(255, 255, 255, 0.92);
+    --glass-nav: rgba(255, 255, 255, 0.78);
+    --glass-panel: rgba(255, 255, 255, 0.74);
+    --glass-panel-hover: rgba(255, 255, 255, 0.84);
+    --glass-control: rgba(255, 255, 255, 0.62);
+}
+
+/* ── Atmospheric canvas ── */
+
+[data-theme="glassmorphism"] body {
+    background: var(--color-bg);
+}
+
+[data-theme="glassmorphism"] body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    background:
+        radial-gradient(ellipse 90% 70% at 12% 8%, rgba(56, 189, 248, 0.28) 0%, transparent 58%),
+        radial-gradient(ellipse 75% 55% at 88% 14%, rgba(129, 140, 248, 0.24) 0%, transparent 55%),
+        radial-gradient(ellipse 80% 60% at 72% 88%, rgba(45, 212, 191, 0.18) 0%, transparent 58%),
+        radial-gradient(ellipse 65% 50% at 18% 78%, rgba(14, 165, 233, 0.14) 0%, transparent 52%),
+        linear-gradient(160deg, #04070f 0%, #08101f 42%, #0a1228 100%);
+}
+
+[data-theme="glassmorphism"] body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        linear-gradient(115deg, transparent 42%, rgba(255, 255, 255, 0.03) 50%, transparent 58%),
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 3px,
+            rgba(255, 255, 255, 0.012) 3px,
+            rgba(255, 255, 255, 0.012) 4px
+        );
+    mix-blend-mode: normal;
+    opacity: 0.65;
+}
+
+html.light[data-theme="glassmorphism"] body::before {
+    background:
+        radial-gradient(ellipse 85% 65% at 10% 12%, rgba(125, 211, 252, 0.55) 0%, transparent 58%),
+        radial-gradient(ellipse 70% 55% at 92% 18%, rgba(196, 181, 253, 0.42) 0%, transparent 55%),
+        radial-gradient(ellipse 75% 60% at 78% 92%, rgba(103, 232, 249, 0.35) 0%, transparent 58%),
+        linear-gradient(165deg, #dbeafe 0%, #e0f2fe 38%, #f0f9ff 100%);
+}
+
+html.light[data-theme="glassmorphism"] body::after {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, transparent 28%);
+    mix-blend-mode: normal;
+    opacity: 0.85;
+}
+
+/* ── Faux-glass surfaces ── */
+
+[data-theme="glassmorphism"] .tile,
+[data-theme="glassmorphism"] .slider-card,
+[data-theme="glassmorphism"] .scene-btn,
+[data-theme="glassmorphism"] .nav-pill {
+    overflow: visible !important;
+}
+
+[data-theme="glassmorphism"] .tile {
+    isolation: isolate;
+    transition: none;
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+[data-theme="glassmorphism"] .tile::before {
+    content: "";
+    display: block;
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    /* Behind in-flow tile content — z-index 0 painted over non-positioned children in Blink. */
+    z-index: -1;
+    pointer-events: none;
+    background-color: var(--glass-tile);
+    background-image: var(--glass-noise);
+    background-size: 128px 128px;
+    background-repeat: repeat;
+    border: 1px solid var(--tile-border);
+    box-shadow:
+        var(--tile-shadow-drop),
+        inset 0 1px 0 var(--tile-shadow-inset-top),
+        inset 0 -2px 0 var(--tile-shadow-inset-bottom);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    transition: none;
+}
+
+[data-theme="glassmorphism"] .tile:hover {
+    transform: none !important;
+    background: transparent;
+}
+
+[data-theme="glassmorphism"] .tile:hover::before {
+    background-color: var(--glass-tile-hover);
+}
+
+[data-theme="glassmorphism"] .tile :is(button, [role="button"]):active {
+    transform: none !important;
+}
+
+[data-theme="glassmorphism"] :is(.slider-card, .scene-btn, .nav-pill, .site-header::before) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+[data-theme="glassmorphism"] .slider-card::before,
+[data-theme="glassmorphism"] .scene-btn::before,
+[data-theme="glassmorphism"] .nav-pill::before {
+    content: none !important;
+    display: none !important;
+}
+
+[data-theme="glassmorphism"] .tile::after,
+[data-theme="glassmorphism"] .slider-card::after,
+[data-theme="glassmorphism"] .scene-btn::after,
+[data-theme="glassmorphism"] .nav-pill::after {
+    content: none !important;
+    display: none !important;
+}
+
+[data-theme="glassmorphism"] .slider-card {
+    background-color: var(--glass-panel) !important;
+    background-image: var(--glass-noise);
+    background-size: 128px 128px;
+    background-repeat: repeat;
+}
+
+[data-theme="glassmorphism"] .slider-card:hover {
+    background-color: var(--glass-panel-hover) !important;
+}
+
+[data-theme="glassmorphism"] .scene-btn {
+    background-color: var(--glass-panel) !important;
+    background-image: var(--glass-noise);
+    background-size: 128px 128px;
+    background-repeat: repeat;
+}
+
+[data-theme="glassmorphism"] .scene-btn:hover:not(.active) {
+    background-color: var(--glass-panel-hover) !important;
+}
+
+[data-theme="glassmorphism"] .nav-pill {
+    background-color: var(--glass-nav) !important;
+    background-image: var(--glass-noise);
+    background-size: 128px 128px;
+    background-repeat: repeat;
+}
+
+[data-theme="glassmorphism"] .site-header::before {
+    background: var(--glass-header) !important;
+    border-bottom-color: color-mix(in srgb, var(--color-accent-border) 55%, transparent);
+    box-shadow:
+        0 10px 36px -14px rgba(0, 0, 0, 0.55),
+        0 0 32px -12px rgba(56, 189, 248, 0.18);
+}
+
+/* Translucent selects need explicit colours in WebKit/Blink. */
+[data-theme="glassmorphism"] .appearance-tile__select {
+    background-color: rgba(14, 22, 40, 0.92);
+    color: var(--color-text);
+    color-scheme: dark;
+}
+
+[data-theme="glassmorphism"] .appearance-tile__select:hover {
+    background-color: rgba(18, 28, 48, 0.95);
+}
+
+html.light[data-theme="glassmorphism"] .appearance-tile__select {
+    background-color: rgba(255, 255, 255, 0.95);
+    color-scheme: light;
+}
+
+html.light[data-theme="glassmorphism"] .appearance-tile__select:hover {
+    background-color: rgba(255, 255, 255, 1);
+}
+
+html.dark[data-theme="glassmorphism"] .appearance-tile__select option {
+    background-color: Canvas;
+    color: CanvasText;
+}
+
+html.light[data-theme="glassmorphism"] .appearance-tile__select option {
+    background-color: Canvas;
+    color: CanvasText;
+}
+
+/* ── Sliders ── */
+
+[data-theme="glassmorphism"] .slider-track {
+    background: var(--glass-control) !important;
+    box-shadow:
+        inset 0 2px 8px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+[data-theme="glassmorphism"] .slider-fill {
+    background: linear-gradient(90deg, var(--color-accent-deep), var(--color-accent), var(--color-accent-hover)) !important;
+    box-shadow:
+        0 0 16px var(--color-accent-glow),
+        0 0 32px var(--color-accent-glow-strong) !important;
+}
+
+[data-theme="glassmorphism"] .slider-fill::after {
+    background: linear-gradient(90deg, #e11d48, #f43f5e, #fb7185) !important;
+}
+
+[data-theme="glassmorphism"] .slider-fill.bug-mode {
+    box-shadow: 0 0 22px var(--color-bug-glow) !important;
+}
+
+[data-theme="glassmorphism"] .slider-thumb {
+    background: rgba(255, 255, 255, 0.94) !important;
+    border-color: var(--color-accent) !important;
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.45),
+        0 0 0 4px rgba(103, 232, 249, 0.18),
+        inset 0 2px 6px rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+[data-theme="glassmorphism"] .slider-thumb.bug-mode {
+    border-color: var(--color-bug) !important;
+}
+
+/* ── Toggles ── */
+
+[data-theme="glassmorphism"] .toggle-pill,
+[data-theme="glassmorphism"] .relay-toggle,
+[data-theme="glassmorphism"] .bug-mode-chip {
+    background: var(--glass-control) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    box-shadow:
+        inset 0 2px 6px rgba(0, 0, 0, 0.32),
+        inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+[data-theme="glassmorphism"] .toggle-pill.on,
+[data-theme="glassmorphism"] .relay-toggle.on {
+    background: linear-gradient(90deg, var(--color-accent-deep), var(--color-accent)) !important;
+    border-color: var(--color-accent-border) !important;
+    box-shadow:
+        0 0 20px var(--color-accent-glow-strong),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+}
+
+[data-theme="glassmorphism"] .toggle-pill.bug-mode.on,
+[data-theme="glassmorphism"] .relay-toggle.bug-mode.on {
+    box-shadow: 0 0 22px var(--color-bug-glow) !important;
+}
+
+[data-theme="glassmorphism"] .bug-mode-chip.is-active {
+    border-color: var(--color-bug) !important;
+    box-shadow: 0 0 20px var(--color-bug-glow) !important;
+}
+
+[data-theme="glassmorphism"] .toggle-pill .toggle-knob,
+[data-theme="glassmorphism"] .relay-toggle .relay-knob {
+    background: rgba(255, 255, 255, 0.96) !important;
+    border-color: rgba(255, 255, 255, 0.65) !important;
+    box-shadow:
+        0 4px 12px rgba(0, 0, 0, 0.38),
+        inset 0 2px 5px rgba(255, 255, 255, 0.7) !important;
+}
+
+[data-theme="glassmorphism"] .toggle-pill.on .toggle-knob,
+[data-theme="glassmorphism"] .relay-toggle.on .relay-knob {
+    border-color: rgba(255, 255, 255, 0.9) !important;
+    box-shadow:
+        0 4px 14px rgba(0, 0, 0, 0.4),
+        0 0 12px rgba(255, 255, 255, 0.45) !important;
+}
+
+/* ── Icons & values ── */
+
+[data-theme="glassmorphism"] .tile__icon {
+    color: var(--color-accent);
+    filter: drop-shadow(0 0 8px var(--color-accent-glow));
+}
+
+[data-theme="glassmorphism"] .sonos-tile__track.is-scrolling .sonos-tile__marquee-text,
+[data-theme="glassmorphism"] .sonos-tile__artist.is-scrolling .sonos-tile__marquee-text {
+    animation: none;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+[data-theme="glassmorphism"] .nav-pill__item:active {
+    transform: none !important;
+}
+
+[data-theme="glassmorphism"] .slider-card-title i {
+    filter: drop-shadow(0 0 8px var(--color-accent-glow));
+}
+
+/* ── Scenes & hover ── */
+
+[data-theme="glassmorphism"] .scene-btn.active {
+    background: rgba(103, 232, 249, 0.16) !important;
+    border-color: var(--tile-border) !important;
+    box-shadow:
+        var(--tile-shadow-drop),
+        0 0 28px rgba(56, 189, 248, 0.28) !important;
+    color: var(--color-text) !important;
+}
+
+[data-theme="glassmorphism"] .scene-btn.active i {
+    color: var(--color-accent) !important;
+    filter: drop-shadow(0 0 8px var(--color-accent-glow));
+}
+
+[data-theme="glassmorphism"] .tile:hover::before,
+[data-theme="glassmorphism"] .slider-card:hover,
+[data-theme="glassmorphism"] .scene-btn:hover:not(.active) {
+    box-shadow: var(--tile-shadow-drop) !important;
+}
+
+[data-theme="glassmorphism"] .slider-card.rooftop-disabled {
+    filter: brightness(0.7) saturate(0.75);
+    opacity: 0.72;
+}
+
+html.light[data-theme="glassmorphism"] .toggle-pill,
+html.light[data-theme="glassmorphism"] .relay-toggle,
+html.light[data-theme="glassmorphism"] .bug-mode-chip {
+    border-color: rgba(255, 255, 255, 0.85) !important;
+}
+
+html.light[data-theme="glassmorphism"] .slider-track {
+    background: var(--glass-control) !important;
+}

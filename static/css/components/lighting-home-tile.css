@@ -1,0 +1,183 @@
+/* Home page — active lighting summary */
+
+#tile-lighting-home {
+    display: flex;
+    flex-direction: column;
+    min-height: var(--tile-min-height);
+    height: 100%;
+    min-width: 0;
+    overflow: visible;
+}
+
+#tile-lighting-home .tile__label {
+    flex-shrink: 0;
+    min-width: 0;
+    max-width: 100%;
+    padding-right: calc(var(--font-size-tile-icon) + 12px);
+    overflow-x: clip;
+    overflow-y: visible;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.35;
+}
+
+.lighting-home-tile__body {
+    position: relative;
+    z-index: 3;
+    display: grid;
+    flex: 1;
+    align-content: center;
+    justify-items: stretch;
+    min-height: 0;
+    min-width: 0;
+    width: 100%;
+    overflow: visible;
+}
+
+.lighting-home-tile__empty,
+.lighting-home-tile__placeholder,
+.lighting-home-tile__list {
+    grid-area: 1 / 1;
+    width: 100%;
+    min-width: 0;
+}
+
+.lighting-home-tile__empty,
+.lighting-home-tile__placeholder {
+    margin: 0;
+    align-self: center;
+    font-size: var(--font-size-title);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-muted);
+    text-align: center;
+    line-height: 1.35;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+        opacity var(--duration-tile-list-fade) var(--ease-standard),
+        visibility var(--duration-tile-list-fade) var(--ease-standard);
+}
+
+.lighting-home-tile__empty.is-visible,
+.lighting-home-tile__placeholder.is-visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.lighting-home-tile__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin: 0;
+    margin-inline-start: calc(var(--tile-list-glow-bleed) / -2);
+    padding-block: calc(var(--tile-list-glow-bleed) / 2);
+    padding-inline: calc(var(--tile-list-glow-bleed) / 2) 0;
+    width: calc(100% + var(--tile-list-glow-bleed) / 2);
+    list-style: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    min-height: 0;
+    max-height: 100%;
+    align-self: stretch;
+}
+
+.lighting-home-tile__item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    column-gap: 0.55rem;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    overflow: visible;
+    font-size: var(--font-size-title);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.35;
+    opacity: 1;
+    transition:
+        opacity var(--duration-tile-list-fade) var(--ease-standard),
+        max-height var(--duration-tile-list-fade) var(--ease-standard),
+        margin var(--duration-tile-list-fade) var(--ease-standard);
+}
+
+.lighting-home-tile__item:not(.is-active):not(.is-fading-out) {
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    margin-block: -0.1rem;
+    pointer-events: none;
+}
+
+.lighting-home-tile__item.is-fading-in,
+.lighting-home-tile__item.is-fading-out {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.lighting-home-tile__item.is-fading-out {
+    max-height: 0;
+    overflow: hidden;
+    margin-block: -0.1rem;
+}
+
+.lighting-home-tile__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--size-status-dot);
+    height: var(--size-status-dot);
+    flex-shrink: 0;
+    color: var(--color-accent);
+    filter: drop-shadow(0 0 4px var(--color-accent-glow));
+    transition:
+        color var(--duration-bug-mode-crossfade) ease,
+        filter var(--duration-bug-mode-crossfade) ease;
+}
+
+.lighting-home-tile__icon i {
+    font-size: var(--size-status-dot);
+    line-height: 1;
+}
+
+.lighting-home-tile__item.is-bug-mode .lighting-home-tile__icon {
+    color: var(--color-bug);
+    filter: drop-shadow(0 0 4px var(--color-bug-glow));
+}
+
+#tile-lighting-home .lighting-home-tile__name {
+    min-width: 0;
+    font-size: var(--font-size-tile-label);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: var(--letter-spacing-tile-label);
+    overflow-x: clip;
+    overflow-y: visible;
+    color: var(--color-text);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.35;
+}
+
+#tile-lighting-home .lighting-home-tile__level {
+    justify-self: end;
+    font-size: var(--font-size-tile-label);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-accent);
+    line-height: 1.35;
+    font-variant-numeric: tabular-nums;
+    text-align: end;
+    transition: color var(--duration-bug-mode-crossfade) ease;
+}
+
+#tile-lighting-home .lighting-home-tile__item.is-bug-mode .lighting-home-tile__level {
+    color: var(--color-bug);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lighting-home-tile__empty,
+    .lighting-home-tile__placeholder,
+    .lighting-home-tile__item,
+    .lighting-home-tile__icon,
+    #tile-lighting-home .lighting-home-tile__level {
+        transition: none;
+    }
+}

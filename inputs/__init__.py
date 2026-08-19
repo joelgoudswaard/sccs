@@ -1,0 +1,1 @@
+"""Input adapters — write facts to WorldStore only."""

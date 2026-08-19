@@ -1,0 +1,365 @@
+/* System tab — GPS receiver status (u-blox NEO-M9N) */
+
+#tile-gps-status {
+    display: flex;
+    flex-direction: column;
+    min-height: var(--tile-min-height);
+    min-width: 0;
+}
+
+.gps-status-tile__body {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--space-system-body-gap);
+    min-width: 0;
+}
+
+.gps-status-tile__summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.35rem 0.75rem;
+    padding-bottom: var(--space-system-summary-pad);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.gps-status-tile__summary-main {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+}
+
+.gps-status-tile__status-dot {
+    flex-shrink: 0;
+    width: var(--size-status-dot);
+    height: var(--size-status-dot);
+    border-radius: 50%;
+    background: var(--color-text-muted);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-border) 60%, transparent);
+}
+
+#tile-gps-status.is-fix .gps-status-tile__status-dot {
+    background: var(--color-status-online);
+    box-shadow: 0 0 8px var(--color-status-online-glow);
+}
+
+#tile-gps-status.is-no-fix .gps-status-tile__status-dot {
+    background: var(--color-status-offline);
+    box-shadow: 0 0 8px var(--color-status-offline-glow);
+}
+
+#tile-gps-status.is-no-hardware .gps-status-tile__status-dot {
+    background: var(--color-text-muted);
+    box-shadow: none;
+}
+
+.gps-status-tile__headline {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    line-height: 1.2;
+}
+
+.gps-status-tile__detail {
+    margin: 0.15rem 0 0;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-muted);
+    line-height: 1.3;
+    font-variant-numeric: tabular-nums;
+}
+
+.gps-status-tile__detail.is-forced {
+    color: var(--color-sun);
+}
+
+.gps-status-tile__coords {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-label);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    line-height: 1.35;
+}
+
+.gps-status-tile__metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+
+.gps-status-tile__metric {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid var(--color-border);
+    border-radius: calc(var(--tile-radius) * 0.3);
+    background: color-mix(in srgb, var(--color-device-frame) 50%, transparent);
+}
+
+html.light .gps-status-tile__metric {
+    background: var(--color-surface-inset-light);
+}
+
+.gps-status-tile__metric.is-good {
+    border-color: color-mix(in srgb, var(--color-status-online-text) 40%, transparent);
+}
+
+.gps-status-tile__metric.is-warn {
+    border-color: color-mix(in srgb, var(--color-sun) 45%, transparent);
+}
+
+.gps-status-tile__metric.is-bad {
+    border-color: color-mix(in srgb, var(--color-status-offline-text) 45%, transparent);
+}
+
+.gps-status-tile__metric-label {
+    font-size: var(--font-size-2xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    line-height: 1.2;
+}
+
+.gps-status-tile__metric-value {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gps-status-tile__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+
+.gps-status-tile__card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    min-width: 0;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid var(--color-border);
+    border-radius: calc(var(--tile-radius) * 0.3);
+    background: var(--color-metric-surface);
+}
+
+.gps-status-tile__card-title {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1.2;
+}
+
+.gps-status-tile__facts {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin: 0;
+}
+
+.gps-status-tile__fact {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.45rem;
+    align-items: baseline;
+    margin: 0;
+}
+
+.gps-status-tile__fact-label {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-muted);
+    line-height: 1.25;
+}
+
+.gps-status-tile__fact-value {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    line-height: 1.25;
+    white-space: nowrap;
+}
+
+.gps-status-tile__nmea {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-metric-surface);
+    overflow: hidden;
+}
+
+.gps-status-tile__nmea-summary {
+    padding: 0.55rem 0.7rem;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+.gps-status-tile__nmea-summary::-webkit-details-marker {
+    display: none;
+}
+
+.gps-status-tile__nmea[open] .gps-status-tile__nmea-summary {
+    border-bottom: 1px solid var(--color-border);
+}
+
+.gps-status-tile__nmea-body {
+    margin: 0;
+    padding: 0.65rem 0.7rem;
+    color: var(--color-text-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: var(--font-size-xs);
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 5.5rem;
+    overflow: auto;
+}
+
+.gps-status-tile__simulate {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    margin-top: auto;
+    padding-top: 0.65rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.gps-status-tile__simulate-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.gps-status-tile__simulate-label {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.gps-status-tile__clear {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--color-sun);
+    font: inherit;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.gps-status-tile__clear:hover {
+    text-decoration: underline;
+}
+
+.gps-status-tile__segmented {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--color-border);
+    border-radius: calc(var(--tile-radius) * 0.3);
+    background: var(--color-surface-inset);
+}
+
+html.light .gps-status-tile__segmented {
+    background: var(--color-surface-inset-light);
+}
+
+.gps-status-tile__segment {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    min-height: calc(var(--size-mode-btn-height) - 8px);
+    padding: 0 0.35rem;
+    border: none;
+    border-radius: calc(var(--tile-radius) * 0.22);
+    background: transparent;
+    color: var(--color-text-muted);
+    font: inherit;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.2;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition:
+        background var(--duration-fast) ease,
+        color var(--duration-fast) ease,
+        transform var(--duration-fast) ease;
+}
+
+.gps-status-tile__segment:hover {
+    color: var(--color-text);
+    background: var(--color-surface-active);
+}
+
+.gps-status-tile__segment.is-selected {
+    background: var(--color-accent);
+    color: var(--color-text-on-accent);
+}
+
+.gps-status-tile__segment.is-selected i {
+    color: inherit;
+}
+
+.gps-status-tile__segment:active {
+    transform: scale(0.98);
+}
+
+@media (max-width: 40rem) {
+    .gps-status-tile__metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .gps-status-tile__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .gps-status-tile__coords {
+        width: 100%;
+        text-align: left;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gps-status-tile__segment {
+        transition: none;
+    }
+
+    .gps-status-tile__segment:active {
+        transform: none;
+    }
+}

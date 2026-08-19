@@ -1,0 +1,75 @@
+# Python virtual environment
+venv/
+.venv/
+env/
+
+# Python cache and temporary files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment variables and secrets
+.env
+
+# Local UI preferences (per-device)
+config/active_theme.json
+config/active_dark_mode.json
+config/preferred_uplink.json
+
+# Live site config (template is config/sccs.conf.dist — do not commit secrets)
+config/sccs.conf
+
+# HomeKit pairing keys / accessory IDs (regenerating forces every phone to re-pair)
+config/homekit.state
+
+# Matter fabric / Google Home pairing (directory)
+config/matter.state
+
+# matter.js child dependencies
+matter-bridge/node_modules/
+
+# Logs and temporary files
+logs/
+*.log
+
+# Web project dependencies and build outputs
+node_modules/
+frontend/node_modules/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+dist/
+build/
+
+# Downloaded installers (see README — UniFi OS Server)
+unifiosinstaller
+
+# GitHub wiki lives in its own repo (bind-mounted from ~/sccs.wiki)
+wiki/
+
+# Never commit SSH / deploy keys (public or private)
+GITHUB_DEPLOY_KEY.pub
+*_deploy
+*_deploy.pub
+id_ed25519
+id_ed25519.pub
+id_rsa
+id_rsa.pub
+
+# System and editor files
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# KiCad local/autosave (keep .kicad_sch / .kicad_pcb / production)
+kicad/.history/
+*.kicad_prl
+.lgd-nfy0
+.tmp
+
+# Local tool state (never shared/committed)
+.claude/
+bin/

@@ -1,0 +1,172 @@
+/* Reed tile — open panel summary */
+
+#tile-reeds {
+    display: flex;
+    flex-direction: column;
+    min-height: var(--tile-min-height);
+    height: 100%;
+    min-width: 0;
+    overflow: visible;
+}
+
+#tile-reeds .tile__label {
+    flex-shrink: 0;
+    min-width: 0;
+    max-width: 100%;
+    padding-right: calc(var(--font-size-tile-icon) + 12px);
+    overflow-x: clip;
+    overflow-y: visible;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.35;
+}
+
+.reed-tile__body {
+    position: relative;
+    z-index: 3;
+    display: grid;
+    flex: 1;
+    align-content: center;
+    justify-items: stretch;
+    min-height: 0;
+    min-width: 0;
+    width: 100%;
+    overflow: visible;
+}
+
+.reed-tile__empty,
+.reed-tile__placeholder,
+.reed-tile__list {
+    grid-area: 1 / 1;
+    width: 100%;
+    min-width: 0;
+}
+
+.reed-tile__empty,
+.reed-tile__placeholder {
+    margin: 0;
+    align-self: center;
+    font-size: var(--font-size-title);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-muted);
+    text-align: center;
+    line-height: 1.35;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+        opacity var(--duration-tile-list-fade) var(--ease-standard),
+        visibility var(--duration-tile-list-fade) var(--ease-standard);
+}
+
+.reed-tile__empty.is-visible,
+.reed-tile__placeholder.is-visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.reed-tile__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin: 0;
+    margin-inline-start: calc(var(--tile-list-glow-bleed) / -2);
+    padding-block: calc(var(--tile-list-glow-bleed) / 2);
+    padding-inline: calc(var(--tile-list-glow-bleed) / 2) 0;
+    width: calc(100% + var(--tile-list-glow-bleed) / 2);
+    list-style: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    min-height: 0;
+    max-height: 100%;
+    align-self: stretch;
+}
+
+.reed-tile__item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    column-gap: 0.55rem;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    overflow: visible;
+    font-size: var(--font-size-title);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.35;
+    opacity: 1;
+    transition:
+        opacity var(--duration-tile-list-fade) var(--ease-standard),
+        max-height var(--duration-tile-list-fade) var(--ease-standard),
+        margin var(--duration-tile-list-fade) var(--ease-standard);
+}
+
+.reed-tile__item:not(.is-active):not(.is-fading-out) {
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    margin-block: -0.1rem;
+    pointer-events: none;
+}
+
+.reed-tile__item.is-fading-in,
+.reed-tile__item.is-fading-out {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.reed-tile__item.is-fading-out {
+    max-height: 0;
+    overflow: hidden;
+    margin-block: -0.1rem;
+}
+
+.reed-tile__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--size-status-dot);
+    height: var(--size-status-dot);
+    flex-shrink: 0;
+    color: var(--color-accent);
+    filter: drop-shadow(0 0 4px var(--color-accent-glow));
+}
+
+.reed-tile__icon i {
+    font-size: var(--size-status-dot);
+    line-height: 1;
+}
+
+#tile-reeds .reed-tile__name {
+    min-width: 0;
+    font-size: var(--font-size-tile-label);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: var(--letter-spacing-tile-label);
+    overflow-x: clip;
+    overflow-y: visible;
+    color: var(--color-text);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.35;
+}
+
+#tile-reeds .reed-tile__state {
+    justify-self: end;
+    font-size: var(--font-size-tile-label);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-accent);
+    line-height: 1.35;
+    font-variant-numeric: tabular-nums;
+    text-align: end;
+}
+
+.reed-tile__item.is-forced .reed-tile__state {
+    font-style: italic;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .reed-tile__empty,
+    .reed-tile__placeholder,
+    .reed-tile__item {
+        transition: none;
+    }
+}

@@ -1,0 +1,280 @@
+/* Industrial */
+/*
+ * Stealth control-room — gunmetal panels, olive instrument accents,
+ * blueprint grid. Flat matte surfaces, no backdrop blur (crisp at ultrawide).
+ */
+
+[data-theme="industrial"] {
+    --color-accent: #6b9e4e;
+    --color-accent-hover: #7eb85f;
+    --color-accent-deep: #4d7c2e;
+    --color-accent-light: rgba(138, 201, 106, 0.95);
+    --color-accent-glow: rgba(107, 158, 78, 0.42);
+    --color-accent-border: rgba(107, 158, 78, 0.38);
+    --color-accent-glow-strong: rgba(107, 158, 78, 0.62);
+
+    --color-bg: #0c0c0f;
+    --color-bg-elevated: rgba(22, 23, 27, 0.94);
+    --color-surface: rgba(28, 29, 32, 0.92);
+    --color-surface-active: rgba(34, 36, 40, 0.96);
+
+    --color-border: rgba(78, 82, 88, 0.42);
+    --color-highlight-subtle: rgba(255, 255, 255, 0.03);
+
+    --color-text: #e8e9eb;
+    --color-text-muted: #8a9387;
+    --color-text-label: #b8c9a8;
+    --color-text-on-accent: #0f120d;
+
+    --tile-bg: rgba(28, 29, 32, 0.9);
+    --tile-bg-hover: rgba(34, 36, 40, 0.94);
+    --tile-border: rgba(78, 82, 88, 0.48);
+    --tile-shine: none;
+    --tile-inner-border: rgba(255, 255, 255, 0.04);
+    --tile-shadow-drop: 0 10px 32px -14px rgba(0, 0, 0, 0.72);
+    --tile-shadow-inset-top: rgba(255, 255, 255, 0.05);
+    --tile-shadow-inset-bottom: rgba(0, 0, 0, 0.42);
+    --tile-hover-lift: -1px;
+    --tile-radius: 18px;
+
+    --shadow-dark: rgba(5, 5, 5, 0.82);
+    --shadow-light: rgba(58, 63, 68, 0.35);
+    --shadow-drop-sm: 0 4px 16px rgba(0, 0, 0, 0.45);
+    --shadow-drop-md: 0 8px 24px rgba(0, 0, 0, 0.5);
+    --shadow-accent-glow: 0 0 10px var(--color-accent-glow);
+
+    --color-slider-bg: rgba(55, 60, 65, 0.55);
+    --color-toggle-handle: #d1d5db;
+
+    --blur-header: none;
+    --blur-surface: none;
+    --blur-tile: none;
+}
+
+html.light[data-theme="industrial"] {
+    --color-bg: #f1f5f9;
+    --color-bg-elevated: rgba(255, 255, 255, 0.96);
+    --color-surface: rgba(248, 250, 252, 0.94);
+    --color-surface-active: rgba(255, 255, 255, 0.98);
+    --color-border: rgba(100, 116, 139, 0.38);
+
+    --color-text: #1e2937;
+    --color-text-muted: #64748b;
+    --color-text-label: #4b5e3a;
+    --color-text-on-accent: #ffffff;
+
+    --color-accent: #5a8f3f;
+    --color-accent-hover: #6b9e4e;
+    --color-accent-deep: #3f6b2a;
+    --color-accent-glow: rgba(90, 143, 63, 0.35);
+    --color-accent-border: rgba(90, 143, 63, 0.34);
+    --color-accent-glow-strong: rgba(107, 158, 78, 0.48);
+
+    --tile-bg: rgba(255, 255, 255, 0.94);
+    --tile-bg-hover: rgba(255, 255, 255, 0.98);
+    --tile-border: rgba(100, 116, 139, 0.32);
+    --tile-inner-border: rgba(0, 0, 0, 0.04);
+    --tile-shadow-drop: 0 8px 24px -10px rgba(15, 23, 42, 0.1);
+    --tile-shadow-inset-top: rgba(255, 255, 255, 0.7);
+    --tile-shadow-inset-bottom: rgba(15, 23, 42, 0.06);
+
+    --color-slider-bg: rgba(226, 232, 240, 0.85);
+    --color-toggle-handle: #ffffff;
+}
+
+/* ── Blueprint canvas ── */
+
+[data-theme="industrial"] body {
+    background: var(--color-bg);
+}
+
+[data-theme="industrial"] body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    background:
+        radial-gradient(ellipse 120% 80% at 50% 0%, rgba(58, 63, 68, 0.22) 0%, transparent 55%),
+        linear-gradient(180deg, rgba(12, 12, 15, 0.2) 0%, transparent 42%, rgba(0, 0, 0, 0.35) 100%);
+}
+
+[data-theme="industrial"] body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.55;
+    background:
+        linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+    background-size: 48px 48px;
+}
+
+html.light[data-theme="industrial"] body::before {
+    background:
+        radial-gradient(ellipse 100% 70% at 50% 0%, rgba(148, 163, 184, 0.18) 0%, transparent 58%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, transparent 50%);
+}
+
+html.light[data-theme="industrial"] body::after {
+    opacity: 0.45;
+    background:
+        linear-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+}
+
+/* ── Matte panels ── */
+
+[data-theme="industrial"] .tile,
+[data-theme="industrial"] .slider-card,
+[data-theme="industrial"] .scene-btn,
+[data-theme="industrial"] .nav-pill {
+    overflow: visible !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+[data-theme="industrial"] .tile::before,
+[data-theme="industrial"] .slider-card::before,
+[data-theme="industrial"] .scene-btn::before,
+[data-theme="industrial"] .nav-pill::before {
+    content: none !important;
+    display: none !important;
+}
+
+[data-theme="industrial"] .tile::after,
+[data-theme="industrial"] .slider-card::after,
+[data-theme="industrial"] .scene-btn::after,
+[data-theme="industrial"] .nav-pill::after {
+    content: none !important;
+    display: none !important;
+}
+
+[data-theme="industrial"] .site-header::before {
+    border-bottom-color: color-mix(in srgb, var(--color-border) 65%, transparent);
+    box-shadow: 0 6px 24px -12px rgba(0, 0, 0, 0.55);
+}
+
+/* ── Sliders ── */
+
+[data-theme="industrial"] .slider-track {
+    background: var(--color-slider-bg) !important;
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.42) !important;
+}
+
+[data-theme="industrial"] .slider-fill {
+    background: linear-gradient(90deg, var(--color-accent-deep), var(--color-accent), var(--color-accent-hover)) !important;
+    box-shadow: 0 0 8px var(--color-accent-glow) !important;
+}
+
+[data-theme="industrial"] .slider-fill::after {
+    background: linear-gradient(90deg, #e11d48, #f43f5e, #fb7185) !important;
+}
+
+[data-theme="industrial"] .slider-fill.bug-mode {
+    box-shadow: 0 0 16px var(--color-bug-glow) !important;
+}
+
+[data-theme="industrial"] .slider-thumb {
+    background: #e8e9eb !important;
+    border: 2.5px solid var(--color-accent) !important;
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.5),
+        0 0 0 3px rgba(107, 158, 78, 0.14) !important;
+}
+
+[data-theme="industrial"] .slider-thumb.bug-mode {
+    border-color: var(--color-bug) !important;
+}
+
+/* ── Toggles ── */
+
+[data-theme="industrial"] .toggle-pill,
+[data-theme="industrial"] .relay-toggle,
+[data-theme="industrial"] .bug-mode-chip {
+    background: rgba(22, 23, 27, 0.96) !important;
+    border: 1px solid rgba(78, 82, 88, 0.45) !important;
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.45) !important;
+}
+
+[data-theme="industrial"] .toggle-pill.on,
+[data-theme="industrial"] .relay-toggle.on {
+    background: var(--color-accent) !important;
+    border-color: var(--color-accent-border) !important;
+    box-shadow:
+        0 0 10px var(--color-accent-glow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+[data-theme="industrial"] .toggle-pill.bug-mode.on,
+[data-theme="industrial"] .relay-toggle.bug-mode.on,
+[data-theme="industrial"] .bug-mode-chip.is-active {
+    box-shadow: 0 0 14px var(--color-bug-glow) !important;
+}
+
+[data-theme="industrial"] .bug-mode-chip.is-active {
+    border-color: var(--color-bug) !important;
+}
+
+[data-theme="industrial"] .toggle-pill .toggle-knob,
+[data-theme="industrial"] .relay-toggle .relay-knob {
+    background: var(--color-toggle-handle) !important;
+    border: 2px solid rgba(209, 213, 219, 0.85) !important;
+    box-shadow:
+        0 2px 6px rgba(0, 0, 0, 0.45),
+        inset 0 -1px 2px rgba(255, 255, 255, 0.35) !important;
+}
+
+[data-theme="industrial"] .toggle-pill.on .toggle-knob,
+[data-theme="industrial"] .relay-toggle.on .toggle-knob {
+    border-color: rgba(255, 255, 255, 0.9) !important;
+    box-shadow:
+        0 2px 6px rgba(0, 0, 0, 0.4),
+        0 0 4px rgba(255, 255, 255, 0.35) !important;
+}
+
+/* ── Icons & scenes ── */
+
+[data-theme="industrial"] .tile__icon {
+    color: var(--color-accent);
+    filter: drop-shadow(0 0 4px var(--color-accent-glow));
+}
+
+[data-theme="industrial"] .slider-card-title i {
+    filter: drop-shadow(0 0 4px var(--color-accent-glow));
+}
+
+[data-theme="industrial"] .scene-btn.active {
+    background: rgba(107, 158, 78, 0.12) !important;
+    border-color: var(--color-accent-border) !important;
+    box-shadow:
+        var(--tile-shadow-drop),
+        0 0 0 1px rgba(107, 158, 78, 0.22) !important;
+    color: var(--color-text) !important;
+}
+
+[data-theme="industrial"] .scene-btn.active i {
+    color: var(--color-accent) !important;
+    filter: drop-shadow(0 0 4px var(--color-accent-glow));
+}
+
+[data-theme="industrial"] .tile:hover,
+[data-theme="industrial"] .slider-card:hover,
+[data-theme="industrial"] .scene-btn:hover:not(.active) {
+    border-color: color-mix(in srgb, var(--color-accent-border) 55%, var(--tile-border)) !important;
+}
+
+[data-theme="industrial"] .slider-card.rooftop-disabled {
+    filter: brightness(0.72) contrast(0.88) saturate(0.75);
+    opacity: 0.78;
+}
+
+html.light[data-theme="industrial"] .toggle-pill,
+html.light[data-theme="industrial"] .relay-toggle,
+html.light[data-theme="industrial"] .bug-mode-chip {
+    background: #e2e8f0 !important;
+    border-color: rgba(100, 116, 139, 0.35) !important;
+}

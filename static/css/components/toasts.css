@@ -1,0 +1,103 @@
+/* Global toast notifications */
+
+#toast-container {
+    position: fixed;
+    bottom: max(2rem, env(safe-area-inset-bottom) + 1.25rem);
+    left: 50%;
+    z-index: var(--z-toast);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: min(32rem, calc(100% - 2rem));
+    margin: 0;
+    padding: 0;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+#toast-container .toast {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    width: 100%;
+    padding: 1rem 1.1rem;
+    border-radius: calc(var(--tile-radius) * 2 / 3);
+    color: var(--toast-text);
+    opacity: 0;
+    transform: translateY(0.75rem);
+    pointer-events: auto;
+    box-shadow: var(--shadow-drop-md);
+    transition:
+        opacity 0.55s var(--ease-standard),
+        transform 0.55s var(--ease-standard);
+}
+
+#toast-container .toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+#toast-container .toast-success { background-color: var(--toast-success); }
+#toast-container .toast-error { background-color: var(--toast-error); }
+#toast-container .toast-warning { background-color: var(--toast-warning); }
+#toast-container .toast-info { background-color: var(--toast-info); }
+
+.toast__icon {
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+.toast__content {
+    flex: 1;
+    min-width: 0;
+}
+
+.toast__title {
+    margin: 0 0 0.3rem;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.25;
+}
+
+.toast__message {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    line-height: 1.45;
+    opacity: 0.95;
+}
+
+.toast__close {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin: -0.15rem -0.15rem 0 0;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--toast-text) 14%, transparent);
+    color: inherit;
+    font-size: 0.95rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background var(--duration-fast) ease;
+}
+
+.toast__close:hover {
+    background: color-mix(in srgb, var(--toast-text) 24%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #toast-container .toast {
+        transition: opacity 0.2s linear;
+        transform: none;
+    }
+
+    #toast-container .toast.show {
+        transform: none;
+    }
+}

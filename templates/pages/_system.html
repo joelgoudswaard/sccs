@@ -1,0 +1,548 @@
+<section id="system" class="page-section" role="tabpanel" aria-labelledby="nav-system" hidden>
+    <div class="page-content">
+        <div class="tile-grid">
+            <article class="tile" id="tile-sccs-core">
+                <i class="fa-solid fa-server tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">SCCS Core</p>
+                <div class="sccs-core-tile__body">
+                    <div class="sccs-core-tile__summary" aria-live="polite">
+                        <p class="sccs-core-tile__headline" id="sccs-core-headline">Loading host status…</p>
+                        <p class="sccs-core-tile__detail" id="sccs-core-detail"></p>
+                    </div>
+                    <div class="sccs-core-tile__metrics" id="sccs-core-metrics" aria-label="Live host metrics"></div>
+                    <div class="sccs-core-tile__grid">
+                        <section class="sccs-core-tile__card">
+                            <h3 class="sccs-core-tile__card-title">Core modules</h3>
+                            <div id="sccs-core-modules"></div>
+                        </section>
+                        <section class="sccs-core-tile__card">
+                            <h3 class="sccs-core-tile__card-title">Pi thermal & CPU</h3>
+                            <div id="sccs-core-thermal"></div>
+                        </section>
+                        <section class="sccs-core-tile__card">
+                            <h3 class="sccs-core-tile__card-title">Pi memory & disk</h3>
+                            <div id="sccs-core-resources"></div>
+                        </section>
+                        <section class="sccs-core-tile__card">
+                            <h3 class="sccs-core-tile__card-title">Pi platform & runtime</h3>
+                            <div id="sccs-core-platform"></div>
+                        </section>
+                    </div>
+                </div>
+            </article>
+
+            <article class="tile" id="tile-phases">
+                <i class="fa-solid fa-sun tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">Phases</p>
+                <div class="phases-tile__body">
+                    <div class="phases-tile__summary" aria-live="polite">
+                        <div class="phases-tile__summary-main">
+                            <i class="fa-solid fa-sun phases-tile__summary-icon" id="phases-summary-icon" aria-hidden="true"></i>
+                            <div>
+                                <p class="phases-tile__headline" id="phases-headline"></p>
+                                <p class="phases-tile__detail" id="phases-detail"></p>
+                            </div>
+                        </div>
+                        <p class="phases-tile__next" id="phases-next"></p>
+                    </div>
+
+                    <div class="phases-tile__track" aria-hidden="true">
+                        <div class="phases-tile__track-bar" id="phases-track-bar"></div>
+                        <div class="phases-tile__track-now" id="phases-track-now"></div>
+                    </div>
+
+                    <div class="phases-tile__schedule" id="phases-schedule" role="list" aria-label="Lighting phase schedule"></div>
+
+                    <div class="phases-tile__timing" id="phases-timing">
+                        <p class="phases-tile__timing-label">Adjust phase start times</p>
+                        <p class="phases-tile__timing-hint" id="phases-timing-hint">
+                            Day and Evening track sunrise/sunset; Night is a fixed clock time.
+                        </p>
+
+                        <div class="phases-tile__timing-row">
+                            <div class="phases-tile__timing-meta">
+                                <span class="phases-tile__timing-name">Day Start Time:</span>
+                                <span class="phases-tile__timing-desc">minutes after sunrise</span>
+                            </div>
+                            <div class="phases-tile__timing-controls">
+                                <button type="button" class="phases-tile__step" data-timing-step="day" data-delta="-5" aria-label="Decrease day offset">−</button>
+                                <input class="phases-tile__number"
+                                       id="phases-day-offset"
+                                       type="number"
+                                       min="0"
+                                       max="180"
+                                       step="5"
+                                       inputmode="numeric"
+                                       aria-label="Day offset minutes after sunrise">
+                                <button type="button" class="phases-tile__step" data-timing-step="day" data-delta="5" aria-label="Increase day offset">+</button>
+                                <span class="phases-tile__unit">min</span>
+                            </div>
+                        </div>
+
+                        <div class="phases-tile__timing-row">
+                            <div class="phases-tile__timing-meta">
+                                <span class="phases-tile__timing-name">Evening Start Time:</span>
+                                <span class="phases-tile__timing-desc">minutes before sunset</span>
+                            </div>
+                            <div class="phases-tile__timing-controls">
+                                <button type="button" class="phases-tile__step" data-timing-step="evening" data-delta="-5" aria-label="Decrease evening offset">−</button>
+                                <input class="phases-tile__number"
+                                       id="phases-evening-offset"
+                                       type="number"
+                                       min="0"
+                                       max="180"
+                                       step="5"
+                                       inputmode="numeric"
+                                       aria-label="Evening offset minutes before sunset">
+                                <button type="button" class="phases-tile__step" data-timing-step="evening" data-delta="5" aria-label="Increase evening offset">+</button>
+                                <span class="phases-tile__unit">min</span>
+                            </div>
+                        </div>
+
+                        <div class="phases-tile__timing-row">
+                            <div class="phases-tile__timing-meta">
+                                <span class="phases-tile__timing-name">Night Start Time:</span>
+                            </div>
+                            <div class="phases-tile__timing-controls">
+                                <select class="phases-tile__select" id="phases-night-hour" aria-label="Night phase start time"></select>
+                            </div>
+                        </div>
+
+                        <div class="phases-tile__timing-actions" hidden>
+                            <button type="button" class="phases-tile__cancel" id="phases-timing-cancel">Cancel</button>
+                            <button type="button" class="phases-tile__save" id="phases-timing-save">Save</button>
+                        </div>
+                    </div>
+
+                    {% if development_mode %}
+                    <div class="phases-tile__force">
+                        <div class="phases-tile__force-header">
+                            <p class="phases-tile__force-label">Force phase</p>
+                            <button type="button" class="phases-tile__clear" id="phases-clear-btn" hidden>Clear</button>
+                        </div>
+                        <div class="phases-tile__segmented" role="group" aria-label="Force lighting phase">
+                            <button type="button" class="phases-tile__segment" data-phase="Day">
+                                <i class="fa-solid fa-sun" aria-hidden="true"></i>
+                                <span>Day</span>
+                            </button>
+                            <button type="button" class="phases-tile__segment" data-phase="Evening">
+                                <i class="fa-solid fa-cloud-sun" aria-hidden="true"></i>
+                                <span>Evening</span>
+                            </button>
+                            <button type="button" class="phases-tile__segment" data-phase="Night">
+                                <i class="fa-solid fa-moon" aria-hidden="true"></i>
+                                <span>Night</span>
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </article>
+
+            <article class="tile" id="tile-gps-status">
+                <i class="fa-solid fa-satellite tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">GPS</p>
+                <div class="gps-status-tile__body">
+                    <div class="gps-status-tile__summary" aria-live="polite">
+                        <div class="gps-status-tile__summary-main">
+                            <span class="gps-status-tile__status-dot" id="gps-status-dot" aria-hidden="true"></span>
+                            <div>
+                                <p class="gps-status-tile__headline" id="gps-headline"></p>
+                                <p class="gps-status-tile__detail" id="gps-detail"></p>
+                            </div>
+                        </div>
+                        <p class="gps-status-tile__coords" id="gps-status-coords"></p>
+                    </div>
+
+                    <div class="gps-status-tile__metrics" id="gps-metrics" aria-label="GPS signal metrics"></div>
+
+                    <div class="gps-status-tile__grid">
+                        <section class="gps-status-tile__card">
+                            <h3 class="gps-status-tile__card-title">Navigation</h3>
+                            <dl class="gps-status-tile__facts" id="gps-navigation"></dl>
+                        </section>
+                        <section class="gps-status-tile__card">
+                            <h3 class="gps-status-tile__card-title">Clock</h3>
+                            <dl class="gps-status-tile__facts" id="gps-clock"></dl>
+                        </section>
+                    </div>
+
+                    <details class="gps-status-tile__nmea">
+                        <summary class="gps-status-tile__nmea-summary">NMEA feed</summary>
+                        <pre class="gps-status-tile__nmea-body" id="gps-raw" aria-label="Recent NMEA sentences"></pre>
+                    </details>
+
+                    {% if development_mode %}
+                    <div class="gps-status-tile__simulate">
+                        <div class="gps-status-tile__simulate-header">
+                            <p class="gps-status-tile__simulate-label">Simulate</p>
+                            <button type="button" class="gps-status-tile__clear" id="gps-clear-btn" hidden>Clear</button>
+                        </div>
+                        <div class="gps-status-tile__segmented" role="group" aria-label="GPS simulation">
+                            <button type="button" class="gps-status-tile__segment" data-gps-force="no_fix">
+                                <i class="fa-solid fa-ban" aria-hidden="true"></i>
+                                <span>No fix</span>
+                            </button>
+                            <button type="button" class="gps-status-tile__segment" data-gps-force="no_hardware">
+                                <i class="fa-solid fa-plug-circle-xmark" aria-hidden="true"></i>
+                                <span>No hardware</span>
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </article>
+
+            <article class="tile tile--span-2" id="tile-explain">
+                <i class="fa-solid fa-diagram-project tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">Policy Explain</p>
+                <div class="explain-tile__body">
+                    <div class="explain-tile__summary" aria-live="polite">
+                        <p class="explain-tile__headline" id="explain-headline">—</p>
+                        <p class="explain-tile__detail" id="explain-detail">Loading policy snapshot…</p>
+                    </div>
+                    <div class="explain-tile__grid" id="explain-lights" aria-label="Light and relay decisions"></div>
+                    <div class="explain-tile__drifts" id="explain-drifts" hidden></div>
+                </div>
+            </article>
+
+            <article class="tile" id="tile-reeds-system">
+                <i class="fa-solid fa-door-open tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">Reed Switches</p>
+                <div class="reeds-system-tile__body">
+                    <div class="reeds-system-tile__summary" aria-live="polite">
+                        <p class="reeds-system-tile__headline" id="reeds-summary-headline">Loading panels…</p>
+                        <p class="reeds-system-tile__detail" id="reeds-summary-detail"></p>
+                    </div>
+                    <div class="reeds-system-tile__grid" id="reeds-system-grid" role="list" aria-label="Reed switch panels"></div>
+                </div>
+            </article>
+
+            <article class="tile" id="tile-screens-system">
+                <i class="fa-solid fa-display tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">Touchscreens</p>
+                <div class="screens-system-tile__body">
+                    <div class="screens-system-tile__summary" aria-live="polite">
+                        <p class="screens-system-tile__headline" id="screens-summary-headline">Loading screens…</p>
+                        <p class="screens-system-tile__detail" id="screens-summary-detail"></p>
+                    </div>
+                    <div class="screens-system-tile__grid" id="screens-system-grid" role="list" aria-label="Touchscreen panels"></div>
+                </div>
+            </article>
+
+            <article class="tile" id="tile-homekit-system" hidden>
+                <i class="fa-brands fa-apple tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">HomeKit</p>
+                <div class="homekit-system-tile__body">
+                    <div class="homekit-system-tile__summary" aria-live="polite">
+                        <p class="homekit-system-tile__headline" id="homekit-headline">Loading HomeKit…</p>
+                        <p class="homekit-system-tile__detail" id="homekit-detail"></p>
+                    </div>
+                    <div class="homekit-system-tile__pair" id="homekit-pair" hidden>
+                        <div class="homekit-system-tile__qr" id="homekit-qr" aria-hidden="true"></div>
+                        <div class="homekit-system-tile__code-block">
+                            <p class="homekit-system-tile__code-label">Setup code</p>
+                            <p class="homekit-system-tile__code" id="homekit-pin"></p>
+                            <p class="homekit-system-tile__hint">
+                                On the van Wi‑Fi, open the Home app → Add Accessory → More options.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="homekit-system-tile__actions">
+                        <button type="button" class="homekit-system-tile__btn" id="homekit-enable-btn">
+                            Enable
+                        </button>
+                        <button type="button" class="homekit-system-tile__btn homekit-system-tile__btn--ghost" id="homekit-disable-btn" hidden>
+                            Disable
+                        </button>
+                        <button type="button" class="homekit-system-tile__btn" id="homekit-reset-btn" hidden>
+                            Reset pairing
+                        </button>
+                        <button type="button" class="homekit-system-tile__btn homekit-system-tile__btn--confirm" id="homekit-reset-confirm" hidden>
+                            Confirm reset
+                        </button>
+                        <button type="button" class="homekit-system-tile__btn homekit-system-tile__btn--ghost" id="homekit-reset-cancel" hidden>
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </article>
+
+            <article class="tile" id="tile-matter-system" hidden>
+                <i class="fa-brands fa-google tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">Google Home</p>
+                <div class="homekit-system-tile__body">
+                    <div class="homekit-system-tile__summary" aria-live="polite">
+                        <p class="homekit-system-tile__headline" id="matter-headline">Loading Google Home…</p>
+                        <p class="homekit-system-tile__detail" id="matter-detail"></p>
+                    </div>
+                    <div class="homekit-system-tile__pair" id="matter-pair" hidden>
+                        <div class="homekit-system-tile__qr" id="matter-qr" aria-hidden="true"></div>
+                        <div class="homekit-system-tile__code-block">
+                            <p class="homekit-system-tile__code-label">Setup code</p>
+                            <p class="homekit-system-tile__code" id="matter-pin"></p>
+                            <p class="homekit-system-tile__hint">
+                                On the van Wi‑Fi, open Google Home → Set up device → New → Matter.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="homekit-system-tile__actions">
+                        <button type="button" class="homekit-system-tile__btn" id="matter-enable-btn">
+                            Enable
+                        </button>
+                        <button type="button" class="homekit-system-tile__btn homekit-system-tile__btn--ghost" id="matter-disable-btn" hidden>
+                            Disable
+                        </button>
+                        <button type="button" class="homekit-system-tile__btn" id="matter-reset-btn" hidden>
+                            Reset pairing
+                        </button>
+                        <button type="button" class="homekit-system-tile__btn homekit-system-tile__btn--confirm" id="matter-reset-confirm" hidden>
+                            Confirm reset
+                        </button>
+                        <button type="button" class="homekit-system-tile__btn homekit-system-tile__btn--ghost" id="matter-reset-cancel" hidden>
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </article>
+
+            <article class="tile" id="tile-sonos-system">
+                <i class="fa-solid fa-music tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">Sonos</p>
+                <div class="sonos-system-tile__body">
+                    <div class="sonos-system-tile__summary" aria-live="polite">
+                        <p class="sonos-system-tile__headline" id="sonos-system-headline"></p>
+                        <p class="sonos-system-tile__detail" id="sonos-system-detail"></p>
+                    </div>
+                    <div class="sonos-system-tile__grid" id="sonos-system-grid" role="list" aria-label="Sonos speakers"></div>
+                </div>
+            </article>
+
+            <article class="tile tile--span-2" id="tile-victron-system">
+                <i class="fa-solid fa-bolt tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">Victron</p>
+                <div class="victron-system-tile__body">
+                    <div class="victron-system-tile__summary" aria-live="polite">
+                        <div class="victron-system-tile__summary-main">
+                            <span class="victron-system-tile__status-dot" id="victron-status-dot" aria-hidden="true"></span>
+                            <div>
+                                <p class="victron-system-tile__headline" id="victron-system-headline">Loading Victron data…</p>
+                                <p class="victron-system-tile__detail" id="victron-system-detail"></p>
+                            </div>
+                        </div>
+                        <p class="victron-system-tile__updated" id="victron-system-updated"></p>
+                    </div>
+
+                    <div class="victron-system-tile__grid">
+                        <section class="victron-system-tile__card" id="victron-shunt-card" aria-labelledby="victron-shunt-title">
+                            <div class="victron-system-tile__card-header">
+                                <h3 class="victron-system-tile__card-title" id="victron-shunt-title">
+                                    <i class="fa-solid fa-battery-half" aria-hidden="true"></i>
+                                    SmartShunt
+                                </h3>
+                                <span class="victron-system-tile__device-status" id="victron-shunt-status">—</span>
+                            </div>
+                            <dl class="victron-system-tile__facts" id="victron-shunt-facts"></dl>
+                        </section>
+
+                        <section class="victron-system-tile__card" id="victron-mppt-card" aria-labelledby="victron-mppt-title">
+                            <div class="victron-system-tile__card-header">
+                                <h3 class="victron-system-tile__card-title" id="victron-mppt-title">
+                                    <i class="fa-solid fa-solar-panel" aria-hidden="true"></i>
+                                    MPPT
+                                </h3>
+                                <span class="victron-system-tile__device-status" id="victron-mppt-status">—</span>
+                            </div>
+                            <dl class="victron-system-tile__facts" id="victron-mppt-facts"></dl>
+                        </section>
+                    </div>
+                </div>
+            </article>
+
+            <article class="tile" id="tile-wifi-system">
+                <i class="fa-solid fa-wifi tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">Network</p>
+                <div class="wifi-system-tile__body">
+                    <div class="wifi-system-tile__summary" aria-live="polite">
+                        <div class="wifi-system-tile__summary-copy">
+                            <p class="wifi-system-tile__headline" id="wifi-summary-headline"></p>
+                            <p class="wifi-system-tile__detail" id="wifi-summary-detail"></p>
+                        </div>
+                        <div class="wifi-system-tile__summary-actions">
+                            <button type="button"
+                                    class="wifi-system-tile__disconnect"
+                                    id="wifi-disconnect-btn"
+                                    hidden>Disconnect</button>
+                            <button type="button" class="wifi-system-tile__scan" id="wifi-scan-btn">
+                                <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>
+                                <span>Scan</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="wifi-system-tile__list" id="wifi-network-list" role="list" aria-label="Available Wi-Fi networks"></div>
+
+                    <div class="wifi-system-tile__panel" id="wifi-uplink-prefer">
+                        <form class="wifi-system-tile__connect" id="wifi-connect-form" hidden>
+                            <p class="wifi-system-tile__connect-target" id="wifi-connect-target"></p>
+                            <div class="wifi-system-tile__connect-row">
+                                <label class="wifi-system-tile__field" id="wifi-password-field">
+                                    <span class="wifi-system-tile__field-label">Password</span>
+                                    <input class="wifi-system-tile__input"
+                                           id="wifi-connect-password"
+                                           type="password"
+                                           autocomplete="off"
+                                           placeholder="Network password">
+                                </label>
+                                <div class="wifi-system-tile__connect-actions" id="wifi-connect-actions">
+                                    <button type="submit" class="wifi-system-tile__submit" id="wifi-connect-submit">Connect</button>
+                                </div>
+                            </div>
+                        </form>
+
+                        <p class="wifi-system-tile__uplink-label">Preferred internet</p>
+                        <div class="wifi-system-tile__uplink-toggle"
+                             role="group"
+                             aria-label="Preferred internet connection">
+                            <button type="button"
+                                    class="wifi-system-tile__uplink-btn"
+                                    id="wifi-prefer-wifi"
+                                    data-uplink="wifi">Wi‑Fi</button>
+                            <button type="button"
+                                    class="wifi-system-tile__uplink-btn"
+                                    id="wifi-prefer-usb"
+                                    data-uplink="usb">USB Hotspot</button>
+                        </div>
+                        <p class="wifi-system-tile__uplink-detail" id="wifi-uplink-detail"></p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="tile" id="tile-appearance-system">
+                <i class="fa-solid fa-palette tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">Appearance</p>
+                <div class="appearance-tile__body">
+                    <label class="appearance-tile__field" for="theme-select-system">
+                        <select id="theme-select-system" class="appearance-tile__select" data-theme-select aria-label="Visual theme">
+                            <option value="claymorphism">Claymorphism</option>
+                            <option value="glassmorphism">Glassmorphism</option>
+                            <option value="neuglass">Neumorphism</option>
+                            <option value="cyberpunk">Cyberpunk</option>
+                            <option value="ember">Ember</option>
+                            <option value="industrial">Industrial</option>
+                            <option value="nebula">Nebula</option>
+                            <option value="minimal">OLED Minimal</option>
+                            <option value="obsidian">Obsidian</option>
+                            <option value="terminal">Terminal</option>
+                            <option value="void">Void</option>
+                        </select>
+                    </label>
+                    <label class="appearance-tile__checkbox" for="show-disconnected-toggle">
+                        <input type="checkbox" id="show-disconnected-toggle" data-show-disconnected-toggle>
+                        <span>Show tiles with disconnected hardware</span>
+                    </label>
+                    <div class="appearance-tile__footer">
+                        <div class="appearance-tile__segmented" role="group" aria-label="Colour scheme">
+                            <button type="button" class="appearance-tile__segment mode-btn" data-mode="dark" aria-label="Dark mode">
+                                <i class="fa-solid fa-moon mode-btn__icon" aria-hidden="true"></i>
+                                <span>Dark</span>
+                            </button>
+                            <button type="button" class="appearance-tile__segment mode-btn" data-mode="light" aria-label="Light mode">
+                                <i class="fa-solid fa-sun mode-btn__icon" aria-hidden="true"></i>
+                                <span>Light</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+            <article class="tile" id="tile-shutdown-system">
+                <i class="fa-solid fa-power-off tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">Shutdown</p>
+                <div class="shutdown-system-tile__body">
+                    <div class="shutdown-system-tile__summary" aria-live="polite">
+                        <p class="shutdown-system-tile__headline" id="shutdown-summary-headline">Power off all systems</p>
+                        <p class="shutdown-system-tile__detail" id="shutdown-summary-detail">Shuts down SCCS Core and all configured touchscreens.</p>
+                    </div>
+
+                    <ul class="shutdown-system-tile__targets" id="shutdown-targets" aria-label="Devices to shut down"></ul>
+
+                    <div class="shutdown-system-tile__actions">
+                        <button type="button" class="shutdown-system-tile__btn" id="shutdown-start-btn">
+                            <i class="fa-solid fa-power-off" aria-hidden="true"></i>
+                            <span>Shutdown all</span>
+                        </button>
+                    </div>
+                </div>
+            </article>
+
+            {% if development_mode %}
+            <article class="tile" id="tile-toast-test">
+                <i class="fa-solid fa-bell tile__icon" aria-hidden="true"></i>
+                <p class="tile__label">Toasts</p>
+                <div class="toast-test-tile__body">
+                    <div class="toast-test-tile__summary" aria-live="polite">
+                        <p class="toast-test-tile__headline">Notification preview</p>
+                        <p class="toast-test-tile__detail" id="toast-test-detail">0 active · 0 sent</p>
+                    </div>
+
+                    <div class="toast-test-tile__stage">
+                        <p class="toast-test-tile__stage-label">Live preview</p>
+                        <div class="toast-test-tile__preview is-info" id="toast-test-preview">
+                            <i class="fa-solid fa-circle-info toast-test-tile__preview-icon" id="toast-test-preview-icon" aria-hidden="true"></i>
+                            <div class="toast-test-tile__preview-content">
+                                <p class="toast-test-tile__preview-title" id="toast-test-preview-title"></p>
+                                <p class="toast-test-tile__preview-message" id="toast-test-preview-message"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form class="toast-test-tile__composer" id="toast-test-form">
+                        <label class="toast-test-tile__field">
+                            <span class="toast-test-tile__field-label">Title</span>
+                            <input class="toast-test-tile__input"
+                                   id="toast-test-title"
+                                   type="text"
+                                   value="Camper Control"
+                                   autocomplete="off">
+                        </label>
+                        <label class="toast-test-tile__field">
+                            <span class="toast-test-tile__field-label">Message</span>
+                            <textarea class="toast-test-tile__textarea"
+                                      id="toast-test-message"
+                                      rows="2">Everything is working perfectly.</textarea>
+                        </label>
+
+                        <div class="toast-test-tile__types" role="group" aria-label="Toast type">
+                            <button type="button" class="toast-test-tile__type is-selected" data-toast-type="info" aria-pressed="true">
+                                <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                                <span>Info</span>
+                            </button>
+                            <button type="button" class="toast-test-tile__type" data-toast-type="success" aria-pressed="false">
+                                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                                <span>Success</span>
+                            </button>
+                            <button type="button" class="toast-test-tile__type" data-toast-type="warning" aria-pressed="false">
+                                <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                                <span>Warning</span>
+                            </button>
+                            <button type="button" class="toast-test-tile__type" data-toast-type="error" aria-pressed="false">
+                                <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>
+                                <span>Error</span>
+                            </button>
+                        </div>
+
+                        <div class="toast-test-tile__actions">
+                            <label class="toast-test-tile__sticky">
+                                <input type="checkbox" id="toast-test-sticky">
+                                <span>Sticky until dismissed</span>
+                            </label>
+                            <button type="submit" class="toast-test-tile__send">Show toast</button>
+                        </div>
+                    </form>
+                </div>
+            </article>
+            {% endif %}
+        </div>
+    </div>
+</section>

@@ -1,0 +1,320 @@
+/* Power tile — SoC bar gauge, voltage, solar current (evenly spaced) */
+
+#tile-power {
+    display: flex;
+    flex-direction: column;
+    align-self: start;
+    min-height: var(--tile-min-height);
+    min-width: 0;
+}
+
+#tile-power .tile__label {
+    flex-shrink: 0;
+    min-width: 0;
+    max-width: 100%;
+    padding-right: calc(var(--font-size-tile-icon) + 12px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.power-tile__body {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--space-datetime-gap);
+    min-height: 0;
+    min-width: 0;
+    width: 100%;
+}
+
+.power-tile__hero {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: clamp(0.75rem, 3.5vw, 5rem);
+    justify-content: center;
+    width: 100%;
+    max-width: 100%;
+    margin-inline: auto;
+    padding-top: var(--space-datetime-curve-pad-y);
+    min-width: 0;
+}
+
+.power-tile__metric {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-datetime-gap);
+    min-width: 0;
+    max-width: 100%;
+    text-align: center;
+}
+
+.power-tile__metric-label {
+    font-size: var(--font-size-tile-label);
+    font-weight: 600;
+    color: var(--color-text-label);
+    letter-spacing: var(--letter-spacing-tile-label);
+    opacity: var(--opacity-tile-label);
+    line-height: 1.2;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.power-tile__metric-value {
+    font-size: var(--font-size-tile-value);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.power-tile__metric-value--solar {
+    color: var(--color-sun);
+}
+
+.power-tile__footer {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-datetime-gap);
+    padding-top: var(--space-datetime-footer-pad);
+    border-top: 1px solid var(--color-border);
+    margin-top: auto;
+}
+
+.power-tile__voltage {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    font-size: var(--font-size-datetime-time);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    text-align: center;
+    line-height: 1.2;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+}
+
+.power-tile__meta {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-nav-icon-gap);
+    flex: 0 0 auto;
+    font-size: var(--font-size-title);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text);
+    white-space: nowrap;
+    line-height: 1.2;
+    min-width: 0;
+}
+
+.power-tile__meta-icon {
+    flex-shrink: 0;
+    font-size: var(--font-size-title);
+    color: var(--color-accent);
+}
+
+.power-tile__meta-icon--solar {
+    color: var(--color-sun);
+}
+
+.power-tile__meta-label {
+    color: var(--color-text-muted);
+}
+
+.power-tile__meta-value {
+    font-variant-numeric: tabular-nums;
+}
+
+.power-tile__meta-value--charging {
+    color: var(--color-accent);
+}
+
+.power-tile__meta-value--discharging {
+    color: var(--color-text-muted);
+}
+
+.power-tile__gauge-wrap {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-top: 0;
+    padding-block: 0.6em;
+}
+
+/* Horizontal SoC bar — shared water-tile gauge primitives, power-scoped */
+#tile-power .water-tile__gauge-wrap {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+#tile-power .water-tile__gauge {
+    width: 100%;
+    height: var(--size-progress-bar);
+}
+
+#tile-power .water-tile__gauge-track {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 9999px;
+    background: var(--color-highlight-subtle);
+    border: 1px solid var(--color-border);
+    box-shadow: inset 0 1px 3px var(--shadow-dark);
+    overflow: hidden;
+}
+
+#tile-power .water-tile__gauge-markers {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+}
+
+#tile-power .water-tile__gauge-markers span {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    margin-left: -0.5px;
+    background: color-mix(in srgb, var(--color-text-on-accent) 18%, transparent);
+}
+
+#tile-power .water-tile__gauge-markers span:nth-child(1) {
+    left: 25%;
+}
+
+#tile-power .water-tile__gauge-markers span:nth-child(2) {
+    left: 50%;
+}
+
+#tile-power .water-tile__gauge-markers span:nth-child(3) {
+    left: 75%;
+}
+
+html.light #tile-power .water-tile__gauge-markers span {
+    background: color-mix(in srgb, var(--shadow-dark) 22%, transparent);
+}
+
+#tile-power .water-tile__gauge-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: var(--water-level, 0%);
+    background: linear-gradient(
+        90deg,
+        var(--color-accent-deep) 0%,
+        var(--color-accent) 45%,
+        var(--color-accent-light) 100%
+    );
+    box-shadow: 0 0 8px var(--color-accent-glow);
+    transition:
+        width var(--duration-fast) var(--ease-standard),
+        background var(--duration-fast) ease;
+    z-index: 1;
+}
+
+#tile-power.is-low .water-tile__gauge-fill {
+    background: linear-gradient(
+        90deg,
+        var(--color-meter-warm-start) 0%,
+        var(--color-meter-warm-mid) 45%,
+        var(--color-meter-warm-end) 100%
+    );
+    box-shadow: 0 0 8px var(--color-sun-glow);
+}
+
+#tile-power.is-critical .water-tile__gauge-fill {
+    background: linear-gradient(
+        90deg,
+        var(--color-meter-hot-start) 0%,
+        var(--color-status-offline) 45%,
+        var(--color-meter-hot-end) 100%
+    );
+    box-shadow: 0 0 8px var(--color-status-offline-glow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #tile-power .water-tile__gauge-fill {
+        transition: none;
+    }
+}
+
+.power-tile__marker-labels {
+    position: relative;
+    height: 1em;
+    padding-bottom: 3em;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-muted);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.75;
+}
+
+.power-tile__marker-labels span {
+    position: absolute;
+    top: 0;
+}
+
+/* Render via CSS so Firefox iOS won't auto-link adjacent digits as a phone number. */
+.power-tile__marker-labels span::before {
+    display: block;
+    content: attr(data-label);
+}
+
+.power-tile__marker-labels a {
+    color: inherit;
+    text-decoration: none;
+    pointer-events: none;
+}
+
+.power-tile__marker-labels span:nth-child(1) {
+    left: 0;
+}
+
+.power-tile__marker-labels span:nth-child(2) {
+    left: 25%;
+    transform: translateX(-50%);
+}
+
+.power-tile__marker-labels span:nth-child(3) {
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.power-tile__marker-labels span:nth-child(4) {
+    left: 75%;
+    transform: translateX(-50%);
+}
+
+.power-tile__marker-labels span:nth-child(5) {
+    right: 0;
+}
+
+#tile-power.is-unavailable .power-tile__metric-value,
+#tile-power.is-unavailable .power-tile__meta-value,
+#tile-power.is-unavailable .power-tile__voltage {
+    opacity: 0.55;
+}
+
+#tile-power.is-stale .power-tile__metric-value,
+#tile-power.is-stale .power-tile__meta-value {
+    opacity: 0.75;
+}

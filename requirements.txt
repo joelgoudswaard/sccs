@@ -1,0 +1,26 @@
+# SCCS runtime dependencies (unpinned — install/update always takes latest from PyPI).
+# System packages still required — see README.md step 6:
+#   python3-venv python3-lgpio bluez network-manager nginx ...
+
+flask
+Flask-Cors
+Flask-SocketIO
+gpiozero
+colorzero
+python-socketio
+python-engineio
+pyserial
+geopy
+requests
+pynmea2
+suntime
+astral
+psutil
+soco
+
+# Victron SmartShunt + MPPT SmartSolar via Bluetooth (passive BLE advertisements)
+victron_ble
+bleak
+
+# HomeKit Accessory Protocol bridge (Settings tile QR needs the extra)
+HAP-python[QRCode]

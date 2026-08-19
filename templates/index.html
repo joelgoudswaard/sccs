@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-stage">
+    {% include "pages/_home.html" %}
+    {% include "pages/_lighting.html" %}
+    {% include "pages/_scenes.html" %}
+    {% include "pages/_system.html" %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='socket.io.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/offline-overlay.js') }}"></script>
+<script src="{{ url_for('static', filename='js/location.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sun-math.js') }}"></script>
+<script src="{{ url_for('static', filename='js/datetime-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/reed-home-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/lighting-home-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/home-tile-fit.js') }}"></script>
+<script src="{{ url_for('static', filename='js/home-module-visibility.js') }}"></script>
+<script src="{{ url_for('static', filename='js/show-disconnected-tiles.js') }}"></script>
+<script src="{{ url_for('static', filename='js/climate-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/water-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/power-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/network-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sonos-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/system-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sccs-core-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/lighting-controller.js') }}"></script>
+<script src="{{ url_for('static', filename='js/lighting-tab.js') }}"></script>
+<script src="{{ url_for('static', filename='js/socket-client.js') }}"></script>
+<script src="{{ url_for('static', filename='js/scenes-controller.js') }}"></script>
+<script src="{{ url_for('static', filename='js/phases-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/gps-status-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/reeds-system-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/explain-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/screens-system-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/homekit-system-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/matter-system-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sonos-system-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/wifi-system-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/victron-system-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/shutdown-system-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/toasts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/toast-test-tile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/system-tab.js') }}"></script>
+
+{% endblock %}

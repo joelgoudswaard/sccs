@@ -1,0 +1,12 @@
+{
+  "name": "sccs-matter-bridge",
+  "private": true,
+  "type": "module",
+  "description": "SCCS-owned Matter bridge for Google Home. Started by modules/matter.",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "@matter/main": "^0.15.6"
+  }
+}

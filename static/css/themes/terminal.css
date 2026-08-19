@@ -1,0 +1,411 @@
+/* Terminal */
+/*
+ * Phosphor CRT on true black — OLED Minimal's brooding sibling.
+ * Single green accent, instrument-tight radius, no backdrop blur.
+ */
+
+[data-theme="terminal"] {
+    --color-accent: #39ff8f;
+    --color-accent-hover: #5dffb0;
+    --color-accent-deep: #1fa86a;
+    --color-accent-glow: rgba(57, 255, 143, 0.55);
+    --color-accent-border: rgba(57, 255, 143, 0.38);
+    --color-accent-glow-strong: rgba(57, 255, 143, 0.82);
+
+    --color-bg: #000000;
+    --color-bg-elevated: rgba(8, 12, 10, 0.88);
+    --color-surface: rgba(12, 16, 14, 0.95);
+    --color-surface-active: rgba(14, 18, 16, 0.97);
+
+    --color-border: rgba(57, 255, 143, 0.1);
+    --color-highlight-subtle: rgba(57, 255, 143, 0.04);
+
+    --color-text: #d8ffe8;
+    --color-text-muted: #5a7a68;
+    --color-text-label: #5ee89a;
+    --color-text-data: #c8ffd8;
+    --color-text-prose: #6f9a82;
+    --color-text-on-accent: #041408;
+
+    --font-terminal-mono: ui-monospace, "Cascadia Code", "SF Mono", "Consolas", monospace;
+    --font-terminal-body: var(--font-family);
+
+    --tile-bg: rgba(8, 12, 10, 0.86);
+    --tile-bg-hover: rgba(16, 24, 18, 0.82);
+    --tile-border: rgba(57, 255, 143, 0.12);
+    --tile-shine: none;
+    --tile-inner-border: transparent;
+    --tile-shadow-drop: 0 14px 48px -12px rgba(0, 0, 0, 0.78);
+    --tile-shadow-inset-top: rgba(57, 255, 143, 0.07);
+    --tile-shadow-inset-bottom: rgba(0, 0, 0, 0.38);
+    --tile-hover-lift: -1px;
+    --tile-radius: 14px;
+
+    --shadow-dark: rgba(0, 0, 0, 0.78);
+    --shadow-light: rgba(57, 255, 143, 0.05);
+    --shadow-drop-sm: 0 4px 16px rgba(0, 0, 0, 0.48);
+    --shadow-drop-md: 0 6px 20px rgba(0, 0, 0, 0.52);
+
+    --color-slider-bg: rgba(30, 48, 38, 0.35);
+    --color-toggle-handle: #e8fff0;
+    --color-bug-glow: rgba(255, 80, 80, 0.92);
+
+    --blur-header: none;
+    --blur-surface: none;
+    --blur-tile: none;
+}
+
+html.light[data-theme="terminal"] {
+    --color-bg: #f0f4f1;
+    --color-bg-elevated: rgba(255, 255, 255, 0.94);
+    --color-surface: rgba(248, 252, 249, 0.96);
+    --color-surface-active: rgba(255, 255, 255, 0.98);
+    --color-border: rgba(31, 168, 106, 0.28);
+
+    --color-text: #0a1a12;
+    --color-text-muted: #4a6a58;
+    --color-text-label: #15803d;
+    --color-text-data: #0f2918;
+    --color-text-prose: #4a6a58;
+    --color-text-on-accent: #ffffff;
+
+    --color-accent: #16a34a;
+    --color-accent-hover: #22c55e;
+    --color-accent-deep: #15803d;
+    --color-accent-glow: rgba(22, 163, 74, 0.4);
+    --color-accent-border: rgba(22, 163, 74, 0.35);
+    --color-accent-glow-strong: rgba(34, 197, 94, 0.55);
+
+    --tile-bg: rgba(255, 255, 255, 0.94);
+    --tile-bg-hover: rgba(255, 255, 255, 0.98);
+    --tile-border: rgba(22, 163, 74, 0.22);
+    --tile-shadow-drop: 0 8px 24px -8px rgba(10, 26, 18, 0.1);
+    --tile-shadow-inset-top: rgba(255, 255, 255, 0.65);
+    --tile-shadow-inset-bottom: rgba(10, 26, 18, 0.06);
+
+    --color-slider-bg: rgba(220, 230, 224, 0.75);
+    --color-toggle-handle: #ffffff;
+}
+
+/* ── Flat phosphor canvas ── */
+
+[data-theme="terminal"] body {
+    background: #000000 !important;
+}
+
+html.light[data-theme="terminal"] body {
+    background: #f0f4f1 !important;
+}
+
+[data-theme="terminal"] body::before {
+    content: none !important;
+    background: none !important;
+}
+
+[data-theme="terminal"] body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.14;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(57, 255, 143, 0.04) 2px,
+        rgba(57, 255, 143, 0.04) 3px
+    );
+}
+
+html.light[data-theme="terminal"] body::after {
+    opacity: 0.08;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 3px,
+        rgba(22, 163, 74, 0.05) 3px,
+        rgba(22, 163, 74, 0.05) 4px
+    );
+}
+
+/* ── Typography: mono headings, refined content ── */
+
+[data-theme="terminal"] .tile__label,
+[data-theme="terminal"] .slider-card-title,
+[data-theme="terminal"] .slider-label,
+[data-theme="terminal"] .scene-btn span,
+[data-theme="terminal"] .nav-pill__item span,
+[data-theme="terminal"] .site-title-lockup {
+    font-family: var(--font-terminal-mono);
+    letter-spacing: 0.04em;
+}
+
+[data-theme="terminal"] .tile [class$="__body"] {
+    font-family: var(--font-terminal-body);
+    line-height: 1.45;
+}
+
+/* Field captions — prompt-style labels */
+[data-theme="terminal"] [class$="__row-label"],
+[data-theme="terminal"] [class$="__phase-label"],
+[data-theme="terminal"] [class$="__outlook-label"],
+[data-theme="terminal"] [class$="__daily-range-label"],
+[data-theme="terminal"] [class$="__forecast-extrema-label"] {
+    font-family: var(--font-terminal-mono);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    line-height: 1.35;
+}
+
+[data-theme="terminal"] .lighting-home-tile__name {
+    font-family: var(--font-terminal-mono);
+    font-size: var(--font-size-tile-label);
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    text-transform: none;
+    color: var(--color-text);
+    line-height: 1.35;
+}
+
+/* Data readouts — phosphor CRT values */
+[data-theme="terminal"] .tile__value,
+[data-theme="terminal"] .tile-value,
+[data-theme="terminal"] [class$="__row-value"],
+[data-theme="terminal"] [class$="__phase-time"],
+[data-theme="terminal"] .datetime-tile__date,
+[data-theme="terminal"] .datetime-tile__time,
+[data-theme="terminal"] .datetime-tile__sun-time,
+[data-theme="terminal"] .climate-tile__temp,
+[data-theme="terminal"] .climate-tile__outlook-max,
+[data-theme="terminal"] .climate-tile__outlook-min,
+[data-theme="terminal"] .climate-tile__daily-range-value,
+[data-theme="terminal"] .lighting-home-tile__level,
+[data-theme="terminal"] .value-display,
+[data-theme="terminal"] .sonos-tile__track,
+[data-theme="terminal"] .sonos-tile__times {
+    font-family: var(--font-terminal-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: var(--color-text-data);
+    line-height: 1.25;
+}
+
+[data-theme="terminal"] .datetime-tile__time {
+    font-size: var(--font-size-datetime-time);
+    color: var(--color-accent);
+    text-shadow: 0 0 14px rgba(57, 255, 143, 0.32);
+}
+
+[data-theme="terminal"] .climate-tile__temp {
+    color: var(--color-accent);
+    text-shadow: 0 0 10px rgba(57, 255, 143, 0.22);
+}
+
+[data-theme="terminal"] .value-display {
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    color: var(--color-text-data);
+}
+
+/* Prose — readable sans secondary copy */
+[data-theme="terminal"] [class$="__summary"],
+[data-theme="terminal"] [class$="__detail"],
+[data-theme="terminal"] [class$="__iface"],
+[data-theme="terminal"] [class$="__feels"],
+[data-theme="terminal"] .network-tile__status-text,
+[data-theme="terminal"] .sonos-tile__artist,
+[data-theme="terminal"] .sonos-tile__now-playing,
+[data-theme="terminal"] [class$="__headline"],
+[data-theme="terminal"] [class$="__source"] {
+    font-family: var(--font-terminal-body);
+    font-size: var(--font-size-sm);
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    color: var(--color-text-prose);
+    line-height: 1.45;
+}
+
+[data-theme="terminal"] .network-tile__status-text.is-online {
+    color: var(--color-accent);
+    font-weight: 500;
+}
+
+/* ── OLED glass panels ── */
+
+[data-theme="terminal"] .tile,
+[data-theme="terminal"] .slider-card,
+[data-theme="terminal"] .scene-btn,
+[data-theme="terminal"] .nav-pill {
+    overflow: visible !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+[data-theme="terminal"] .tile::before,
+[data-theme="terminal"] .slider-card::before,
+[data-theme="terminal"] .scene-btn::before,
+[data-theme="terminal"] .nav-pill::before {
+    content: none !important;
+    display: none !important;
+}
+
+[data-theme="terminal"] .tile::after,
+[data-theme="terminal"] .slider-card::after,
+[data-theme="terminal"] .scene-btn::after,
+[data-theme="terminal"] .nav-pill::after {
+    content: none !important;
+    display: none !important;
+}
+
+[data-theme="terminal"] .site-header::before {
+    border-bottom-color: rgba(57, 255, 143, 0.14);
+    box-shadow: 0 6px 24px -12px rgba(0, 0, 0, 0.65);
+}
+
+/* ── Sliders ── */
+
+[data-theme="terminal"] .slider-track {
+    background: var(--color-slider-bg) !important;
+    border-radius: 9999px;
+    height: var(--size-progress-bar);
+    top: 50%;
+    transform: translateY(-50%);
+    box-shadow: none !important;
+}
+
+[data-theme="terminal"] .slider-fill {
+    background: linear-gradient(to right, var(--color-accent-deep), var(--color-accent), var(--color-accent-hover)) !important;
+    box-shadow: 0 0 8px var(--color-accent-glow) !important;
+    height: var(--size-progress-bar);
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+[data-theme="terminal"] .slider-thumb {
+    background: #e8fff0 !important;
+    border: 2.5px solid var(--color-accent) !important;
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.6),
+        0 0 0 3px rgba(57, 255, 143, 0.14) !important;
+    width: 64px;
+    height: 64px;
+}
+
+[data-theme="terminal"] .slider-fill::after {
+    background: linear-gradient(to right, #ff4444, #ff6b6b) !important;
+}
+
+[data-theme="terminal"] .slider-fill.bug-mode {
+    box-shadow: 0 0 10px var(--color-bug-glow) !important;
+}
+
+[data-theme="terminal"] .slider-thumb.bug-mode {
+    border-color: #ff5050 !important;
+}
+
+[data-theme="terminal"] .slider-thumb::after {
+    box-shadow: 0 0 0 4px rgba(255, 80, 80, 0.28) !important;
+}
+
+/* ── Toggles ── */
+
+[data-theme="terminal"] .toggle-pill,
+[data-theme="terminal"] .relay-toggle,
+[data-theme="terminal"] .bug-mode-chip {
+    background: rgba(10, 14, 12, 0.96) !important;
+    border: 1px solid rgba(57, 255, 143, 0.16) !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.42) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+html.light[data-theme="terminal"] .toggle-pill,
+html.light[data-theme="terminal"] .relay-toggle,
+html.light[data-theme="terminal"] .bug-mode-chip {
+    background: #e2ebe6 !important;
+}
+
+[data-theme="terminal"] .toggle-pill.on,
+[data-theme="terminal"] .relay-toggle.on {
+    background: var(--color-accent) !important;
+    border-color: var(--color-accent-border) !important;
+    box-shadow: 0 0 12px var(--color-accent-glow-strong) !important;
+}
+
+[data-theme="terminal"] .toggle-pill .toggle-knob,
+[data-theme="terminal"] .relay-toggle .relay-knob {
+    background: var(--color-toggle-handle) !important;
+    border: 2px solid rgba(232, 255, 240, 0.88) !important;
+    box-shadow:
+        0 3px 8px rgba(0, 0, 0, 0.5),
+        inset 0 -2px 3px rgba(255, 255, 255, 0.5) !important;
+}
+
+html.light[data-theme="terminal"] .toggle-pill .toggle-knob,
+html.light[data-theme="terminal"] .relay-toggle .relay-knob {
+    border-color: var(--color-accent) !important;
+}
+
+[data-theme="terminal"] .toggle-pill.on .toggle-knob,
+[data-theme="terminal"] .relay-toggle.on .relay-knob {
+    border-color: #ffffff !important;
+    box-shadow:
+        0 3px 8px rgba(0, 0, 0, 0.5),
+        0 0 6px rgba(255, 255, 255, 0.6) !important;
+}
+
+[data-theme="terminal"] .toggle-pill::after,
+[data-theme="terminal"] .relay-toggle::after {
+    background: #ff5050 !important;
+}
+
+[data-theme="terminal"] .toggle-pill.bug-mode.on,
+[data-theme="terminal"] .relay-toggle.bug-mode.on,
+[data-theme="terminal"] .bug-mode-chip.is-active {
+    box-shadow: 0 0 14px var(--color-bug-glow) !important;
+}
+
+[data-theme="terminal"] .bug-mode-chip.is-active {
+    border-color: #ff5050 !important;
+}
+
+/* ── Icons & values ── */
+
+[data-theme="terminal"] .tile__icon {
+    color: var(--color-accent);
+    filter: drop-shadow(0 0 6px var(--color-accent-glow));
+}
+
+[data-theme="terminal"] .slider-card-title i {
+    filter: drop-shadow(0 0 6px var(--color-accent-glow));
+}
+
+/* ── Scenes & hover ── */
+
+[data-theme="terminal"] .tile:hover,
+[data-theme="terminal"] .slider-card:hover,
+[data-theme="terminal"] .scene-btn:hover:not(.active) {
+    transform: translateY(-1px) !important;
+}
+
+[data-theme="terminal"] .scene-btn.active {
+    background: rgba(57, 255, 143, 0.1) !important;
+    color: var(--color-text) !important;
+    border-color: var(--color-accent) !important;
+    box-shadow: 0 0 0 2px rgba(57, 255, 143, 0.26) !important;
+}
+
+[data-theme="terminal"] .scene-btn.active i {
+    color: var(--color-accent) !important;
+    filter: drop-shadow(0 0 6px var(--color-accent-glow));
+}
+
+[data-theme="terminal"] .slider-card.rooftop-disabled {
+    filter: brightness(0.62) grayscale(0.55);
+    opacity: 0.74;
+}

@@ -1,0 +1,265 @@
+/* OLED Minimal */
+/*
+ * True black OLED with razor-sharp teal accents.
+ * Ported from ~/sccs/static/css/themes/minimal.css — token overrides plus
+ * component rules that define the OLED look (sliders, toggles, flat surfaces).
+ */
+
+[data-theme="minimal"] {
+    --color-accent: #14f0d4;
+    --color-accent-hover: #0fd9c0;
+    --color-accent-glow: rgba(20, 240, 212, 0.65);
+    --color-accent-border: rgba(20, 240, 212, 0.4);
+    --color-accent-glow-strong: rgba(20, 240, 212, 0.92);
+
+    --color-bg: #000000;
+    --color-bg-elevated: rgba(10, 10, 15, 0.82);
+    --color-surface: rgba(18, 18, 23, 0.95);
+    --color-surface-active: rgba(18, 18, 23, 0.95);
+
+    --color-border: rgba(255, 255, 255, 0.09);
+    --color-highlight-subtle: rgba(255, 255, 255, 0.03);
+
+    --color-text: #f1f5f9;
+    --color-text-muted: #8b9cb3;
+    --color-text-label: #67e8f9;
+    --color-text-on-accent: #0a0f14;
+
+    --tile-bg: rgba(10, 10, 15, 0.82);
+    --tile-bg-hover: rgba(32, 32, 52, 0.78);
+    --tile-border: rgba(255, 255, 255, 0.09);
+    --tile-shine: none;
+    --tile-inner-border: transparent;
+    --tile-shadow-drop: 0 14px 48px -12px rgba(0, 0, 0, 0.75);
+    --tile-shadow-inset-top: rgba(255, 255, 255, 0.12);
+    --tile-shadow-inset-bottom: rgba(0, 0, 0, 0.35);
+    --tile-hover-lift: -1px;
+    --tile-radius: 20px;
+
+    --shadow-dark: rgba(0, 0, 0, 0.75);
+    --shadow-light: rgba(255, 255, 255, 0.04);
+    --shadow-drop-sm: 0 4px 16px rgba(0, 0, 0, 0.45);
+    --shadow-drop-md: 0 6px 20px rgba(0, 0, 0, 0.5);
+
+    --color-slider-bg: rgba(45, 55, 70, 0.28);
+    --color-toggle-handle: #f8fafc;
+    --color-bug-glow: rgba(225, 29, 72, 0.92);
+
+    --blur-header: none;
+    --blur-surface: none;
+    --blur-tile: blur(32px) saturate(180%);
+}
+
+html.light[data-theme="minimal"] {
+    --color-bg: #f8fafc;
+    --color-bg-elevated: rgba(255, 255, 255, 0.92);
+    --color-surface: rgba(248, 250, 252, 0.95);
+    --color-surface-active: rgba(248, 250, 252, 0.95);
+    --color-border: rgba(148, 163, 184, 0.45);
+
+    --color-text: #0f172a;
+    --color-text-muted: #64748b;
+    --color-text-label: #0ea5e9;
+    --color-text-on-accent: #ffffff;
+
+    --tile-bg: rgba(255, 255, 255, 0.92);
+    --tile-bg-hover: rgba(255, 255, 255, 0.95);
+    --tile-border: rgba(255, 255, 255, 0.7);
+    --tile-shadow-drop: 0 8px 25px -8px rgba(0, 0, 0, 0.12);
+    --tile-shadow-inset-top: rgba(255, 255, 255, 0.6);
+    --tile-shadow-inset-bottom: rgba(0, 0, 0, 0.08);
+    --blur-tile: blur(32px) saturate(180%);
+
+    --color-slider-bg: rgba(226, 232, 240, 0.6);
+    --color-toggle-handle: #ffffff;
+}
+
+/* ── Global: flat OLED canvas ── */
+
+[data-theme="minimal"] body {
+    background: #000000 !important;
+}
+
+html.light[data-theme="minimal"] body {
+    background: #f8fafc !important;
+}
+
+[data-theme="minimal"] body::before,
+[data-theme="minimal"] body::after {
+    background: none !important;
+    content: none !important;
+}
+
+/* ── Tile surfaces: OLED glass (from ~/sccs — rgba(10,10,15,0.82) + inset highlight) ── */
+
+[data-theme="minimal"] .tile,
+[data-theme="minimal"] .slider-card,
+[data-theme="minimal"] .scene-btn {
+    overflow: visible !important;
+}
+
+[data-theme="minimal"] .tile::before,
+[data-theme="minimal"] .slider-card::before,
+[data-theme="minimal"] .scene-btn::before {
+    content: none !important;
+    display: none !important;
+}
+
+[data-theme="minimal"] .tile::after,
+[data-theme="minimal"] .slider-card::after,
+[data-theme="minimal"] .scene-btn::after {
+    content: none !important;
+    display: none !important;
+}
+
+/* ── Sliders (core OLED look) ── */
+
+[data-theme="minimal"] .slider-track {
+    background: rgba(45, 55, 70, 0.28) !important;
+    border-radius: 9999px;
+    height: var(--size-progress-bar);
+    top: 50%;
+    transform: translateY(-50%);
+    box-shadow: none !important;
+}
+
+[data-theme="minimal"] .slider-fill {
+    background: linear-gradient(to right, #14f0d4, #5fffe8) !important;
+    box-shadow: 0 0 8px rgba(20, 240, 212, 0.65) !important;
+    height: var(--size-progress-bar);
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+[data-theme="minimal"] .slider-thumb {
+    background: #ffffff !important;
+    border: 2.5px solid #14f0d4 !important;
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.6),
+        0 0 0 3px rgba(20, 240, 212, 0.15) !important;
+    width: 64px;
+    height: 64px;
+}
+
+[data-theme="minimal"] .slider-fill::after {
+    background: linear-gradient(to right, #e11d48, #f43f5e) !important;
+}
+
+[data-theme="minimal"] .slider-fill.bug-mode {
+    box-shadow: 0 0 8px rgba(225, 29, 72, 0.92) !important;
+}
+
+[data-theme="minimal"] .slider-thumb.bug-mode {
+    border-color: #e11d48 !important;
+}
+
+[data-theme="minimal"] .slider-thumb::after {
+    box-shadow: 0 0 0 4px rgba(225, 29, 72, 0.25) !important;
+}
+
+/* ── Toggles: clean off state, solid teal on ── */
+
+[data-theme="minimal"] .toggle-pill,
+[data-theme="minimal"] .relay-toggle {
+    background: rgba(22, 22, 28, 0.96) !important;
+    border: 1px solid rgba(148, 163, 184, 0.18) !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+html.light[data-theme="minimal"] .toggle-pill,
+html.light[data-theme="minimal"] .relay-toggle {
+    background: #e2e8f0 !important;
+}
+
+[data-theme="minimal"] .toggle-pill.on,
+[data-theme="minimal"] .relay-toggle.on {
+    background: #14f0d4 !important;
+    border-color: rgba(20, 240, 212, 0.4) !important;
+    box-shadow: 0 0 12px rgba(20, 240, 212, 0.92) !important;
+}
+
+[data-theme="minimal"] .toggle-pill .toggle-knob,
+[data-theme="minimal"] .relay-toggle .relay-knob {
+    background: var(--color-toggle-handle) !important;
+    border: 2px solid rgba(241, 245, 249, 0.85) !important;
+    box-shadow:
+        0 3px 8px rgba(0, 0, 0, 0.5),
+        inset 0 -2px 3px rgba(255, 255, 255, 0.6) !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html.light[data-theme="minimal"] .toggle-pill .toggle-knob,
+html.light[data-theme="minimal"] .relay-toggle .relay-knob {
+    border-color: #14f0d4 !important;
+}
+
+[data-theme="minimal"] .toggle-pill.on .toggle-knob,
+[data-theme="minimal"] .relay-toggle.on .relay-knob {
+    border-color: #ffffff !important;
+    box-shadow:
+        0 3px 8px rgba(0, 0, 0, 0.5),
+        0 0 6px rgba(255, 255, 255, 0.7) !important;
+}
+
+[data-theme="minimal"] .toggle-pill::after,
+[data-theme="minimal"] .relay-toggle::after {
+    background: #e11d48 !important;
+}
+
+[data-theme="minimal"] .toggle-pill.bug-mode.on,
+[data-theme="minimal"] .relay-toggle.bug-mode.on {
+    box-shadow: 0 0 14px rgba(225, 29, 72, 0.92) !important;
+}
+
+/* ── Status tiles ── */
+
+/* Corner icon only — do not target .tile i.fa-solid; that overrides semantic
+   colours in tile bodies (bug-mode lights, offline modules, sun/moon, etc.). */
+[data-theme="minimal"] .tile__icon {
+    color: #14f0d4;
+    filter: drop-shadow(0 0 6px rgba(20, 240, 212, 0.65));
+}
+
+[data-theme="minimal"] .tile__value,
+[data-theme="minimal"] .tile-value {
+    color: #f1f5f9;
+    font-weight: 600;
+}
+
+html.light[data-theme="minimal"] .tile__value,
+html.light[data-theme="minimal"] .tile-value {
+    color: #0f172a;
+}
+
+[data-theme="minimal"] .slider-card-title i {
+    filter: drop-shadow(0 0 6px rgba(20, 240, 212, 0.65));
+}
+
+/* ── Disabled ── */
+
+[data-theme="minimal"] .slider-card.rooftop-disabled {
+    filter: brightness(0.65) grayscale(0.6);
+    opacity: 0.75;
+}
+
+/* ── Theme flair ── */
+
+[data-theme="minimal"] .tile:hover,
+[data-theme="minimal"] .slider-card:hover,
+[data-theme="minimal"] .scene-btn:hover:not(.active) {
+    transform: translateY(-1px) !important;
+}
+
+[data-theme="minimal"] .scene-btn.active {
+    background: rgba(20, 240, 212, 0.12) !important;
+    color: var(--color-text) !important;
+    border-color: #14f0d4 !important;
+    box-shadow: 0 0 0 2px rgba(20, 240, 212, 0.3) !important;
+}
+
+[data-theme="minimal"] .scene-btn.active i {
+    color: #14f0d4 !important;
+    filter: drop-shadow(0 0 6px rgba(20, 240, 212, 0.65));
+}
