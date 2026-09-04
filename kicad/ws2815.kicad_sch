@@ -621,7 +621,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "87ab5335-ee00-44b2-b179-2048802d1c83")
-		(property "Reference" "R88"
+		(property "Reference" "R89"
 			(at 149.098 99.314 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -695,11 +695,11 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/ca3e75a4-69fa-4118-99c0-ffa695db17b0"
-					(reference "R88")
+					(reference "R89")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/ecbbfcd6-f58c-4962-8970-f2896585c8c2"
-					(reference "R89")
+					(reference "R90")
 					(unit 1)
 				)
 			)
@@ -717,7 +717,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "9feb0e73-63ec-4d11-999e-a5c408b35abb")
-		(property "Reference" "D35"
+		(property "Reference" "D36"
 			(at 157.48 95.2499 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -792,11 +792,11 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/ca3e75a4-69fa-4118-99c0-ffa695db17b0"
-					(reference "D35")
+					(reference "D36")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/ecbbfcd6-f58c-4962-8970-f2896585c8c2"
-					(reference "D36")
+					(reference "D37")
 					(unit 1)
 				)
 			)

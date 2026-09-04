@@ -4408,6 +4408,172 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "Device:D_TVS"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "D"
+				(at 0 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "D_TVS"
+				(at 0 -2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Bidirectional transient-voltage-suppression diode"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "diode TVS thyrector"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "TO-???* *_Diode_* *SingleDiode* D_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "D_TVS_0_1"
+				(polyline
+					(pts
+						(xy -2.54 1.27) (xy -2.54 -1.27) (xy 2.54 1.27) (xy 2.54 -1.27) (xy -2.54 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.508 1.27) (xy 0 1.27) (xy 0 -1.27) (xy -0.508 -1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 0) (xy -1.27 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "D_TVS_1_1"
+				(pin passive line
+					(at -3.81 0 0)
+					(length 2.54)
+					(name "A1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 3.81 0 180)
+					(length 2.54)
+					(name "A2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "Device:Fuse"
 			(pin_numbers
 				(hide yes)
@@ -8044,6 +8210,17 @@
 		)
 		(uuid "393c1184-9b34-47a2-8872-1be61917789f")
 	)
+	(text "RF ESD"
+		(exclude_from_sim no)
+		(at 100.33 312.42 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "3d2dcbf6-5edf-435f-b417-10a08371de0f")
+	)
 	(text "GPIO25"
 		(exclude_from_sim no)
 		(at 342.9 69.85 0)
@@ -9015,7 +9192,13 @@
 		(uuid "489d1222-856a-4ccf-a1b3-602d7a487885")
 	)
 	(junction
-		(at 73.66 276.86)
+		(at 71.12 276.86)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "48de47f5-0cf2-4798-93f9-089de12287c5")
+	)
+	(junction
+		(at 57.15 276.86)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "4e4d9ac1-7f75-40df-a0dd-6fe9cdb9876a")
@@ -9055,6 +9238,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "662d4bc3-eb2c-40bb-9f84-27796f0e4552")
+	)
+	(junction
+		(at 71.12 285.75)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "677ff589-5a42-420a-bae7-8f36e4e63bf0")
 	)
 	(junction
 		(at 104.14 391.16)
@@ -9195,6 +9384,12 @@
 		(uuid "ace17f00-d551-4060-a415-905ddf2cf22c")
 	)
 	(junction
+		(at 93.98 308.61)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "b15db866-30c8-4e59-b5e7-2c16cf741b52")
+	)
+	(junction
 		(at 110.49 391.16)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -9273,7 +9468,7 @@
 		(uuid "d04405d9-86e8-4bae-9047-cddc2a461e16")
 	)
 	(junction
-		(at 93.98 332.74)
+		(at 99.06 332.74)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "d70281d1-b4a2-44f0-b3ce-6ad9e7781e34")
@@ -9351,6 +9546,12 @@
 		(uuid "f2dc8437-58e7-48c8-893c-b2186bef5862")
 	)
 	(junction
+		(at 62.23 276.86)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "f4a4c8b4-583b-4eb3-b7ed-c8d77c2f69de")
+	)
+	(junction
 		(at 144.78 388.62)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -9423,14 +9624,6 @@
 		(uuid "d71c34fa-9b86-4b66-a9bb-ead3b09220f1")
 	)
 	(no_connect
-		(at 62.23 285.75)
-		(uuid "e8f22b20-1d4e-40d7-825c-7ce299d8f3f2")
-	)
-	(no_connect
-		(at 67.31 285.75)
-		(uuid "ecf333ba-09c7-422a-9142-5fd93b016404")
-	)
-	(no_connect
 		(at 356.87 59.69)
 		(uuid "f94c167a-96ce-46bf-a575-6b39392b62bc")
 	)
@@ -9476,7 +9669,7 @@
 	)
 	(wire
 		(pts
-			(xy 78.74 279.4) (xy 78.74 276.86)
+			(xy 88.9 279.4) (xy 88.9 276.86)
 		)
 		(stroke
 			(width 0)
@@ -9493,6 +9686,16 @@
 			(type default)
 		)
 		(uuid "06935daf-dad9-4997-ad82-caa76ce3a104")
+	)
+	(wire
+		(pts
+			(xy 62.23 276.86) (xy 71.12 276.86)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "07007b7b-7e5c-4041-881b-06c356186c98")
 	)
 	(wire
 		(pts
@@ -9726,6 +9929,16 @@
 	)
 	(wire
 		(pts
+			(xy 93.98 297.18) (xy 93.98 308.61)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1571df82-c6a7-4320-a72d-70fbbeab024b")
+	)
+	(wire
+		(pts
 			(xy 147.32 392.43) (xy 144.78 392.43)
 		)
 		(stroke
@@ -9746,7 +9959,7 @@
 	)
 	(wire
 		(pts
-			(xy 85.09 332.74) (xy 93.98 332.74)
+			(xy 85.09 332.74) (xy 99.06 332.74)
 		)
 		(stroke
 			(width 0)
@@ -9906,6 +10119,16 @@
 	)
 	(wire
 		(pts
+			(xy 71.12 285.75) (xy 77.47 285.75)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2146cc2d-ef70-4eef-b151-d3d824371708")
+	)
+	(wire
+		(pts
 			(xy 90.17 377.19) (xy 90.17 378.46)
 		)
 		(stroke
@@ -10056,7 +10279,7 @@
 	)
 	(wire
 		(pts
-			(xy 93.98 335.28) (xy 93.98 332.74)
+			(xy 99.06 335.28) (xy 99.06 332.74)
 		)
 		(stroke
 			(width 0)
@@ -10186,6 +10409,16 @@
 	)
 	(wire
 		(pts
+			(xy 71.12 276.86) (xy 88.9 276.86)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "39013f26-4ad2-46cb-b199-280df791c957")
+	)
+	(wire
+		(pts
 			(xy 514.35 147.32) (xy 511.81 147.32)
 		)
 		(stroke
@@ -10193,6 +10426,16 @@
 			(type default)
 		)
 		(uuid "397ab7ca-a895-4574-9b74-e536c084e308")
+	)
+	(wire
+		(pts
+			(xy 62.23 276.86) (xy 62.23 285.75)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "39d08456-957f-4cff-ae25-43774faf893f")
 	)
 	(wire
 		(pts
@@ -10356,7 +10599,7 @@
 	)
 	(wire
 		(pts
-			(xy 80.01 308.61) (xy 88.9 308.61)
+			(xy 80.01 308.61) (xy 93.98 308.61)
 		)
 		(stroke
 			(width 0)
@@ -10756,16 +10999,6 @@
 	)
 	(wire
 		(pts
-			(xy 57.15 280.67) (xy 57.15 285.75)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5c7534c4-2e0a-4619-9bf1-47958855206d")
-	)
-	(wire
-		(pts
 			(xy 111.76 83.82) (xy 114.3 83.82)
 		)
 		(stroke
@@ -10773,6 +11006,16 @@
 			(type default)
 		)
 		(uuid "5c7c9d01-9c0f-49b0-a0a0-60daa5b7a9bc")
+	)
+	(wire
+		(pts
+			(xy 67.31 285.75) (xy 71.12 285.75)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5cdc7dee-4249-4d8d-b1cc-076190531459")
 	)
 	(wire
 		(pts
@@ -10923,6 +11166,16 @@
 			(type default)
 		)
 		(uuid "6a33a5b8-b35e-4012-85f1-a088f50a5c76")
+	)
+	(wire
+		(pts
+			(xy 49.53 276.86) (xy 52.07 276.86)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6a9c2d6b-2e6d-4c76-b9cb-7d6c8435ccfb")
 	)
 	(wire
 		(pts
@@ -11226,7 +11479,7 @@
 	)
 	(wire
 		(pts
-			(xy 93.98 313.69) (xy 93.98 332.74)
+			(xy 99.06 313.69) (xy 99.06 332.74)
 		)
 		(stroke
 			(width 0)
@@ -11373,16 +11626,6 @@
 			(type default)
 		)
 		(uuid "89191222-2196-42d3-9014-4bfa5709cdde")
-	)
-	(wire
-		(pts
-			(xy 73.66 280.67) (xy 57.15 280.67)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "8a76be72-8ddc-438b-9cd0-555614af4969")
 	)
 	(wire
 		(pts
@@ -11586,7 +11829,7 @@
 	)
 	(wire
 		(pts
-			(xy 73.66 273.05) (xy 73.66 276.86)
+			(xy 57.15 273.05) (xy 57.15 276.86)
 		)
 		(stroke
 			(width 0)
@@ -11793,6 +12036,16 @@
 			(type default)
 		)
 		(uuid "a3795b81-4f5d-4557-b044-aec8073b02b6")
+	)
+	(wire
+		(pts
+			(xy 85.09 285.75) (xy 93.98 285.75)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a4514fab-d650-4551-864f-10812c98d8bf")
 	)
 	(wire
 		(pts
@@ -12166,6 +12419,16 @@
 	)
 	(wire
 		(pts
+			(xy 71.12 280.67) (xy 71.12 276.86)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bc39e0eb-10a9-4145-b5e7-7edbfd64a7c1")
+	)
+	(wire
+		(pts
 			(xy 232.41 365.76) (xy 232.41 369.57)
 		)
 		(stroke
@@ -12376,7 +12639,7 @@
 	)
 	(wire
 		(pts
-			(xy 53.34 276.86) (xy 53.34 279.4)
+			(xy 49.53 276.86) (xy 49.53 279.4)
 		)
 		(stroke
 			(width 0)
@@ -12826,6 +13089,16 @@
 	)
 	(wire
 		(pts
+			(xy 93.98 285.75) (xy 93.98 292.1)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "eaa5d897-2b2c-4017-954e-edd650361414")
+	)
+	(wire
+		(pts
 			(xy 358.14 146.05) (xy 360.68 146.05)
 		)
 		(stroke
@@ -12976,7 +13249,7 @@
 	)
 	(wire
 		(pts
-			(xy 73.66 276.86) (xy 73.66 280.67)
+			(xy 57.15 276.86) (xy 57.15 285.75)
 		)
 		(stroke
 			(width 0)
@@ -13013,16 +13286,6 @@
 			(type default)
 		)
 		(uuid "f760f608-70f6-4de7-9871-46ea38f6ffc0")
-	)
-	(wire
-		(pts
-			(xy 53.34 276.86) (xy 68.58 276.86)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "f88a2ae8-f99b-4bc9-be9d-8b108700eb27")
 	)
 	(wire
 		(pts
@@ -13975,7 +14238,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "054ca1bc-4e18-4cac-8cb5-ee41ac75e64c")
-		(property "Reference" "R15"
+		(property "Reference" "R16"
 			(at 149.86 393.954 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14048,7 +14311,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "R15")
+					(reference "R16")
 					(unit 1)
 				)
 			)
@@ -14145,7 +14408,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "0b7086e5-b77f-434d-a559-54ee1b57eb5c")
-		(property "Reference" "R12"
+		(property "Reference" "R13"
 			(at 74.676 381 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14219,7 +14482,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "R12")
+					(reference "R13")
 					(unit 1)
 				)
 			)
@@ -14403,7 +14666,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "12d3f13d-c31b-4151-9e44-22e709627dea")
-		(property "Reference" "C27"
+		(property "Reference" "C28"
 			(at 122.936 389.128 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14478,7 +14741,85 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "C27")
+					(reference "C28")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 93.98 316.23 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "15903243-ed96-49d6-8ad5-bb32e68eca0b")
+		(property "Reference" "#PWR020"
+			(at 93.98 322.58 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 93.98 321.31 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 93.98 316.23 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 93.98 316.23 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 93.98 316.23 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "5effe317-509f-4859-b134-3a4337ff5a47")
+		)
+		(instances
+			(project "SCCS-RPI"
+				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
+					(reference "#PWR020")
 					(unit 1)
 				)
 			)
@@ -14495,7 +14836,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "1629b587-429a-4940-83df-ef5e89b9d975")
-		(property "Reference" "C17"
+		(property "Reference" "C18"
 			(at 161.798 378.206 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14570,7 +14911,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "C17")
+					(reference "C18")
 					(unit 1)
 				)
 			)
@@ -14587,7 +14928,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "1681a383-3d20-4e39-a6ee-09b09226efc7")
-		(property "Reference" "R8"
+		(property "Reference" "R9"
 			(at 38.1 298.704 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14660,7 +15001,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "R8")
+					(reference "R9")
 					(unit 1)
 				)
 			)
@@ -14678,7 +15019,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "173c93b6-51a9-4b6f-b378-b3b1db4343fc")
-		(property "Reference" "C22"
+		(property "Reference" "C23"
 			(at 104.14 382.524 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14753,7 +15094,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "C22")
+					(reference "C23")
 					(unit 1)
 				)
 			)
@@ -14771,7 +15112,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "23358a99-e7d4-45cd-9fae-fed1670169cc")
-		(property "Reference" "D2"
+		(property "Reference" "D3"
 			(at 234.442 372.11 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14845,7 +15186,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "D2")
+					(reference "D3")
 					(unit 1)
 				)
 			)
@@ -14863,7 +15204,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "26f8085d-5e96-4769-9620-411803138830")
-		(property "Reference" "R9"
+		(property "Reference" "R10"
 			(at 87.122 328.93 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14936,7 +15277,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "R9")
+					(reference "R10")
 					(unit 1)
 				)
 			)
@@ -15031,7 +15372,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "2af4d7af-ca61-439a-983b-4784c2a77584")
-		(property "Reference" "C20"
+		(property "Reference" "C21"
 			(at 90.424 382.524 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15106,7 +15447,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "C20")
+					(reference "C21")
 					(unit 1)
 				)
 			)
@@ -15124,7 +15465,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "2bd58c50-0401-4148-a989-25430035de90")
-		(property "Reference" "C13"
+		(property "Reference" "C14"
 			(at 173.99 378.714 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15199,7 +15540,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "C13")
+					(reference "C14")
 					(unit 1)
 				)
 			)
@@ -15207,7 +15548,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 78.74 279.4 0)
+		(at 88.9 279.4 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -15216,8 +15557,8 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "2ca7c27d-acf7-40d8-8488-d9c055c1ee3d")
-		(property "Reference" "#PWR020"
-			(at 78.74 285.75 0)
+		(property "Reference" "#PWR019"
+			(at 88.9 285.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15228,7 +15569,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 78.74 283.21 0)
+			(at 88.9 283.21 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15238,7 +15579,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 78.74 279.4 0)
+			(at 88.9 279.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15249,7 +15590,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 78.74 279.4 0)
+			(at 88.9 279.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15260,7 +15601,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 78.74 279.4 0)
+			(at 88.9 279.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15276,7 +15617,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "#PWR020")
+					(reference "#PWR019")
 					(unit 1)
 				)
 			)
@@ -15294,7 +15635,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "2e73f640-b4a0-46e3-a4d1-bc525f0ef8d6")
-		(property "Reference" "D5"
+		(property "Reference" "D6"
 			(at 234.442 389.89 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15368,7 +15709,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "D5")
+					(reference "D6")
 					(unit 1)
 				)
 			)
@@ -15540,7 +15881,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "36381d37-d826-4945-a6da-ae94b37b71f6")
-		(property "Reference" "D4"
+		(property "Reference" "D5"
 			(at 53.594 380.238 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15615,7 +15956,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "D4")
+					(reference "D5")
 					(unit 1)
 				)
 			)
@@ -16125,7 +16466,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "4bb54996-4a0f-441f-a44e-3d326430b9ba")
-		(property "Reference" "D1"
+		(property "Reference" "D2"
 			(at 85.09 317.754 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16200,7 +16541,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "D1")
+					(reference "D2")
 					(unit 1)
 				)
 			)
@@ -16478,6 +16819,96 @@
 	)
 	(symbol
 		(lib_id "Device:R")
+		(at 81.28 285.75 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "58f699d2-2815-4482-b193-e83d2379d8b5")
+		(property "Reference" "R8"
+			(at 81.28 283.464 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10R"
+			(at 81.28 285.75 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.762 0.762)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+			(at 81.28 287.528 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 81.28 285.75 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 81.28 285.75 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part #" "C17415"
+			(at 81.28 285.75 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "aae2fece-6d11-402b-a0f9-818158407324")
+		)
+		(pin "1"
+			(uuid "85b6fa67-a58f-4a84-801c-b274706bd774")
+		)
+		(instances
+			(project "SCCS-RPI"
+				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
+					(reference "R8")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
 		(at 316.23 72.39 90)
 		(unit 1)
 		(body_style 1)
@@ -16578,7 +17009,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "61a4589c-b95e-4d7e-8ebc-40715b3a9fea")
-		(property "Reference" "R11"
+		(property "Reference" "R12"
 			(at 149.86 381.254 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16651,7 +17082,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "R11")
+					(reference "R12")
 					(unit 1)
 				)
 			)
@@ -16760,7 +17191,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "670a0b6b-f5d0-4988-b91d-e7021f7691c5")
-		(property "Reference" "#PWR016"
+		(property "Reference" "#PWR015"
 			(at 453.39 217.17 0)
 			(hide yes)
 			(show_name no)
@@ -16820,7 +17251,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "#PWR016")
+					(reference "#PWR015")
 					(unit 1)
 				)
 			)
@@ -16838,7 +17269,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "697463c1-fb97-4024-9b12-3b1768b00364")
-		(property "Reference" "C14"
+		(property "Reference" "C15"
 			(at 180.34 378.714 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16913,7 +17344,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "C14")
+					(reference "C15")
 					(unit 1)
 				)
 			)
@@ -16940,7 +17371,7 @@
 				)
 			)
 		)
-		(property "Value" "10A"
+		(property "Value" "A16-1000 10A"
 			(at 48.26 378.714 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16983,7 +17414,7 @@
 				)
 			)
 		)
-		(property "LCSC Part #" "C14767"
+		(property "LCSC Part #" "C135398"
 			(at 48.26 377.19 90)
 			(hide yes)
 			(show_name no)
@@ -17021,7 +17452,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "6fb31ecb-79f5-42c7-9157-04354626770d")
-		(property "Reference" "C11"
+		(property "Reference" "C12"
 			(at 186.69 369.824 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17096,7 +17527,100 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "C11")
+					(reference "C12")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D_TVS")
+		(at 93.98 312.42 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "70be6118-6915-4784-a155-03adb12207a2")
+		(property "Reference" "D1"
+			(at 92.202 310.642 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "ESD103-B1-02EL"
+			(at 96.52 313.69 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_0402_1005Metric"
+			(at 93.98 312.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "https://www.infineon.com/cms/en/product/evaluation-boards/esd103-b1-02els/"
+			(at 93.98 312.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "RF ESD diode bidirectional VRWM 15V ~0.09pF TSLP-2-20"
+			(at 93.98 312.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part #" "C535146"
+			(at 93.98 312.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "fa5a1385-ae5a-4a92-9f07-8f9bb01dd4b9")
+		)
+		(pin "2"
+			(uuid "2ba1e10c-6407-4c84-931c-488432098b8e")
+		)
+		(instances
+			(project "SCCS-RPI"
+				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
+					(reference "D1")
 					(unit 1)
 				)
 			)
@@ -17353,6 +17877,99 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:C_Small")
+		(at 71.12 283.21 0)
+		(mirror x)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "7cd5c5bf-6b0f-40b4-9593-27139ee5ccba")
+		(property "Reference" "C8"
+			(at 71.374 284.734 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.016 1.016)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "100nF"
+			(at 71.374 281.686 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.016 1.016)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 71.12 283.21 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 71.12 283.21 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Unpolarized capacitor, small symbol"
+			(at 71.12 283.21 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part #" "C49678"
+			(at 71.12 283.21 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "0f79a22f-b668-426e-abd4-30e1645d9ec5")
+		)
+		(pin "2"
+			(uuid "2d30202b-8d46-47e0-a2d9-732e88774894")
+		)
+		(instances
+			(project "SCCS-RPI"
+				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
+					(reference "C8")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:D_Schottky_Small")
 		(at 41.91 377.19 180)
 		(unit 1)
@@ -17363,7 +17980,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "82cff787-ab96-4d24-8647-2add32b924c5")
-		(property "Reference" "D3"
+		(property "Reference" "D4"
 			(at 40.894 376.428 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17438,7 +18055,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "D3")
+					(reference "D4")
 					(unit 1)
 				)
 			)
@@ -17743,7 +18360,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "89e91608-8dce-4690-84be-f5007798c0d5")
-		(property "Reference" "R13"
+		(property "Reference" "R14"
 			(at 246.38 385.318 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17816,7 +18433,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "R13")
+					(reference "R14")
 					(unit 1)
 				)
 			)
@@ -17834,7 +18451,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "8c7d3cc8-4c03-427e-b54d-eb8fd8ed2fe1")
-		(property "Reference" "C24"
+		(property "Reference" "C25"
 			(at 116.84 382.524 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17909,7 +18526,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "C24")
+					(reference "C25")
 					(unit 1)
 				)
 			)
@@ -17927,7 +18544,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "9232d844-7f66-414a-bcb1-6fc7c1cc199d")
-		(property "Reference" "R10"
+		(property "Reference" "R11"
 			(at 246.38 367.538 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18000,7 +18617,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "R10")
+					(reference "R11")
 					(unit 1)
 				)
 			)
@@ -18096,7 +18713,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "957626bd-b66f-4d43-a043-3507b43093a6")
-		(property "Reference" "C16"
+		(property "Reference" "C17"
 			(at 193.04 378.714 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18171,7 +18788,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "C16")
+					(reference "C17")
 					(unit 1)
 				)
 			)
@@ -18179,7 +18796,7 @@
 	)
 	(symbol
 		(lib_id "power:+3.3V")
-		(at 73.66 273.05 0)
+		(at 57.15 273.05 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -18189,8 +18806,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "98081f48-2ce4-4405-b390-08d911c5a42a")
-		(property "Reference" "#PWR018"
-			(at 73.66 276.86 0)
+		(property "Reference" "#PWR017"
+			(at 57.15 276.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18201,7 +18818,7 @@
 			)
 		)
 		(property "Value" "+3V3"
-			(at 73.66 267.97 0)
+			(at 57.15 267.97 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18211,7 +18828,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 73.66 273.05 0)
+			(at 57.15 273.05 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18222,7 +18839,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 73.66 273.05 0)
+			(at 57.15 273.05 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18233,7 +18850,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+3.3V\""
-			(at 73.66 273.05 0)
+			(at 57.15 273.05 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18249,7 +18866,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "#PWR018")
+					(reference "#PWR017")
 					(unit 1)
 				)
 			)
@@ -18399,7 +19016,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "9c4bd073-f99b-4ba3-9ef9-ea03232018f8")
-		(property "Reference" "C25"
+		(property "Reference" "C26"
 			(at 149.098 383.286 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18474,7 +19091,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "C25")
+					(reference "C26")
 					(unit 1)
 				)
 			)
@@ -18787,7 +19404,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "9e910848-07fa-4f5c-9068-606fa596d1d0")
-		(property "Reference" "C23"
+		(property "Reference" "C24"
 			(at 110.49 382.524 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18862,7 +19479,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "C23")
+					(reference "C24")
 					(unit 1)
 				)
 			)
@@ -19069,7 +19686,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "a263ffd8-4b63-4f24-8a54-297749e21bf7")
-		(property "Reference" "C9"
+		(property "Reference" "C10"
 			(at 173.99 369.824 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19144,7 +19761,100 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "C9")
+					(reference "C10")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:L_Small")
+		(at 93.98 294.64 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "a324ef58-e7f4-4037-ba8e-e39ee5817fe3")
+		(property "Reference" "L1"
+			(at 95.25 293.3699 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "27nH"
+			(at 95.25 295.9099 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Inductor_SMD:L_0603_1608Metric"
+			(at 93.98 294.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 93.98 294.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Inductor, small symbol"
+			(at 93.98 294.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part #" "C162550"
+			(at 93.98 294.64 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "b1721a18-4905-43b7-b74d-ff70338a446c")
+		)
+		(pin "2"
+			(uuid "348945da-07e4-4c00-805b-0efbd6fd6e0e")
+		)
+		(instances
+			(project "SCCS-RPI"
+				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
+					(reference "L1")
 					(unit 1)
 				)
 			)
@@ -19500,7 +20210,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "ae6890e5-341f-485e-a084-2845d87b7848")
-		(property "Reference" "L2"
+		(property "Reference" "L3"
 			(at 58.42 372.11 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19573,7 +20283,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "L2")
+					(reference "L3")
 					(unit 1)
 				)
 			)
@@ -19686,7 +20396,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "b10fd205-8bb4-499a-8fa4-878e6a2096cd")
-		(property "Reference" "#PWR017"
+		(property "Reference" "#PWR016"
 			(at 490.22 229.87 0)
 			(hide yes)
 			(show_name no)
@@ -19746,7 +20456,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "#PWR017")
+					(reference "#PWR016")
 					(unit 1)
 				)
 			)
@@ -19754,7 +20464,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 53.34 279.4 0)
+		(at 49.53 279.4 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -19763,8 +20473,8 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "b2fd6665-8b96-4ed4-8b51-417e7e5711ed")
-		(property "Reference" "#PWR019"
-			(at 53.34 285.75 0)
+		(property "Reference" "#PWR018"
+			(at 49.53 285.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19775,7 +20485,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 53.34 283.21 0)
+			(at 49.53 283.21 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -19785,7 +20495,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 53.34 279.4 0)
+			(at 49.53 279.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19796,7 +20506,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 53.34 279.4 0)
+			(at 49.53 279.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19807,7 +20517,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 53.34 279.4 0)
+			(at 49.53 279.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19823,7 +20533,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "#PWR019")
+					(reference "#PWR018")
 					(unit 1)
 				)
 			)
@@ -19841,7 +20551,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "b34ba34e-7642-46a8-939b-6aac5b495eb1")
-		(property "Reference" "L1"
+		(property "Reference" "L2"
 			(at 152.4 369.57 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19914,7 +20624,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "L1")
+					(reference "L2")
 					(unit 1)
 				)
 			)
@@ -20121,7 +20831,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "b75b4db9-81d8-4e04-a458-023a0a053690")
-		(property "Reference" "C19"
+		(property "Reference" "C20"
 			(at 82.55 382.524 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20196,7 +20906,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "C19")
+					(reference "C20")
 					(unit 1)
 				)
 			)
@@ -20385,7 +21095,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "bdcd4137-221d-4e38-914a-3f6158c70775")
-		(property "Reference" "C26"
+		(property "Reference" "C27"
 			(at 73.406 388.874 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20460,7 +21170,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "C26")
+					(reference "C27")
 					(unit 1)
 				)
 			)
@@ -20478,7 +21188,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "bdff56dd-ce95-499b-81eb-9b4abea4e73f")
-		(property "Reference" "C12"
+		(property "Reference" "C13"
 			(at 193.04 369.824 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20553,7 +21263,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "C12")
+					(reference "C13")
 					(unit 1)
 				)
 			)
@@ -20561,7 +21271,7 @@
 	)
 	(symbol
 		(lib_id "Device:C_Small")
-		(at 71.12 276.86 270)
+		(at 54.61 276.86 270)
 		(mirror x)
 		(unit 1)
 		(body_style 1)
@@ -20572,7 +21282,7 @@
 		(dnp no)
 		(uuid "c91b42f4-2d02-4939-b668-6c2d228025c3")
 		(property "Reference" "C6"
-			(at 72.644 276.86 0)
+			(at 56.134 276.86 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -20583,7 +21293,7 @@
 			)
 		)
 		(property "Value" "22uF"
-			(at 69.596 276.86 0)
+			(at 53.086 276.86 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -20594,7 +21304,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
-			(at 71.12 276.86 0)
+			(at 54.61 276.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20605,7 +21315,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 71.12 276.86 0)
+			(at 54.61 276.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20616,7 +21326,7 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor, small symbol"
-			(at 71.12 276.86 0)
+			(at 54.61 276.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20627,7 +21337,7 @@
 			)
 		)
 		(property "LCSC Part #" "C86816"
-			(at 71.12 276.86 0)
+			(at 54.61 276.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20664,7 +21374,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "ca61fc09-e3a7-48da-b289-1f193cb9a900")
-		(property "Reference" "C10"
+		(property "Reference" "C11"
 			(at 180.34 369.824 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20739,7 +21449,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "C10")
+					(reference "C11")
 					(unit 1)
 				)
 			)
@@ -20835,7 +21545,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "d246f057-954d-4262-b854-580b47d04b73")
-		(property "Reference" "C8"
+		(property "Reference" "C9"
 			(at 131.826 361.95 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20910,7 +21620,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "C8")
+					(reference "C9")
 					(unit 1)
 				)
 			)
@@ -20918,7 +21628,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 93.98 335.28 0)
+		(at 99.06 335.28 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -20928,7 +21638,7 @@
 		(dnp no)
 		(uuid "d3d33c7f-b368-499c-a45f-7e68ab72c64d")
 		(property "Reference" "#PWR022"
-			(at 93.98 341.63 0)
+			(at 99.06 341.63 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20939,7 +21649,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 93.98 339.09 0)
+			(at 99.06 339.09 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -20949,7 +21659,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 93.98 335.28 0)
+			(at 99.06 335.28 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20960,7 +21670,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 93.98 335.28 0)
+			(at 99.06 335.28 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20971,7 +21681,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 93.98 335.28 0)
+			(at 99.06 335.28 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21083,7 +21793,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "dbecb4d9-0036-4700-bf41-7dcd5e7c3fe1")
-		(property "Reference" "C21"
+		(property "Reference" "C22"
 			(at 97.79 382.524 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21158,7 +21868,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "C21")
+					(reference "C22")
 					(unit 1)
 				)
 			)
@@ -21252,7 +21962,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "e3000928-4c5d-4836-abcd-4c726fd4f338")
-		(property "Reference" "C18"
+		(property "Reference" "C19"
 			(at 65.024 383.032 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21327,7 +22037,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "C18")
+					(reference "C19")
 					(unit 1)
 				)
 			)
@@ -21426,7 +22136,7 @@
 	)
 	(symbol
 		(lib_id "Connector:Conn_Coaxial")
-		(at 93.98 308.61 0)
+		(at 99.06 308.61 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -21437,7 +22147,7 @@
 		(fields_autoplaced yes)
 		(uuid "e9ce4c23-51d4-47d5-8ade-68b750d82ecd")
 		(property "Reference" "J1"
-			(at 97.79 307.6331 0)
+			(at 102.87 307.6331 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -21448,7 +22158,7 @@
 			)
 		)
 		(property "Value" "Conn_Coaxial"
-			(at 97.79 310.1731 0)
+			(at 102.87 310.1731 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -21459,7 +22169,7 @@
 			)
 		)
 		(property "Footprint" "Connector_Coaxial:SMA_Amphenol_132134-11_Vertical"
-			(at 93.98 308.61 0)
+			(at 99.06 308.61 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21470,7 +22180,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 93.98 308.61 0)
+			(at 99.06 308.61 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21481,7 +22191,7 @@
 			)
 		)
 		(property "Description" "coaxial connector (BNC, SMA, SMB, SMC, Cinch/RCA, LEMO, ...)"
-			(at 93.98 308.61 0)
+			(at 99.06 308.61 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21492,7 +22202,7 @@
 			)
 		)
 		(property "LCSC Part #" "C20415804"
-			(at 93.98 308.61 0)
+			(at 99.06 308.61 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21528,7 +22238,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "ea6e1336-2ce1-4c3e-85ae-a49ca873e419")
-		(property "Reference" "R14"
+		(property "Reference" "R15"
 			(at 149.86 390.144 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21601,7 +22311,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "R14")
+					(reference "R15")
 					(unit 1)
 				)
 			)
@@ -22033,7 +22743,7 @@
 	)
 	(symbol
 		(lib_id "Device:C_Small")
-		(at 76.2 276.86 90)
+		(at 59.69 276.86 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -22043,7 +22753,7 @@
 		(dnp no)
 		(uuid "f6ec2360-b7bd-482d-89af-6034503afe82")
 		(property "Reference" "C7"
-			(at 74.676 276.606 0)
+			(at 58.166 276.606 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -22054,7 +22764,7 @@
 			)
 		)
 		(property "Value" "0.1uF"
-			(at 77.724 276.606 0)
+			(at 61.214 276.606 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -22065,7 +22775,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
-			(at 76.2 276.86 0)
+			(at 59.69 276.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22076,7 +22786,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 76.2 276.86 0)
+			(at 59.69 276.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22087,7 +22797,7 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor, small symbol"
-			(at 76.2 276.86 0)
+			(at 59.69 276.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22098,7 +22808,7 @@
 			)
 		)
 		(property "LCSC Part #" "C86041"
-			(at 76.2 276.86 90)
+			(at 59.69 276.86 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22135,7 +22845,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "f7e4aff7-941f-4619-b1ce-c8fa30f3b389")
-		(property "Reference" "C15"
+		(property "Reference" "C16"
 			(at 186.69 378.714 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22210,7 +22920,7 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb"
-					(reference "C15")
+					(reference "C16")
 					(unit 1)
 				)
 			)
