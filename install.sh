@@ -1035,8 +1035,6 @@ ensure_arduino_cli() {
 # wires each ESP's UART0 to that Pi UART — same pins as the ROM bootloader.
 wait_for_esp_port() {
     local label="$1" preferred="${2:-}" tries=0 max_tries=90 ans
-    info "Waiting for serial port (download mode)…" >&2
-    info "Type ${C_BOLD}s${C_RESET}${C_DIM} + Enter anytime to skip (no hardware / wrong step).${C_RESET}" >&2
     while (( tries < max_tries )); do
         if [[ -n "$preferred" && -e "$preferred" ]]; then
             ESP_PORT="$preferred"
@@ -1048,6 +1046,10 @@ wait_for_esp_port() {
             ESP_PORT="${ports[0]}"
             ok "Found ${ESP_PORT} for ${label}" >&2
             return 0
+        fi
+        if (( tries == 0 )); then
+            info "Waiting for serial port (download mode)…" >&2
+            info "Type ${C_BOLD}s${C_RESET}${C_DIM} + Enter anytime to skip (no hardware / wrong step).${C_RESET}" >&2
         fi
         tries=$((tries + 1))
         if (( tries % 5 == 1 )); then
@@ -1115,91 +1117,185 @@ finally:
 PY
 }
 
-flash_one_esp() {
-    local sketch_rel="$1" label="$2" host_port="${3:-}"
+print_esp_download_steps() {
+    echo "    1. Hold ${C_BOLD}BOOT${C_RESET} on both"
+    echo "    2. Press and release ${C_BOLD}RESET${C_RESET} on both"
+    echo "    3. Release ${C_BOLD}BOOT${C_RESET} on both"
+}
+
+print_esp_download_steps_one() {
+    echo "    1. Hold ${C_BOLD}BOOT${C_RESET}"
+    echo "    2. Press and release ${C_BOLD}RESET${C_RESET}"
+    echo "    3. Release ${C_BOLD}BOOT${C_RESET}"
+}
+
+# Upload one sketch to a known port. On failure, re-prompt download mode for
+# that module only. Returns 0 if firmware was uploaded, 1 if skipped/failed.
+upload_esp_firmware() {
+    local sketch_rel="$1" label="$2" port="$3"
     local sketch_dir="$SCCS_HOME/$sketch_rel" ans wait_rc
     [[ -d "$sketch_dir" ]] || { warn "Missing $sketch_dir"; return 1; }
+    [[ -n "$port" ]] || { skip_note "${label} flash skipped (no serial port)"; return 1; }
 
     while true; do
+        info "Uploading $sketch_rel → $port…"
+        # Same user as compile — root's ~/.arduino15 does not have the ESP32 core.
+        if run_as_user env PATH="$PATH" arduino-cli upload -p "$port" --fqbn "$ESP_FQBN" "$sketch_dir"; then
+            ok "${label} firmware uploaded"
+            return 0
+        fi
+        warn "Upload failed for ${label}"
+        ask_yn "Retry ${label}?" y
+        [[ "$REPLY" == "y" ]] || { skip_note "${label} flash failed"; return 1; }
+
         echo
-        echo "  ${C_BOLD}${label}${C_RESET} — ${C_CYAN}UART0 download mode${C_RESET}${host_port:+ on ${host_port}}:"
-        echo "    1. Hold ${C_BOLD}BOOT${C_RESET}"
-        echo "    2. Press and release ${C_BOLD}RESET${C_RESET}"
-        echo "    3. Release ${C_BOLD}BOOT${C_RESET}"
+        echo "  ${C_BOLD}${label}${C_RESET} — ${C_CYAN}UART0 download mode${C_RESET} on ${port}:"
+        print_esp_download_steps_one
         echo "    ${C_DIM}(Pi on the SCCS Core; ROM bootloader is on the same UART as the host protocol)${C_RESET}"
         echo
-        echo "  ${C_YELLOW}!${C_RESET} Pi not on the SCCS Core? Type ${C_BOLD}s${C_RESET} to skip this module."
-        echo "  ${C_DIM}You can also type s during the serial wait if you started this by mistake.${C_RESET}"
-        echo
-        read -r -p "  Enter when ready (s = skip module, a = abort all ESP flashing)… " ans || true
+        read -r -p "  Enter when ready (s = skip this module)… " ans || true
         case "${ans,,}" in
-            s|skip)
+            s|skip|a|abort|q|quit)
                 skip_note "${label} flash skipped"
-                return 0
-                ;;
-            a|abort|q|quit)
-                skip_note "ESP flash aborted (remaining modules not attempted)"
-                return 2
+                return 1
                 ;;
         esac
-
         ESP_PORT=""
         wait_rc=0
-        wait_for_esp_port "$label" "$host_port" || wait_rc=$?
+        wait_for_esp_port "$label" "$port" || wait_rc=$?
         if [[ "$wait_rc" -eq 2 ]]; then
             skip_note "${label} flash skipped during download wait"
-            return 0
+            return 1
         fi
         if [[ "$wait_rc" -ne 0 ]]; then
             ask_yn "Retry ${label}? (n skips this module)" y
             [[ "$REPLY" == "y" ]] && continue
             skip_note "${label} flash abandoned"
-            return 0
+            return 1
         fi
-
-        info "Uploading $sketch_rel → $ESP_PORT…"
-        # Same user as compile — root's ~/.arduino15 does not have the ESP32 core.
-        if run_as_user env PATH="$PATH" arduino-cli upload -p "$ESP_PORT" --fqbn "$ESP_FQBN" "$sketch_dir"; then
-            ok "${label} firmware uploaded"
-            echo
-            echo "  Tap ${C_BOLD}RESET${C_RESET} on ${label} ${C_DIM}(do not hold BOOT)${C_RESET} to run the new firmware."
-            echo "  ${C_DIM}The Pi UART has no RTS reset line, so esptool cannot start the app for you.${C_RESET}"
-            echo
-            read -r -p "  Enter after RESET (s = skip protocol check)… " ans || true
-            case "${ans,,}" in
-                s|skip) ;;
-                *)
-                    local verify_try
-                    for verify_try in 1 2 3; do
-                        if verify_esp_protocol "$ESP_PORT"; then
-                            ok "${label} answered GETVCC — lighting MCU is live"
-                            break
-                        fi
-                        if (( verify_try == 3 )); then
-                            warn "${label} did not answer GETVCC — upload is done; continuing to the next module."
-                            info "You can tap RESET again after the installer finishes, then restart ${SERVICE_NAME}.service."
-                            break
-                        fi
-                        echo
-                        echo "  No GETVCC yet. Tap ${C_BOLD}RESET${C_RESET} again ${C_DIM}(BOOT released)${C_RESET}, then Enter."
-                        read -r -p "  Enter to re-check (s = continue anyway)… " ans || true
-                        case "${ans,,}" in
-                            s|skip) break ;;
-                        esac
-                    done
-                    ;;
-            esac
-            return 0
-        fi
-        warn "Upload failed for ${label}"
-        ask_yn "Retry ${label}?" y
-        [[ "$REPLY" == "y" ]] || { skip_note "${label} flash failed"; return 0; }
+        port="$ESP_PORT"
     done
+}
+
+# GETVCC handshake after the user has already tapped RESET.
+verify_esp_live() {
+    local label="$1" port="$2" verify_try ans
+    for verify_try in 1 2 3; do
+        if verify_esp_protocol "$port"; then
+            ok "${label} answered GETVCC — lighting MCU is live"
+            return 0
+        fi
+        if (( verify_try == 3 )); then
+            warn "${label} did not answer GETVCC — upload is done; continuing."
+            info "You can tap RESET again after the installer finishes, then restart ${SERVICE_NAME}.service."
+            return 0
+        fi
+        echo
+        echo "  No GETVCC from ${label}. Tap ${C_BOLD}RESET${C_RESET} on ${label} ${C_DIM}(BOOT released)${C_RESET}, then Enter."
+        read -r -p "  Enter to re-check (s = continue anyway)… " ans || true
+        case "${ans,,}" in
+            s|skip) return 0 ;;
+        esac
+    done
+}
+
+# One download-mode prompt for both MCUs, both uploads, then one RESET/verify.
+flash_both_esps() {
+    local ans wait_rc port1=/dev/ttyAMA2 port2=/dev/ttyAMA3
+    local esp1_port="" esp2_port="" uploaded1=0 uploaded2=0
+
+    while true; do
+        echo
+        echo "  Put ${C_BOLD}both ESP32s${C_RESET} into ${C_CYAN}UART0 download mode${C_RESET} together:"
+        echo "    ${C_DIM}ESP32-1 (lighting / water) on ${port1} · ESP32-2 (lighting) on ${port2}${C_RESET}"
+        print_esp_download_steps
+        echo "    ${C_DIM}(Pi on the SCCS Core; ROM bootloader is on the same UART as the host protocol)${C_RESET}"
+        echo
+        echo "  ${C_YELLOW}!${C_RESET} Pi not on the SCCS Core? Type ${C_BOLD}s${C_RESET} to skip flashing."
+        echo "  ${C_DIM}You can also type s during the serial wait if you started this by mistake.${C_RESET}"
+        echo
+        read -r -p "  Enter when both are in download mode (s = skip)… " ans || true
+        case "${ans,,}" in
+            s|skip|a|abort|q|quit)
+                skip_note "ESP32 flash skipped"
+                return 0
+                ;;
+        esac
+
+        esp1_port=""
+        esp2_port=""
+        wait_rc=0
+        wait_for_esp_port "ESP32-1 (lighting / water)" "$port1" || wait_rc=$?
+        if [[ "$wait_rc" -eq 2 ]]; then
+            skip_note "ESP32 flash skipped during download wait"
+            return 0
+        fi
+        [[ "$wait_rc" -eq 0 ]] && esp1_port="$ESP_PORT"
+
+        wait_rc=0
+        wait_for_esp_port "ESP32-2 (lighting)" "$port2" || wait_rc=$?
+        if [[ "$wait_rc" -eq 2 ]]; then
+            skip_note "ESP32 flash skipped during download wait"
+            return 0
+        fi
+        [[ "$wait_rc" -eq 0 ]] && esp2_port="$ESP_PORT"
+
+        if [[ -z "$esp1_port" && -z "$esp2_port" ]]; then
+            ask_yn "No serial ports yet. Retry download mode?" y
+            [[ "$REPLY" == "y" ]] && continue
+            skip_note "ESP32 flash abandoned"
+            return 0
+        fi
+        if [[ -z "$esp1_port" ]]; then
+            warn "ESP32-1 port not found — flashing ESP32-2 only"
+        fi
+        if [[ -z "$esp2_port" ]]; then
+            warn "ESP32-2 port not found — flashing ESP32-1 only"
+        fi
+        break
+    done
+
+    uploaded1=0
+    uploaded2=0
+    if [[ -n "$esp1_port" ]]; then
+        if upload_esp_firmware "esp32/esp32_1" "ESP32-1 (lighting / water)" "$esp1_port"; then
+            uploaded1=1
+        fi
+    fi
+    if [[ -n "$esp2_port" ]]; then
+        if upload_esp_firmware "esp32/esp32_2" "ESP32-2 (lighting)" "$esp2_port"; then
+            uploaded2=1
+        fi
+    fi
+
+    if [[ "$uploaded1" -eq 0 && "$uploaded2" -eq 0 ]]; then
+        return 0
+    fi
+
+    echo
+    if [[ "$uploaded1" -eq 1 && "$uploaded2" -eq 1 ]]; then
+        echo "  Tap ${C_BOLD}RESET${C_RESET} on ${C_BOLD}both ESP32s${C_RESET} ${C_DIM}(do not hold BOOT)${C_RESET} to run the new firmware."
+    elif [[ "$uploaded1" -eq 1 ]]; then
+        echo "  Tap ${C_BOLD}RESET${C_RESET} on ${C_BOLD}ESP32-1${C_RESET} ${C_DIM}(do not hold BOOT)${C_RESET} to run the new firmware."
+    else
+        echo "  Tap ${C_BOLD}RESET${C_RESET} on ${C_BOLD}ESP32-2${C_RESET} ${C_DIM}(do not hold BOOT)${C_RESET} to run the new firmware."
+    fi
+    echo "  ${C_DIM}The Pi UART has no RTS reset line, so esptool cannot start the app for you.${C_RESET}"
+    echo
+    read -r -p "  Enter after RESET (s = skip protocol check)… " ans || true
+    case "${ans,,}" in
+        s|skip) ;;
+        *)
+            [[ "$uploaded1" -eq 1 ]] && verify_esp_live "ESP32-1 (lighting / water)" "$esp1_port"
+            [[ "$uploaded2" -eq 1 ]] && verify_esp_live "ESP32-2 (lighting)" "$esp2_port"
+            ;;
+    esac
+    return 0
 }
 
 # mode: optional | required
 step_esp() {
-    local mode="${1:-optional}" flash_rc=0
+    local mode="${1:-optional}"
     step_begin "ESP32 firmware"
     require_checkout
 
@@ -1211,8 +1307,9 @@ step_esp() {
 
     echo
     info "Firmware is loaded over ${C_BOLD}serial${C_RESET} when the Pi is fitted to the SCCS Core"
+    info "Put ${C_BOLD}both ESP32s${C_RESET} in download mode together — this step flashes both in one go."
     info "If this Pi is ${C_BOLD}not${C_RESET} connected to the SCCS Core, skip this step."
-    info "If you start by mistake: type ${C_BOLD}s${C_RESET} during the serial wait, or ${C_BOLD}a${C_RESET} to abort all."
+    info "If you start by mistake: type ${C_BOLD}s${C_RESET} to skip."
     echo
 
     if [[ "$mode" == "optional" ]]; then
@@ -1240,12 +1337,7 @@ step_esp() {
     run_as_user env PATH="$PATH" arduino-cli compile --fqbn "$ESP_FQBN" "$SCCS_HOME/esp32/esp32_2"
     ok "Compiled esp32_2"
 
-    flash_one_esp "esp32/esp32_1" "ESP32-1 (lighting / water)" /dev/ttyAMA2 || flash_rc=$?
-    if [[ "$flash_rc" -eq 2 ]]; then
-        warn "Stopped before ESP32-2"
-    else
-        flash_one_esp "esp32/esp32_2" "ESP32-2 (lighting)" /dev/ttyAMA3 || true
-    fi
+    flash_both_esps
     ok "ESP32 flash step finished"
 }
 
