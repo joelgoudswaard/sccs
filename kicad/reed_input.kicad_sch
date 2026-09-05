@@ -1123,7 +1123,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "22112939-39ee-432e-8038-81884efd3a04")
-		(property "Reference" "C33"
+		(property "Reference" "C21"
 			(at 112.014 72.644 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1198,35 +1198,35 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/3ce61252-32ee-46c5-9d9c-cf7cd20b8d46"
-					(reference "C39")
+					(reference "C27")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/481789b0-b03f-4fb6-8cab-4075070a7d1e"
-					(reference "C45")
-					(unit 1)
-				)
-				(path "/ce21946f-7655-4864-b48a-50deff8538eb/572e5cbc-5c13-4858-8c39-64d2a555b72a"
 					(reference "C33")
 					(unit 1)
 				)
+				(path "/ce21946f-7655-4864-b48a-50deff8538eb/572e5cbc-5c13-4858-8c39-64d2a555b72a"
+					(reference "C21")
+					(unit 1)
+				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/95bed2d0-df43-4056-b799-ae5d23da14c6"
-					(reference "C41")
+					(reference "C29")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/a5503c16-2320-4b38-b3ea-b1cc40d6c763"
-					(reference "C37")
+					(reference "C25")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/eed03f6e-bc4f-485d-9f39-887ce0e6700d"
-					(reference "C43")
+					(reference "C31")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/f0dd22ba-7b40-4c06-b812-0685d925c1df"
-					(reference "C47")
+					(reference "C35")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/f7d9daaf-814c-4f9c-a1f6-c4a86ccfc345"
-					(reference "C35")
+					(reference "C23")
 					(unit 1)
 				)
 			)
@@ -1244,7 +1244,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "23a1bbd1-06ec-46ca-8a83-139a371c57ea")
-		(property "Reference" "R21"
+		(property "Reference" "R18"
 			(at 112.522 63.5 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1318,35 +1318,35 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/3ce61252-32ee-46c5-9d9c-cf7cd20b8d46"
-					(reference "R27")
+					(reference "R24")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/481789b0-b03f-4fb6-8cab-4075070a7d1e"
-					(reference "R33")
+					(reference "R30")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/572e5cbc-5c13-4858-8c39-64d2a555b72a"
-					(reference "R21")
+					(reference "R18")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/95bed2d0-df43-4056-b799-ae5d23da14c6"
-					(reference "R29")
+					(reference "R26")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/a5503c16-2320-4b38-b3ea-b1cc40d6c763"
-					(reference "R25")
+					(reference "R22")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/eed03f6e-bc4f-485d-9f39-887ce0e6700d"
-					(reference "R31")
+					(reference "R28")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/f0dd22ba-7b40-4c06-b812-0685d925c1df"
-					(reference "R35")
+					(reference "R32")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/f7d9daaf-814c-4f9c-a1f6-c4a86ccfc345"
-					(reference "R23")
+					(reference "R20")
 					(unit 1)
 				)
 			)
@@ -1364,7 +1364,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "7fa22063-219d-43bf-8e0f-7966c94b18e3")
-		(property "Reference" "C34"
+		(property "Reference" "C22"
 			(at 120.904 72.644 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1439,35 +1439,35 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/3ce61252-32ee-46c5-9d9c-cf7cd20b8d46"
-					(reference "C40")
+					(reference "C28")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/481789b0-b03f-4fb6-8cab-4075070a7d1e"
-					(reference "C46")
-					(unit 1)
-				)
-				(path "/ce21946f-7655-4864-b48a-50deff8538eb/572e5cbc-5c13-4858-8c39-64d2a555b72a"
 					(reference "C34")
 					(unit 1)
 				)
+				(path "/ce21946f-7655-4864-b48a-50deff8538eb/572e5cbc-5c13-4858-8c39-64d2a555b72a"
+					(reference "C22")
+					(unit 1)
+				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/95bed2d0-df43-4056-b799-ae5d23da14c6"
-					(reference "C42")
+					(reference "C30")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/a5503c16-2320-4b38-b3ea-b1cc40d6c763"
-					(reference "C38")
+					(reference "C26")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/eed03f6e-bc4f-485d-9f39-887ce0e6700d"
-					(reference "C44")
+					(reference "C32")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/f0dd22ba-7b40-4c06-b812-0685d925c1df"
-					(reference "C48")
+					(reference "C36")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/f7d9daaf-814c-4f9c-a1f6-c4a86ccfc345"
-					(reference "C36")
+					(reference "C24")
 					(unit 1)
 				)
 			)
@@ -1725,7 +1725,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "ca1b0b77-dfd0-4687-952a-9255d632488f")
-		(property "Reference" "#PWR039"
+		(property "Reference" "#PWR038"
 			(at 111.76 57.15 0)
 			(hide yes)
 			(show_name no)
@@ -1785,35 +1785,35 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/3ce61252-32ee-46c5-9d9c-cf7cd20b8d46"
-					(reference "#PWR045")
+					(reference "#PWR044")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/481789b0-b03f-4fb6-8cab-4075070a7d1e"
-					(reference "#PWR051")
+					(reference "#PWR050")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/572e5cbc-5c13-4858-8c39-64d2a555b72a"
-					(reference "#PWR039")
+					(reference "#PWR038")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/95bed2d0-df43-4056-b799-ae5d23da14c6"
-					(reference "#PWR047")
+					(reference "#PWR046")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/a5503c16-2320-4b38-b3ea-b1cc40d6c763"
-					(reference "#PWR043")
+					(reference "#PWR042")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/eed03f6e-bc4f-485d-9f39-887ce0e6700d"
-					(reference "#PWR049")
+					(reference "#PWR048")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/f0dd22ba-7b40-4c06-b812-0685d925c1df"
-					(reference "#PWR053")
+					(reference "#PWR052")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/f7d9daaf-814c-4f9c-a1f6-c4a86ccfc345"
-					(reference "#PWR041")
+					(reference "#PWR040")
 					(unit 1)
 				)
 			)
@@ -1831,7 +1831,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "e004315c-5698-4f26-bc64-c3c05333ea6c")
-		(property "Reference" "#PWR040"
+		(property "Reference" "#PWR039"
 			(at 127 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -1891,35 +1891,35 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/3ce61252-32ee-46c5-9d9c-cf7cd20b8d46"
-					(reference "#PWR046")
+					(reference "#PWR045")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/481789b0-b03f-4fb6-8cab-4075070a7d1e"
-					(reference "#PWR052")
+					(reference "#PWR051")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/572e5cbc-5c13-4858-8c39-64d2a555b72a"
-					(reference "#PWR040")
+					(reference "#PWR039")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/95bed2d0-df43-4056-b799-ae5d23da14c6"
-					(reference "#PWR048")
+					(reference "#PWR047")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/a5503c16-2320-4b38-b3ea-b1cc40d6c763"
-					(reference "#PWR044")
+					(reference "#PWR043")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/eed03f6e-bc4f-485d-9f39-887ce0e6700d"
-					(reference "#PWR050")
+					(reference "#PWR049")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/f0dd22ba-7b40-4c06-b812-0685d925c1df"
-					(reference "#PWR054")
+					(reference "#PWR053")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/f7d9daaf-814c-4f9c-a1f6-c4a86ccfc345"
-					(reference "#PWR042")
+					(reference "#PWR041")
 					(unit 1)
 				)
 			)
@@ -1937,7 +1937,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "e246b799-292f-4143-9a69-27d05a96d89a")
-		(property "Reference" "R22"
+		(property "Reference" "R19"
 			(at 102.616 67.31 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2011,35 +2011,35 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/3ce61252-32ee-46c5-9d9c-cf7cd20b8d46"
-					(reference "R28")
+					(reference "R25")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/481789b0-b03f-4fb6-8cab-4075070a7d1e"
-					(reference "R34")
+					(reference "R31")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/572e5cbc-5c13-4858-8c39-64d2a555b72a"
-					(reference "R22")
+					(reference "R19")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/95bed2d0-df43-4056-b799-ae5d23da14c6"
-					(reference "R30")
+					(reference "R27")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/a5503c16-2320-4b38-b3ea-b1cc40d6c763"
-					(reference "R26")
+					(reference "R23")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/eed03f6e-bc4f-485d-9f39-887ce0e6700d"
-					(reference "R32")
+					(reference "R29")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/f0dd22ba-7b40-4c06-b812-0685d925c1df"
-					(reference "R36")
+					(reference "R33")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/f7d9daaf-814c-4f9c-a1f6-c4a86ccfc345"
-					(reference "R24")
+					(reference "R21")
 					(unit 1)
 				)
 			)

@@ -735,7 +735,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "099ecd73-9b41-4315-977e-aaafa29a8e0f")
-		(property "Reference" "C57"
+		(property "Reference" "C45"
 			(at 96.266 65.024 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -810,19 +810,19 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/289c7879-c293-41e1-9b12-36ce1916fe2d"
-					(reference "C57")
+					(reference "C45")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/a0eedc41-812c-454a-9c61-ce155b766160"
-					(reference "C59")
+					(reference "C47")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/a3c5f999-1a2d-4d52-a7d9-976e13506cfb"
-					(reference "C61")
+					(reference "C49")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/f9fe6a99-0547-4304-8cea-93a9433511c0"
-					(reference "C63")
+					(reference "C51")
 					(unit 1)
 				)
 			)
@@ -841,7 +841,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "420b683c-6856-4678-922f-ac7dfb3790ff")
-		(property "Reference" "#PWR073"
+		(property "Reference" "#PWR072"
 			(at 96.52 74.93 0)
 			(hide yes)
 			(show_name no)
@@ -901,19 +901,19 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/289c7879-c293-41e1-9b12-36ce1916fe2d"
-					(reference "#PWR073")
+					(reference "#PWR072")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/a0eedc41-812c-454a-9c61-ce155b766160"
-					(reference "#PWR074")
+					(reference "#PWR073")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/a3c5f999-1a2d-4d52-a7d9-976e13506cfb"
-					(reference "#PWR075")
+					(reference "#PWR074")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/f9fe6a99-0547-4304-8cea-93a9433511c0"
-					(reference "#PWR076")
+					(reference "#PWR075")
 					(unit 1)
 				)
 			)
@@ -1036,7 +1036,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "bddb20fc-694d-441f-a4f9-b53e14711746")
-		(property "Reference" "C58"
+		(property "Reference" "C46"
 			(at 102.616 65.024 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1111,19 +1111,19 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/289c7879-c293-41e1-9b12-36ce1916fe2d"
-					(reference "C58")
+					(reference "C46")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/a0eedc41-812c-454a-9c61-ce155b766160"
-					(reference "C60")
+					(reference "C48")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/a3c5f999-1a2d-4d52-a7d9-976e13506cfb"
-					(reference "C62")
+					(reference "C50")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/f9fe6a99-0547-4304-8cea-93a9433511c0"
-					(reference "C64")
+					(reference "C52")
 					(unit 1)
 				)
 			)

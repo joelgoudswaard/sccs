@@ -2309,7 +2309,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "0c5e71dd-e378-47af-b364-0f40fc9507fe")
-		(property "Reference" "C52"
+		(property "Reference" "C40"
 			(at 188.976 89.154 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2384,11 +2384,11 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/0e54ede7-c3c3-481e-ab9c-f158ab57a6d1"
-					(reference "C52")
+					(reference "C40")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/d3b05700-09f1-456c-b82f-4b1205485eff"
-					(reference "C56")
+					(reference "C44")
 					(unit 1)
 				)
 			)
@@ -2501,7 +2501,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "3c76ae6f-921d-4185-9cc1-5e89bbc0b7c9")
-		(property "Reference" "#PWR061"
+		(property "Reference" "#PWR060"
 			(at 242.57 88.9 0)
 			(hide yes)
 			(show_name no)
@@ -2561,11 +2561,11 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/0e54ede7-c3c3-481e-ab9c-f158ab57a6d1"
-					(reference "#PWR061")
+					(reference "#PWR060")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/d3b05700-09f1-456c-b82f-4b1205485eff"
-					(reference "#PWR070")
+					(reference "#PWR069")
 					(unit 1)
 				)
 			)
@@ -2678,7 +2678,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "4665d4c8-23db-4d28-91c4-c46d4b9af0a0")
-		(property "Reference" "R37"
+		(property "Reference" "R34"
 			(at 76.2 56.642 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2750,11 +2750,11 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/0e54ede7-c3c3-481e-ab9c-f158ab57a6d1"
-					(reference "R37")
+					(reference "R34")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/d3b05700-09f1-456c-b82f-4b1205485eff"
-					(reference "R39")
+					(reference "R36")
 					(unit 1)
 				)
 			)
@@ -2772,7 +2772,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "53c65798-b757-4741-9a91-b852fd49be41")
-		(property "Reference" "C49"
+		(property "Reference" "C37"
 			(at 120.904 45.72 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2847,11 +2847,11 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/0e54ede7-c3c3-481e-ab9c-f158ab57a6d1"
-					(reference "C49")
+					(reference "C37")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/d3b05700-09f1-456c-b82f-4b1205485eff"
-					(reference "C53")
+					(reference "C41")
 					(unit 1)
 				)
 			)
@@ -3083,7 +3083,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "739523ae-8583-46fd-aaaf-7a9d648fe3ec")
-		(property "Reference" "#PWR060"
+		(property "Reference" "#PWR059"
 			(at 185.42 76.2 0)
 			(hide yes)
 			(show_name no)
@@ -3143,11 +3143,11 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/0e54ede7-c3c3-481e-ab9c-f158ab57a6d1"
-					(reference "#PWR060")
+					(reference "#PWR059")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/d3b05700-09f1-456c-b82f-4b1205485eff"
-					(reference "#PWR069")
+					(reference "#PWR068")
 					(unit 1)
 				)
 			)
@@ -3164,7 +3164,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "76eb6852-978f-4f79-a500-5f9d66dd4544")
-		(property "Reference" "#PWR063"
+		(property "Reference" "#PWR062"
 			(at 121.92 151.13 0)
 			(hide yes)
 			(show_name no)
@@ -3224,11 +3224,11 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/0e54ede7-c3c3-481e-ab9c-f158ab57a6d1"
-					(reference "#PWR063")
+					(reference "#PWR062")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/d3b05700-09f1-456c-b82f-4b1205485eff"
-					(reference "#PWR072")
+					(reference "#PWR071")
 					(unit 1)
 				)
 			)
@@ -3245,7 +3245,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "8afdaf14-50ff-47c1-a51d-71eeae4b9a7f")
-		(property "Reference" "#PWR057"
+		(property "Reference" "#PWR056"
 			(at 127 54.61 0)
 			(hide yes)
 			(show_name no)
@@ -3305,11 +3305,11 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/0e54ede7-c3c3-481e-ab9c-f158ab57a6d1"
-					(reference "#PWR057")
+					(reference "#PWR056")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/d3b05700-09f1-456c-b82f-4b1205485eff"
-					(reference "#PWR066")
+					(reference "#PWR065")
 					(unit 1)
 				)
 			)
@@ -3326,7 +3326,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "9cce37d5-f712-4c01-b8e8-95c006e9d2ab")
-		(property "Reference" "R38"
+		(property "Reference" "R35"
 			(at 173.99 76.962 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3398,11 +3398,11 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/0e54ede7-c3c3-481e-ab9c-f158ab57a6d1"
-					(reference "R38")
+					(reference "R35")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/d3b05700-09f1-456c-b82f-4b1205485eff"
-					(reference "R40")
+					(reference "R37")
 					(unit 1)
 				)
 			)
@@ -3420,7 +3420,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "9e2f1afb-37e6-45eb-aab7-e63ae3b35de6")
-		(property "Reference" "C51"
+		(property "Reference" "C39"
 			(at 197.104 86.614 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3495,11 +3495,11 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/0e54ede7-c3c3-481e-ab9c-f158ab57a6d1"
-					(reference "C51")
+					(reference "C39")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/d3b05700-09f1-456c-b82f-4b1205485eff"
-					(reference "C55")
+					(reference "C43")
 					(unit 1)
 				)
 			)
@@ -3516,7 +3516,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "a175836a-e861-4105-ab75-8cfa92098097")
-		(property "Reference" "#PWR055"
+		(property "Reference" "#PWR054"
 			(at 121.92 44.45 0)
 			(hide yes)
 			(show_name no)
@@ -3576,11 +3576,11 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/0e54ede7-c3c3-481e-ab9c-f158ab57a6d1"
-					(reference "#PWR055")
+					(reference "#PWR054")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/d3b05700-09f1-456c-b82f-4b1205485eff"
-					(reference "#PWR064")
+					(reference "#PWR063")
 					(unit 1)
 				)
 			)
@@ -3597,7 +3597,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "a9dab40f-b67e-4df9-b048-b2ae469ada66")
-		(property "Reference" "#PWR056"
+		(property "Reference" "#PWR055"
 			(at 116.84 54.61 0)
 			(hide yes)
 			(show_name no)
@@ -3657,11 +3657,11 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/0e54ede7-c3c3-481e-ab9c-f158ab57a6d1"
-					(reference "#PWR056")
+					(reference "#PWR055")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/d3b05700-09f1-456c-b82f-4b1205485eff"
-					(reference "#PWR065")
+					(reference "#PWR064")
 					(unit 1)
 				)
 			)
@@ -3679,7 +3679,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "ad5f941a-2667-458a-aa14-3837bcc9d90e")
-		(property "Reference" "#PWR058"
+		(property "Reference" "#PWR057"
 			(at 82.55 55.88 0)
 			(hide yes)
 			(show_name no)
@@ -3739,11 +3739,11 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/0e54ede7-c3c3-481e-ab9c-f158ab57a6d1"
-					(reference "#PWR058")
+					(reference "#PWR057")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/d3b05700-09f1-456c-b82f-4b1205485eff"
-					(reference "#PWR067")
+					(reference "#PWR066")
 					(unit 1)
 				)
 			)
@@ -3760,7 +3760,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "c814c36f-dff9-4837-9df5-40d09be5e045")
-		(property "Reference" "#PWR062"
+		(property "Reference" "#PWR061"
 			(at 189.23 99.06 0)
 			(hide yes)
 			(show_name no)
@@ -3820,11 +3820,11 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/0e54ede7-c3c3-481e-ab9c-f158ab57a6d1"
-					(reference "#PWR062")
+					(reference "#PWR061")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/d3b05700-09f1-456c-b82f-4b1205485eff"
-					(reference "#PWR071")
+					(reference "#PWR070")
 					(unit 1)
 				)
 			)
@@ -3841,7 +3841,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "e562e0bc-8976-44c7-974b-1d66d505faf0")
-		(property "Reference" "#PWR059"
+		(property "Reference" "#PWR058"
 			(at 59.69 73.66 0)
 			(hide yes)
 			(show_name no)
@@ -3901,11 +3901,11 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/0e54ede7-c3c3-481e-ab9c-f158ab57a6d1"
-					(reference "#PWR059")
+					(reference "#PWR058")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/d3b05700-09f1-456c-b82f-4b1205485eff"
-					(reference "#PWR068")
+					(reference "#PWR067")
 					(unit 1)
 				)
 			)
@@ -3922,7 +3922,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "ebb8176d-eff9-4f4c-b795-8d0ed55b69eb")
-		(property "Reference" "C50"
+		(property "Reference" "C38"
 			(at 122.936 45.466 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3997,11 +3997,11 @@
 		(instances
 			(project "SCCS-RPI"
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/0e54ede7-c3c3-481e-ab9c-f158ab57a6d1"
-					(reference "C50")
+					(reference "C38")
 					(unit 1)
 				)
 				(path "/ce21946f-7655-4864-b48a-50deff8538eb/d3b05700-09f1-456c-b82f-4b1205485eff"
-					(reference "C54")
+					(reference "C42")
 					(unit 1)
 				)
 			)
