@@ -59,6 +59,7 @@
         });
 
         socket.on('state_update', (state) => {
+            window.SCCS.bumpUiStateGen?.();
             window.SCCS.scenes?.onStateUpdate?.(state);
             window.SCCS.lightingHome?.onStateUpdate?.(state);
             const rampMs = state._ramp_ms ?? window.SCCS.lighting?.getSceneRampMs?.();

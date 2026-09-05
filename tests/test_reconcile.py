@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import MagicMock
 
 from engine.config_compile import compile_config
+from engine.policy import desired_outputs
 from engine.reconcile import Reconciler
 from engine.world import WorldStore
 from modules.config import config
@@ -156,6 +157,31 @@ class TestReconcile(unittest.TestCase):
         self.reconciler.reconcile(ramp_source="reed")
         self.assertEqual(self._kitchen_calls(), [])
         self.assertNotIn("kitchen_panel", self.reconciler._pending_reed_command)
+
+    def test_reed_preview_adopts_ui_state_before_reconcile(self):
+        """Reed-open preview must become GET /api/lights state before hardware I/O.
+
+        Previously _last_desired stayed at the closed level until async reconcile
+        finished, so a late HTTP fetch could paint the kitchen panel off while
+        the reed tile already showed open and the lights were ramping on.
+        """
+        self.world.set_reed_force("kitchen_panel", True)
+        closed = desired_outputs(self.world.snapshot(), self.cfg)
+        self.reconciler._last_desired = closed
+        self.assertEqual(self.reconciler.build_ui_state()["kitchen_panel"], 0)
+
+        self.world.set_reed_force("kitchen_panel", False)
+        world = self.world.snapshot()
+        preview = desired_outputs(world, self.cfg)
+        self.reconciler._preserve_lights_except(preview, world, {"kitchen_panel"})
+        self.assertEqual(self.reconciler.build_ui_state()["kitchen_panel"], 0)
+
+        state = self.reconciler.adopt_desired_for_ui(preview, ramp_source="reed", ramp_ms=2000)
+        self.assertEqual(state["kitchen_panel"], 100)
+        self.assertEqual(self.reconciler.build_ui_state()["kitchen_panel"], 100)
+        self.assertTrue(state["_animate"])
+        self.assertEqual(state["_trigger"], "reed")
+        self.assertEqual(state["_ramp_ms"], 2000)
 
 
 if __name__ == "__main__":

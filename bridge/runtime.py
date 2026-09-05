@@ -389,14 +389,11 @@ class SCCSRuntime:
         desired = desired_outputs(world, self.compiled)
         if affected_lights is not None:
             self.reconciler._preserve_lights_except(desired, world, affected_lights)
-        state = self.reconciler.build_ui_state(desired)
-        if ramp_source in ANIMATED_RAMP_SOURCES:
-            state.update({
-                "_animate": True,
-                "_ramp_ms": self._ramp_ms_for_source(ramp_source),
-                "_trigger": ramp_source,
-            })
-        return state
+        return self.reconciler.adopt_desired_for_ui(
+            desired,
+            ramp_source,
+            self._ramp_ms_for_source(ramp_source) if ramp_source in ANIMATED_RAMP_SOURCES else 0,
+        )
 
     def get_reed_diag_json(self) -> dict:
         """Raw hardware + force overrides — diagnostics only."""

@@ -241,20 +241,34 @@ class Reconciler:
         elif reed_pass:
             self._preserve_lights_except(desired, world, reed_affected)
 
-        self._last_desired = desired
-
+        ui_state = self.adopt_desired_for_ui(desired, ramp_source, ramp_ms)
         if self.on_state_emit:
-            ui_state = self.build_ui_state(desired)
-            if ramp_source in ANIMATED_RAMP_SOURCES:
-                self._last_emit_meta = {
-                    "_animate": True,
-                    "_ramp_ms": ramp_ms,
-                    "_trigger": ramp_source,
-                }
-            else:
-                self._last_emit_meta = {}
-            ui_state.update(self._last_emit_meta)
             self.on_state_emit(ui_state)
+
+    def adopt_desired_for_ui(
+        self,
+        desired: DesiredOutputs,
+        ramp_source: str = "auto",
+        ramp_ms: int = 0,
+    ) -> dict:
+        """Make this desired output the current UI/API state.
+
+        Reed/phase previews emit before hardware I/O. Storing them here means
+        GET /api/lights and get_ui_state() cannot serve the pre-event levels
+        while reconcile is still running.
+        """
+        self._last_desired = desired
+        if ramp_source in ANIMATED_RAMP_SOURCES:
+            self._last_emit_meta = {
+                "_animate": True,
+                "_ramp_ms": ramp_ms,
+                "_trigger": ramp_source,
+            }
+        else:
+            self._last_emit_meta = {}
+        state = self.build_ui_state(desired)
+        state.update(self._last_emit_meta)
+        return state
 
     def build_ui_state(self, desired: Optional[DesiredOutputs] = None) -> dict:
         desired = desired or self._last_desired

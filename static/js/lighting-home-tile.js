@@ -191,14 +191,13 @@
     function onStateUpdate(newState) {
         if (!newState || typeof newState !== 'object') return;
 
-        state.lights.forEach((light) => {
-            if (newState[light.name] !== undefined) {
-                state.values[light.name] = newState[light.name];
+        Object.keys(newState).forEach((key) => {
+            if (key === 'last_scene' || key.startsWith('_')) return;
+            if (key.endsWith('_mode')) {
+                state.modes[key.slice(0, -5)] = newState[key];
+                return;
             }
-            const modeKey = `${light.name}_mode`;
-            if (light.has_mode && newState[modeKey]) {
-                state.modes[light.name] = newState[modeKey];
-            }
+            state.values[key] = newState[key];
         });
 
         refreshAll();
@@ -210,10 +209,13 @@
     }
 
     async function loadLights() {
+        const gen = window.SCCS?.uiStateGen || 0;
         try {
             const res = await fetch('/api/lights', { cache: 'no-store' });
             if (!res.ok) return;
+            if ((window.SCCS?.uiStateGen || 0) !== gen) return;
             const data = await res.json();
+            if ((window.SCCS?.uiStateGen || 0) !== gen) return;
             onLightsConfig(data.lights);
             if (data.state) onStateUpdate(data.state);
         } catch {
@@ -224,6 +226,11 @@
     loadLights();
 
     window.SCCS = window.SCCS || {};
+    window.SCCS.uiStateGen = window.SCCS.uiStateGen || 0;
+    window.SCCS.bumpUiStateGen = function bumpUiStateGen() {
+        window.SCCS.uiStateGen = (window.SCCS.uiStateGen || 0) + 1;
+        return window.SCCS.uiStateGen;
+    };
     window.SCCS.lightingHome = {
         onLightsConfig,
         onStateUpdate,

@@ -125,6 +125,16 @@
         Object.keys(sceneAnimationCancels).forEach((k) => delete sceneAnimationCancels[k]);
     }
 
+    function isActivelyDragging(name) {
+        if (!state.currentlyDragging.has(name)) return false;
+        const wrapper = document.querySelector(`.slider-wrapper[data-name="${name}"]`);
+        if (wrapper?.classList.contains('dragging')) return true;
+        const range = wrapper?.querySelector('.slider-range');
+        if (range && document.activeElement === range) return true;
+        state.currentlyDragging.delete(name);
+        return false;
+    }
+
     function setSliderMotion(wrapper, enabled) {
         if (!wrapper) return;
         const fill = wrapper.querySelector('.slider-fill');
@@ -148,9 +158,17 @@
         let timeoutId = null;
         const target = Math.max(0, Math.min(100, to || 0));
 
+        function finish() {
+            const done = onComplete;
+            onComplete = undefined;
+            done?.();
+        }
+
         function cancel() {
             if (timeoutId) clearTimeout(timeoutId);
+            timeoutId = null;
             delete sceneAnimationCancels[name];
+            finish();
         }
 
         sceneAnimationCancels[name] = cancel;
@@ -168,7 +186,7 @@
 
         timeoutId = window.setTimeout(() => {
             delete sceneAnimationCancels[name];
-            onComplete?.();
+            finish();
         }, rampMs + 60);
 
         return cancel;
@@ -224,21 +242,26 @@
         const skip = skipNames || new Set();
         modeChanged.forEach((name) => {
             if (skip.has(name)) return;
-            if (state.currentlyDragging.has(name) || state.locallyAnimating.has(name)) return;
+            if (isActivelyDragging(name) || state.locallyAnimating.has(name)) return;
             repaintLightFromState(name);
         });
     }
 
     function applyStateToUI(newState, { animate = false, rampMs = SCENE_RAMP_MS } = {}) {
         const meta = extractStateMeta(newState);
-        let shouldAnimate = animate || meta.animate;
+        let shouldAnimate = !!animate;
         if (document.hidden) shouldAnimate = false;
         const effectiveRampMs = meta.rampMs || rampMs;
 
-        const protectedBrightness = new Set([
-            ...state.currentlyDragging,
-            ...state.locallyAnimating,
-        ]);
+        state.lightsConfig.forEach((light) => {
+            if (newState[light.name] === undefined) return;
+            state.locallyAnimating.delete(light.name);
+        });
+
+        const protectedBrightness = new Set();
+        state.lightsConfig.forEach((light) => {
+            if (isActivelyDragging(light.name)) protectedBrightness.add(light.name);
+        });
         if (!shouldAnimate) {
             state.userJustSet.forEach((name) => protectedBrightness.add(name));
         }
@@ -293,10 +316,13 @@
     }
 
     async function syncFromServer() {
+        const gen = window.SCCS?.uiStateGen || 0;
         try {
             const res = await fetch('/api/lights', { cache: 'no-store' });
             if (!res.ok) return;
+            if ((window.SCCS?.uiStateGen || 0) !== gen) return;
             const data = await res.json();
+            if ((window.SCCS?.uiStateGen || 0) !== gen) return;
             if (data.lights?.length) {
                 const hadConfig = state.lightsConfig.length > 0;
                 state.lightsConfig = data.lights;
@@ -431,7 +457,7 @@
 
     function updateUIFromState() {
         state.lightsConfig.forEach((light) => {
-            if (state.currentlyDragging.has(light.name) || state.userJustSet.has(light.name)) {
+            if (isActivelyDragging(light.name) || state.userJustSet.has(light.name)) {
                 return;
             }
 
@@ -984,8 +1010,6 @@
             const isFirstConfig = !state.lightsConfig.length;
             state.lightsConfig = config || [];
             if (isFirstConfig) {
-                state.currentState = {};
-                state.currentModes = {};
                 state.lastRenderConfigHash = '';
             }
             state.lightsConfig.forEach((light) => {
