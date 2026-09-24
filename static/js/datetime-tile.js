@@ -264,44 +264,58 @@
         hasPositioned = true;
     }
 
+    /**
+     * Position along the arc, 0 = left, 1 = right.
+     * Lighting Day runs day-start → evening-start (sun, left to right).
+     * Evening and Night run evening-start → next day-start (moon), with
+     * midnight at the crest. Evening begins before sunset, so the moon must
+     * not keep riding the daytime arc or it appears on the right until sunset.
+     */
+    function orbProgress(current, sunrise, sunset) {
+        const dayStart = dayStartMins;
+        const eveningStart = eveningStartMins;
+        if (dayStart !== null && eveningStart !== null && eveningStart > dayStart) {
+            const isDay = current >= dayStart && current < eveningStart;
+            if (isDay) {
+                const dayLen = eveningStart - dayStart;
+                const t = dayLen > 0 ? (current - dayStart) / dayLen : 0.5;
+                return { t, isDay: true };
+            }
+            if (current >= eveningStart) {
+                const toMidnight = DAY_MINUTES - eveningStart;
+                const sinceEvening = current - eveningStart;
+                const t = toMidnight > 0 ? 0.5 * (sinceEvening / toMidnight) : 0;
+                return { t, isDay: false };
+            }
+            const toDay = dayStart;
+            const t = toDay > 0 ? 0.5 + 0.5 * (current / toDay) : 1;
+            return { t, isDay: false };
+        }
+
+        let t = 0.5;
+        if (current >= sunrise && current <= sunset) {
+            const dayLen = sunset - sunrise;
+            t = dayLen > 0 ? (current - sunrise) / dayLen : 0.5;
+        } else if (current >= sunset) {
+            const toMidnight = DAY_MINUTES - sunset;
+            const sinceSunset = current - sunset;
+            t = toMidnight > 0 ? 0.5 * (sinceSunset / toMidnight) : 0.5;
+        } else {
+            const toSunrise = sunrise;
+            t = toSunrise > 0 ? 0.5 + 0.5 * (current / toSunrise) : 1;
+        }
+        return { t, isDay: current >= sunrise && current <= sunset };
+    }
+
     function updateSunMoonPosition(now) {
         if (!sunriseDate || !sunsetDate) return;
 
         const current = ((localMinutes(now) % DAY_MINUTES) + DAY_MINUTES) % DAY_MINUTES;
         const sunrise = localMinutes(sunriseDate);
         const sunset = localMinutes(sunsetDate);
+        const progress = orbProgress(current, sunrise, sunset);
 
-        let targetT = 0.5;
-
-        if (current >= sunrise && current <= sunset) {
-            // Day: left (sunrise) → right (sunset), linear in time.
-            const dayLen = sunset - sunrise;
-            targetT = dayLen > 0 ? (current - sunrise) / dayLen : 0.5;
-        } else {
-            // Night: left → right with midnight at the centre of the arc.
-            //   t=0   sunset
-            //   t=0.5 midnight
-            //   t=1   sunrise
-            if (current >= sunset) {
-                // Sunset → midnight (first half of the night arc).
-                const toMidnight = DAY_MINUTES - sunset;
-                const sinceSunset = current - sunset;
-                targetT = toMidnight > 0 ? 0.5 * (sinceSunset / toMidnight) : 0.5;
-            } else {
-                // Midnight → sunrise (second half of the night arc).
-                const sinceMidnight = current;
-                const toSunrise = sunrise;
-                targetT = toSunrise > 0 ? 0.5 + 0.5 * (sinceMidnight / toSunrise) : 1;
-            }
-        }
-
-        // Sun during lighting Day; moon during Evening/Night (not raw sunrise→sunset).
-        let targetIsDay = current >= sunrise && current <= sunset;
-        if (dayStartMins !== null && eveningStartMins !== null) {
-            targetIsDay = current >= dayStartMins && current < eveningStartMins;
-        }
-
-        animateSunPosition(Math.max(0, Math.min(1, targetT)), targetIsDay);
+        animateSunPosition(Math.max(0, Math.min(1, progress.t)), progress.isDay);
     }
 
     function computeSunTimes(date) {

@@ -178,28 +178,36 @@ html.light .gps-status-tile__metric {
 
 .gps-status-tile__fact {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: max-content minmax(0, 1fr);
     gap: 0.45rem;
     align-items: baseline;
     margin: 0;
+    min-width: 0;
 }
 
 .gps-status-tile__fact-label {
     margin: 0;
+    min-width: 0;
+    overflow: hidden;
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-medium);
     color: var(--color-text-muted);
     line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .gps-status-tile__fact-value {
     margin: 0;
+    min-width: 0;
+    overflow: hidden;
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-semibold);
     color: var(--color-text);
     font-variant-numeric: tabular-nums;
     text-align: right;
     line-height: 1.25;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 

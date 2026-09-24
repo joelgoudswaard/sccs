@@ -2,6 +2,28 @@
 
 All notable changes to SCCS are documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- First-run ESP32 flashing waited on `/dev/ttyAMA2` and `/dev/ttyAMA3` before the UART overlays were active, so the chips were not detected until the Pi was restarted. The installer now loads those overlays on the running system, and when the kernel only creates the ports at startup it restarts and continues the install instead of asking for the BOOT button.
+- A mismatched Samba password confirmation ended the share setup. The installer asks again until the two entries match, or both are left blank to skip.
+- Victron setup saved a MAC and Instant Readout key without checking them. The installer now listens for each device, prints a live reading when the key decrypts, and offers to retype the credentials when the key does not match or the device is not heard.
+- Touchscreen scan listed every LAN client. It now keeps hosts whose SSH banner is Debian, Ubuntu, Raspbian, or Armbian. A new panel's suggested internal name is `kitchen` and its friendly name is `Kitchen Touchscreen`.
+- Panel SSH setup could reject a correct password: the setup script was passed on sudo's stdin, so ssh read that text instead of the password, and the password prompt itself was not taken from the terminal. The script is now a file, ssh is detached from the terminal, and the password is read from the keyboard.
+- Temperature-sensor assignment ran before the 1-Wire bus existed, so a first install skipped it without asking. The bus is brought up first, the step asks to scan again when nothing is present, and it runs after the boot overlays are in place.
+- Default lighting map: kitchen bench is bug-mode on 1-7 white, 1-8 red, 1-9 green. Accent is 1-10, rooftop tent 1-11, storage panel 2-4, rear drawer 2-5. Relays are Floodlights (GPIO22), Water (GPIO10), Lights (GPIO11), and Fridge/Oven (GPIO6).
+- The date tile moon started on the right when Evening began. Evening starts before sunset, and the moon was still on the daytime arc until sunset, then jumped to the left. It now starts on the left at evening and walks toward midnight at the crest.
+- Date & Time footer shows Sunrise and Sunset above those times.
+- Startup turns the Lights relay on when any dimmer is already on, or when startup is about to turn one on. The relay GPIOs come up off, so those lights would otherwise have no power.
+- While running, a change from every dimmer off to any light on also turns the Lights relay on. `lighting_relay_on_with_lights` in `[lighting]` controls this and the startup behavior. Default is on.
+- Dragging a dimmer to a new level could leave the lights there while the slider jumped back. The UI treats the reply as an animation and was applying that animation on top of the level just set; a drag now stays put until a phase, reed, or scene change moves it.
+- On a 1280×800 touchscreen the home lighting list grew the page. Lighting is two columns wide and lists its lights in two columns; System is one column, without the host-status column, so the three rows stay on the screen.
+- In the two-column lighting layout the last two relays (Lights and Fridge/Oven) were left as separate tiles, so Fridge/Oven wrapped onto its own row. They stack in one tile, beside Floodlights and Water.
+- The home Network tile named the Wi-Fi network whenever it was associated, even when the default route was the USB hotspot. It now names the path that is actually carrying traffic.
+- Victron setup listens for Instant Readout and fills in the Bluetooth address for a single SmartShunt and a single MPPT. The 32-character key still has to be pasted from VictronConnect; it is not in the broadcast.
+- A new install prefers Wi-Fi for internet. Phone USB tethering is still set up when asked, as the fallback route.
+- On the two- and three-column System page, SCCS Core no longer draws platform names over their values: memory and platform each use the full tile width, and long values stay in their own column. Night’s start time lines up with the Day and Evening fields.
+
 ## [1.1.2.18082026] - 2026-08-18
 
 ### Added

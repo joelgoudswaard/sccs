@@ -17,7 +17,7 @@ _METRIC_PREFERRED = 50
 _METRIC_FALLBACK = 200
 
 # Persisted preference (Wi‑Fi vs USB tether). Applied via route metrics when paths exist.
-_uplink_pref_store = ConfigManager("preferred_uplink.json", {"prefer": "usb"})
+_uplink_pref_store = ConfigManager("preferred_uplink.json", {"prefer": "wifi"})
 
 # Van LAN is eth0 — never treat as phone USB tether / WAN.
 _LAN_IFACES = frozenset({"lo", "eth0"})
@@ -40,7 +40,7 @@ _UNAVAILABLE: dict[str, Any] = {
         "wifi": None,
         "usb": None,
         "active": None,
-        "preferred": "usb",
+        "preferred": "wifi",
         "wifi_online": False,
         "usb_online": False,
     },
@@ -50,8 +50,8 @@ _UNAVAILABLE: dict[str, Any] = {
 
 
 def get_preferred_uplink() -> str:
-    prefer = str(_uplink_pref_store.load().get("prefer") or "usb").strip().lower()
-    return prefer if prefer in {"wifi", "usb"} else "usb"
+    prefer = str(_uplink_pref_store.load().get("prefer") or "wifi").strip().lower()
+    return prefer if prefer in {"wifi", "usb"} else "wifi"
 
 
 def _save_preferred_uplink(prefer: str) -> None:

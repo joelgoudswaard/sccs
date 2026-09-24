@@ -43,7 +43,7 @@ class TestHomeKitMapping(unittest.TestCase):
         self.assertIn("light:kitchen_bench", by_key)
         self.assertEqual(by_key["light:kitchen_bench"].kind, KIND_LIGHT)
         self.assertTrue(by_key["light:kitchen_bench"].has_brightness)
-        self.assertFalse(by_key["light:kitchen_bench"].has_bug_mode)
+        self.assertTrue(by_key["light:kitchen_bench"].has_bug_mode)
 
         self.assertTrue(by_key["light:kitchen_panel"].has_bug_mode)
         self.assertTrue(by_key["light:awning"].has_bug_mode)

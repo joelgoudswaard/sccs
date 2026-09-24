@@ -5,6 +5,10 @@
     'use strict';
 
     const JUST_SET_DURATION = 2800;
+    // Phase, reed, and scene ramps move the hardware too, so the slider follows.
+    // A UI echo does not: it must not pull a slider off the level just sent.
+    const AUTOMATION_TRIGGERS = new Set(['phase', 'reed', 'scene', 'startup']);
+    const RANGE_SUPPRESS_MS = 700;
     const UI_RAMP_MS = 1000;
     const SCENE_RAMP_MS = 4000;
     const REED_RAMP_MS = 2000;
@@ -262,7 +266,7 @@
         state.lightsConfig.forEach((light) => {
             if (isActivelyDragging(light.name)) protectedBrightness.add(light.name);
         });
-        if (!shouldAnimate) {
+        if (!AUTOMATION_TRIGGERS.has(meta.trigger)) {
             state.userJustSet.forEach((name) => protectedBrightness.add(name));
         }
 
@@ -279,6 +283,15 @@
         }
 
         cancelSceneAnimations();
+
+        protectedBrightness.forEach((name) => {
+            const light = state.lightsConfig.find((item) => item.name === name);
+            const val = state.currentState[name];
+            if (!light || val === undefined) return;
+            const wrapper = document.querySelector(`.slider-wrapper[data-name="${name}"]`);
+            setSliderMotion(wrapper, false);
+            updateLightUI(name, light.type === 'relay' ? !!val : val);
+        });
 
         const brightnessPainted = new Set();
 
@@ -614,6 +627,7 @@
             state.userJustSet.add(name);
             setTimeout(() => state.userJustSet.delete(name), JUST_SET_DURATION);
             state.currentState[name] = final;
+            wrapper.dataset.pointerCommit = String(Date.now());
 
             const shouldAnimateLocal = !wasDragging && final !== valueAtPointerStart;
             if (shouldAnimateLocal) {
@@ -741,8 +755,25 @@
             emitLightChange(payload);
         }
 
+        function rangeSettlingAfterPointer() {
+            const stamped = parseInt(wrapper.dataset.pointerCommit || '', 10);
+            return Number.isFinite(stamped) && Date.now() - stamped < RANGE_SUPPRESS_MS;
+        }
+
+        function restorePointerValue() {
+            const keep = parseInt(wrapper.dataset.value, 10);
+            if (!Number.isFinite(keep)) return;
+            range.value = String(keep);
+            range.setAttribute('aria-valuenow', String(keep));
+            updateVisual(keep);
+        }
+
         range.addEventListener('input', () => {
             if (name === 'rooftop_tent' && isRooftopTentPhysicallyClosed()) return;
+            if (rangeSettlingAfterPointer()) {
+                restorePointerValue();
+                return;
+            }
             const percent = parseInt(range.value, 10) || 0;
             state.currentlyDragging.add(name);
             range.setAttribute('aria-valuenow', String(percent));
@@ -751,6 +782,10 @@
 
         range.addEventListener('change', () => {
             state.currentlyDragging.delete(name);
+            if (rangeSettlingAfterPointer()) {
+                restorePointerValue();
+                return;
+            }
             commitRangeValue();
         });
 
@@ -811,6 +846,7 @@
         const columns = getCurrentColumns();
 
         let i = 0;
+        let cardCount = 0;
         while (i < visibleLights.length) {
             const light = visibleLights[i];
 
@@ -825,8 +861,11 @@
                 if (columns === 1) {
                     shouldPair = false;
                 } else if (columns === 2) {
+                    // Leave the final pair as two tiles only when that fills a row.
+                    // Stacking them would sit alone with an empty cell beside it.
                     const isLastPair = i + 2 === visibleLights.length;
-                    shouldPair = !isLastPair;
+                    const startsRow = cardCount % 2 === 0;
+                    shouldPair = !(isLastPair && startsRow);
                 }
             }
 
@@ -869,6 +908,7 @@
                 );
 
                 i += 2;
+                cardCount += 1;
                 continue;
             }
 
@@ -940,6 +980,7 @@
             html += '</div>';
             container.insertAdjacentHTML('beforeend', html);
             i += 1;
+            cardCount += 1;
         }
 
         initUnifiedToggleListeners();

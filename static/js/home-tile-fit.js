@@ -1,6 +1,6 @@
 /**
- * 1280×800 home tab — stretch tile rows when content is shorter than the viewport
- * so the grid sits with ~20px padding on top, sides, and bottom.
+ * 1280×800 home tab — lock the three tile rows to the screen so a long
+ * lighting list cannot push the page, with ~20px padding on each edge.
  */
 (function () {
     'use strict';
@@ -39,36 +39,34 @@
         if (grid) grid.style.gridTemplateRows = '';
     }
 
-    function measureGridHeight(grid) {
-        const previousRows = grid.style.gridTemplateRows;
-        grid.style.gridTemplateRows = '';
-        const height = grid.getBoundingClientRect().height;
-        grid.style.gridTemplateRows = previousRows;
-        return height;
-    }
-
     function applyFit() {
-        clearFit();
-
-        if (!isTargetViewport() || !isHomeActive()) return;
-
         const grid = getGrid();
         const header = document.querySelector('.site-header');
-        if (!grid || !header || window.innerWidth < MIN_LAYOUT_WIDTH) return;
+        const kiosk =
+            isTargetViewport() &&
+            isHomeActive() &&
+            grid &&
+            header &&
+            window.innerWidth >= MIN_LAYOUT_WIDTH;
+
+        if (!kiosk) {
+            clearFit();
+            return;
+        }
+
+        document.documentElement.classList.add(CLASS_NAME);
+
+        if (grid.classList.contains('tile-grid--module-reflow')) {
+            grid.style.gridTemplateRows = '';
+            return;
+        }
 
         const gap = parseFloat(getComputedStyle(grid).rowGap) || 16;
         const available =
             window.innerHeight - header.getBoundingClientRect().height - PAGE_PADDING * 2;
-        const natural = measureGridHeight(grid);
+        const rowHeight = Math.floor((available - gap * 2) / 3);
+        if (!Number.isFinite(available) || available <= 0 || rowHeight <= 0) return;
 
-        if (!Number.isFinite(available) || available <= 0 || natural >= available - 1) {
-            return;
-        }
-
-        const rowHeight = (available - gap * 2) / 3;
-        if (!Number.isFinite(rowHeight) || rowHeight <= 0) return;
-
-        document.documentElement.classList.add(CLASS_NAME);
         grid.style.gridTemplateRows = `repeat(3, ${rowHeight}px)`;
     }
 

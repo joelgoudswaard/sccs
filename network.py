@@ -153,7 +153,27 @@ def _internet_connected(ping_ms: int | None, wifi_connected: bool) -> bool:
     return bool(wifi_connected)
 
 
+def _active_uplink(wifi: dict[str, Any]) -> tuple[str | None, str | None]:
+    """Return (active kind, iface) for the route that actually carries traffic."""
+    uplink = wifi.get("uplink") or {}
+    active = uplink.get("active")
+    if active == "usb":
+        iface = (uplink.get("usb") or {}).get("iface")
+        return "usb", str(iface) if iface else None
+    if active == "wifi":
+        iface = (uplink.get("wifi") or {}).get("iface") or wifi.get("iface")
+        return "wifi", str(iface) if iface else None
+    return None, str(wifi["iface"]) if wifi.get("iface") else None
+
+
 def _friendly_connection_name(wifi: dict[str, Any]) -> str:
+    active, _iface = _active_uplink(wifi)
+    if active == "usb":
+        return "USB Hotspot"
+    if active == "wifi":
+        ssid = ((wifi.get("uplink") or {}).get("wifi") or {}).get("ssid") or wifi.get("ssid")
+        if ssid:
+            return str(ssid)
     if wifi.get("connected") and wifi.get("ssid"):
         return str(wifi["ssid"])
     iface = wifi.get("iface")
@@ -177,7 +197,9 @@ def build_network_status(app_start_time: datetime | None = None) -> dict[str, An
     wifi = get_wifi_status()
     ping_ms, ping_status = _get_cached_ping()
     connected = _internet_connected(ping_ms, bool(wifi.get("connected")))
-    iface = wifi.get("iface")
+    active, iface = _active_uplink(wifi)
+    if not iface:
+        iface = wifi.get("iface")
     rx_kbps, tx_kbps = _throughput_kbps(iface)
     link_speed = _read_link_speed_mbps(iface) if iface else None
 
@@ -189,10 +211,10 @@ def build_network_status(app_start_time: datetime | None = None) -> dict[str, An
             "tx_kbps": tx_kbps,
             "ping_ms": ping_ms,
             "ping_status": ping_status,
-            "signal_quality": _signal_quality(wifi),
+            "signal_quality": _signal_quality(wifi) if active == "wifi" else None,
             "link_speed_mbps": link_speed,
             "iface": iface,
-            "ssid": wifi.get("ssid"),
+            "ssid": wifi.get("ssid") if active == "wifi" else None,
         },
         "timestamp": datetime.now().isoformat(timespec="seconds"),
     }

@@ -12,6 +12,9 @@ from .world import WorldStore
 
 logger = logging.getLogger("sccs")
 
+# [gpio] relay that feeds the dimmable lighting circuits.
+LIGHTING_RELAY = "lights"
+
 CommandedLight = Tuple[int, str]
 ANIMATED_RAMP_SOURCES = frozenset({"reed", "phase", "scene", "ui", "startup"})
 
@@ -146,9 +149,55 @@ class Reconciler:
                 if light in self.cfg.rgb_lights:
                     desired.light_modes[light] = mode
 
+    def _any_light_on(self, desired: Optional[DesiredOutputs]) -> bool:
+        if not desired:
+            return False
+        return any(int(brightness or 0) > 0 for brightness, _mode in desired.lights.values())
+
+    def _arm_lighting_relay(self, desired: DesiredOutputs, world, *, startup: bool) -> bool:
+        """Turn the Lights relay on for startup, or when dimmers rise from all off.
+
+        Returns True when this pass should command the relay even on a UI pass,
+        which otherwise skips relays the user did not toggle.
+        """
+        if not self.cfg.lighting_relay_on_with_lights:
+            return False
+        if LIGHTING_RELAY not in self.cfg.relay_names:
+            return False
+        if LIGHTING_RELAY in world.relay_intents:
+            return False
+        lit: List[str] = []
+        if startup:
+            for name, (brightness, _mode) in desired.lights.items():
+                if int(brightness or 0) > 0:
+                    lit.append(name)
+            for name, brightness in world.observed_lights.items():
+                if int(brightness or 0) > 0 and name not in lit:
+                    lit.append(name)
+            if not lit:
+                return False
+            logger.info("Lighting relay on at startup — %s", ", ".join(lit))
+        else:
+            if self._last_desired is None or self._any_light_on(self._last_desired):
+                return False
+            if not self._any_light_on(desired):
+                return False
+            lit = [
+                name
+                for name, (brightness, _mode) in desired.lights.items()
+                if int(brightness or 0) > 0
+            ]
+            logger.info("Lighting relay on — lights came on (%s)", ", ".join(lit))
+        desired.relays[LIGHTING_RELAY] = True
+        self.world.update_observed_relays({LIGHTING_RELAY: True})
+        return True
+
     def reconcile(self, ramp_source: str = "auto"):
         world = self.world.snapshot()
         desired = desired_outputs(world, cfg=self.cfg)
+        force_lighting_relay = self._arm_lighting_relay(
+            desired, world, startup=(ramp_source == "startup")
+        )
         desired.ramp_source = ramp_source
         self._last_ramp_source = ramp_source
         ramp_ms = self._ramp_ms(ramp_source)
@@ -201,9 +250,15 @@ class Reconciler:
 
         for relay, on in desired.relays.items():
             if ui_pass and relay not in world.relay_intents:
-                continue
+                if not (force_lighting_relay and relay == LIGHTING_RELAY):
+                    continue
             if self._commanded_relays.get(relay) != on:
-                rsource = "user_intent" if relay in world.relay_intents else "hardware_default"
+                if force_lighting_relay and relay == LIGHTING_RELAY:
+                    rsource = "lights_on"
+                elif relay in world.relay_intents:
+                    rsource = "user_intent"
+                else:
+                    rsource = "hardware_default"
                 self.relays.set_relay(relay, on, source=rsource, trigger=ramp_source)
                 self._commanded_relays[relay] = on
                 self._commanded_at[f"relay:{relay}"] = now

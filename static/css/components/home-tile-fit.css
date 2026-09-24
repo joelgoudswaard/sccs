@@ -1,4 +1,6 @@
-/* Home layout fit for 1280×800 kiosk when content is shorter than the viewport */
+/* 1280×800 touchscreen: three rows fill the screen, and a long light list
+   must not grow the page. System gives up its status column so Lighting
+   can be two columns wide. */
 
 html.home-tile-fit-1280 main {
     padding-bottom: 20px;
@@ -6,4 +8,74 @@ html.home-tile-fit-1280 main {
 
 html.home-tile-fit-1280 #home .tile-grid > .tile {
     min-height: 0;
+}
+
+@media (min-width: 70.0625rem) and (max-width: 157.5rem) {
+    html.home-tile-fit-1280 #home .tile-grid:not(.tile-grid--module-reflow) > #tile-lighting-home {
+        grid-column: 1 / span 2;
+        grid-row: 2;
+    }
+
+    html.home-tile-fit-1280 #home .tile-grid:not(.tile-grid--module-reflow) > #tile-climate {
+        grid-column: 3 / span 2;
+        grid-row: 2 / span 2;
+        min-height: 0;
+    }
+
+    html.home-tile-fit-1280 #home .tile-grid:not(.tile-grid--module-reflow) > #tile-sonos {
+        grid-column: 5 / span 2;
+        grid-row: 2;
+    }
+
+    html.home-tile-fit-1280 #home .tile-grid:not(.tile-grid--module-reflow) > #tile-reeds {
+        grid-column: 1;
+        grid-row: 3;
+    }
+
+    html.home-tile-fit-1280 #home .tile-grid:not(.tile-grid--module-reflow) > #tile-gps {
+        grid-column: 2;
+        grid-row: 3;
+    }
+
+    html.home-tile-fit-1280 #home .tile-grid:not(.tile-grid--module-reflow) > #tile-appearance {
+        grid-column: 5;
+        grid-row: 3;
+    }
+
+    html.home-tile-fit-1280 #home .tile-grid:not(.tile-grid--module-reflow) > #tile-system {
+        grid-column: 6;
+        grid-row: 3;
+    }
+}
+
+html.home-tile-fit-1280 #tile-system .system-tile__body {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+html.home-tile-fit-1280 #tile-system .system-tile__panel {
+    padding-right: 0;
+}
+
+html.home-tile-fit-1280 #tile-system .system-tile__panel--aside {
+    display: none;
+}
+
+html.home-tile-fit-1280 #home .tile-grid:not(.tile-grid--module-reflow) #tile-lighting-home,
+html.home-tile-fit-1280 #home .tile-grid:not(.tile-grid--module-reflow) #tile-reeds {
+    overflow: hidden;
+}
+
+html.home-tile-fit-1280 #home .tile-grid:not(.tile-grid--module-reflow) .lighting-home-tile__list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-auto-flow: row;
+    column-gap: 0.75rem;
+    align-content: center;
+    width: 100%;
+    margin-inline: 0;
+    padding-inline: 0;
+}
+
+html.home-tile-fit-1280 #home .tile-grid:not(.tile-grid--module-reflow) .lighting-home-tile__item:not(.is-active):not(.is-fading-out) {
+    display: none;
 }

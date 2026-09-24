@@ -60,6 +60,8 @@ class CompiledConfig:
     reed_stable_polls: int = 3
     sync_interval_s: int = 45
     optimistic_lock_duration_s: float = 2.5
+    # When dimmers go from all off to any light on, energize the Lights relay.
+    lighting_relay_on_with_lights: bool = True
 
 
 def compile_config(cfg) -> CompiledConfig:
@@ -75,6 +77,9 @@ def compile_config(cfg) -> CompiledConfig:
     out.sync_interval_s = cfg.getint("background_sync", "sync_interval", fallback=45)
     out.optimistic_lock_duration_s = cfg.getfloat(
         "esp32", "optimistic_lock_duration", fallback=2.5
+    )
+    out.lighting_relay_on_with_lights = cfg.getboolean(
+        "lighting", "lighting_relay_on_with_lights", fallback=True
     )
 
     if cfg.has_section("ambient"):

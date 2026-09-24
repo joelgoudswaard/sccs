@@ -68,8 +68,18 @@ STEP=0
 TOTAL_STEPS=0
 NEED_REBOOT=0
 GROUPS_CHANGED=0
+UART_REBOOT_DECLINED=0
+UARTS_LIVE=0
+SCCS_RESUME_PHASE=""
 SKIPPED_NOTES=()
 REQUIRED_GROUPS=(www-data tty dialout gpio netdev)
+# Written before a restart that the ESP flash is waiting on. The copy of this
+# script is what continues the install — the clone under ~/sccs may be older
+# than the installer the user actually ran.
+INSTALL_RESUME_DIR="/var/lib/sccs"
+INSTALL_RESUME_FILE="/var/lib/sccs/install-resume"
+INSTALL_RESUME_SCRIPT="/var/lib/sccs/install-resume.sh"
+INSTALL_RESUME_PROFILE="/etc/profile.d/sccs-install-resume.sh"
 RUN_MODE="menu"   # menu | install | sensors | esp | victron | lan | screens | service
 
 # ---------------------------------------------------------------------------
@@ -179,6 +189,26 @@ pause_enter() {
 
 run_as_user() {
     sudo -u "$USERNAME" -H -- "$@"
+}
+
+# Run a bash script as USERNAME. The script body is this function's stdin.
+# Do not pass that body as sudo's stdin: sudo's pty (use_pty) swallows it, and
+# ssh inside the script then reads the script text as the password.
+run_user_bash() {
+    local body rc=0
+    body="$(mktemp)"
+    cat >"$body"
+    if [[ -n "${USERNAME:-}" ]]; then
+        chown "$USERNAME" "$body" 2>/dev/null || true
+    fi
+    if [[ "$(stat -c '%U' "$body" 2>/dev/null || echo root)" != "${USERNAME:-root}" ]]; then
+        chmod 755 "$body"
+    else
+        chmod 700 "$body"
+    fi
+    run_as_user "$@" bash "$body" || rc=$?
+    rm -f "$body"
+    return "$rc"
 }
 
 # Run git as the install user (public HTTPS — no credentials).
@@ -314,13 +344,233 @@ require_conf() {
     [[ -f "$CONF" ]] || die "Missing $CONF — choose Install SCCS first"
 }
 
-# True when running on a Raspberry Pi 5 (device-tree model string).
-is_raspberry_pi5() {
+# Device-tree model, or empty when this is not a Pi.
+pi_model() {
     local model=""
     if [[ -r /proc/device-tree/model ]]; then
         model="$(tr -d '\0' </proc/device-tree/model 2>/dev/null || true)"
     fi
+    printf '%s' "$model"
+}
+
+# True when running on a Raspberry Pi (any model).
+is_raspberry_pi() {
+    local model
+    model="$(pi_model)"
+    [[ "${model,,}" == *"raspberry pi"* ]]
+}
+
+# True when running on a Raspberry Pi 5 (device-tree model string).
+# "Raspberry Pi 500" matches too — same RP1 UART overlays.
+is_raspberry_pi5() {
+    local model
+    model="$(pi_model)"
     [[ "${model,,}" == *"raspberry pi 5"* ]]
+}
+
+# config.txt section + overlays in the order the bootloader must apply them.
+# Pi 4 ttyAMA numbers follow probe order (ttyAMA0 already exists), so uart2,
+# uart3, uart4 become ttyAMA1 (GPS), ttyAMA2 (ESP32-1), ttyAMA3 (ESP32-2).
+# Inserting these at the top of the section reverses that order.
+uart_config_section() {
+    if is_raspberry_pi5; then
+        printf 'pi5\n'
+    else
+        printf 'pi4\n'
+    fi
+}
+
+# Lines are "overlay device". Device nodes are the SCCS host UARTs.
+host_uart_overlays() {
+    if is_raspberry_pi5; then
+        printf '%s %s\n' uart1-pi5 /dev/ttyAMA1
+        printf '%s %s\n' uart2-pi5 /dev/ttyAMA2
+        printf '%s %s\n' uart3-pi5 /dev/ttyAMA3
+    else
+        printf '%s %s\n' uart2 /dev/ttyAMA1
+        printf '%s %s\n' uart3 /dev/ttyAMA2
+        printf '%s %s\n' uart4 /dev/ttyAMA3
+    fi
+}
+
+# Basename of the tty's device-tree node (serial@38000, serial@7e201600, …).
+uart_of_name() {
+    local dev="$1" path
+    path="/sys/class/tty/${dev#/dev/}/device/of_node"
+    [[ -e "$path" ]] || return 1
+    basename "$(readlink -f "$path")"
+}
+
+# True when /dev/ttyAMA2 and /dev/ttyAMA3 are the SCCS ESP UARTs, not just
+# any PL011 that happened to get those names.
+# Pi 5: UART2 (GPIO 4/5) is serial@38000, UART3 (GPIO 8/9) is serial@3c000.
+# Pi 4: UART3 (GPIO 4/5) is serial@7e201600, UART4 (GPIO 8/9) is serial@7e201800.
+esp_uarts_ready() {
+    [[ -e /dev/ttyAMA2 && -e /dev/ttyAMA3 ]] || return 1
+    local a2 a3
+    a2="$(uart_of_name /dev/ttyAMA2)" || { UARTS_LIVE=1; return 0; }
+    a3="$(uart_of_name /dev/ttyAMA3)" || { UARTS_LIVE=1; return 0; }
+    if is_raspberry_pi5; then
+        [[ "$a2" == *38000 && "$a3" == *3c000 ]] || return 1
+    else
+        [[ "$a2" == *201600 && "$a3" == *201800 ]] || return 1
+    fi
+    UARTS_LIVE=1
+    return 0
+}
+
+# Give the install user access to a tty that udev may not have labelled yet.
+grant_uart_node() {
+    local node="$1"
+    [[ -e "$node" ]] || return 0
+    chgrp dialout "$node" 2>/dev/null || true
+    chmod 660 "$node" 2>/dev/null || true
+}
+
+# Load the SCCS UART overlays into the running kernel.
+# Returns 0 when the ESP ports exist and point at the right UARTs.
+# Pi 4's PL011 is an AMBA device: a runtime overlay often creates no ttyAMA
+# node, and when it does the index can follow probe order instead of the UART
+# number. The of_node check rejects that. A wrong runtime overlay is removed
+# so the boot config is what the next restart applies.
+activate_host_uarts() {
+    if esp_uarts_ready; then
+        return 0
+    fi
+    command -v dtoverlay >/dev/null 2>&1 || return 1
+    is_raspberry_pi || return 1
+
+    local overlay node err
+    local -a loaded=()
+    while read -r overlay node; do
+        [[ -n "$overlay" ]] || continue
+        [[ -e "$node" ]] && continue
+        info "Bringing up ${node} (${overlay})…"
+        if ! err="$(dtoverlay "$overlay" 2>&1)"; then
+            warn "dtoverlay ${overlay} failed${err:+: ${err}}"
+        else
+            loaded+=("$overlay")
+        fi
+    done < <(host_uart_overlays)
+
+    if command -v udevadm >/dev/null 2>&1; then
+        udevadm settle --timeout=5 || true
+    fi
+
+    local i
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        if esp_uarts_ready; then
+            grant_uart_node /dev/ttyAMA1
+            grant_uart_node /dev/ttyAMA2
+            grant_uart_node /dev/ttyAMA3
+            ok "ESP serial ports are live (/dev/ttyAMA2, /dev/ttyAMA3)"
+            return 0
+        fi
+        sleep 0.2
+    done
+
+    if [[ ${#loaded[@]} -gt 0 && ( -e /dev/ttyAMA2 || -e /dev/ttyAMA3 ) ]]; then
+        warn "Runtime UART load did not create the SCCS ESP ports. Removing it."
+        # Post-decrement in (( ri-- )) is false when ri is 0, which trips set -e.
+        local ri=${#loaded[@]}
+        while (( ri > 0 )); do
+            ri=$((ri - 1))
+            dtoverlay -r "${loaded[$ri]}" >/dev/null 2>&1 || true
+        done
+    fi
+    return 1
+}
+
+# Persist the running installer and continue after the restart that creates
+# the UART devices. phase is "after-uart" (rest of a full install) or "esp".
+save_install_resume() {
+    local phase="$1" src
+    mkdir -p "$INSTALL_RESUME_DIR"
+    src="$(readlink -f "${BASH_SOURCE[0]}")"
+    cp -a "$src" "$INSTALL_RESUME_SCRIPT"
+    chmod 755 "$INSTALL_RESUME_SCRIPT"
+    cat >"$INSTALL_RESUME_FILE" <<EOF
+PHASE=${phase}
+USERNAME=${USERNAME}
+SCCS_HOME=${SCCS_HOME}
+EOF
+    chmod 644 "$INSTALL_RESUME_FILE"
+    cat >"$INSTALL_RESUME_PROFILE" <<EOF
+# Created by the SCCS installer. Removed when the install continues.
+case \$- in
+  *i*) ;;
+  *) return ;;
+esac
+if [ -f ${INSTALL_RESUME_FILE} ]; then
+  echo
+  echo "SCCS install is waiting to continue — the ESP serial ports come up after this restart."
+  echo "Run:  sudo bash ${INSTALL_RESUME_SCRIPT}"
+  echo
+fi
+EOF
+    chmod 644 "$INSTALL_RESUME_PROFILE"
+}
+
+clear_install_resume() {
+    rm -f "$INSTALL_RESUME_FILE" "$INSTALL_RESUME_SCRIPT" "$INSTALL_RESUME_PROFILE"
+    SCCS_RESUME_PHASE=""
+}
+
+# Read /var/lib/sccs/install-resume if a previous run is waiting on a restart.
+# Exports USERNAME and SCCS_HOME for resolve_identity. Returns 0 when a
+# known phase was loaded.
+load_install_resume() {
+    SCCS_RESUME_PHASE=""
+    [[ -f "$INSTALL_RESUME_FILE" ]] || return 1
+    local phase="" user="" home="" line
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        case "$line" in
+            PHASE=*) phase="${line#PHASE=}" ;;
+            USERNAME=*) user="${line#USERNAME=}" ;;
+            SCCS_HOME=*) home="${line#SCCS_HOME=}" ;;
+        esac
+    done <"$INSTALL_RESUME_FILE"
+    case "$phase" in
+        after-uart|esp) ;;
+        *) return 1 ;;
+    esac
+    if [[ -n "$user" ]] && id "$user" &>/dev/null; then
+        USERNAME="$user"
+    fi
+    if [[ -n "$home" && -d "$home" ]]; then
+        SCCS_HOME="$home"
+    fi
+    SCCS_RESUME_PHASE="$phase"
+    return 0
+}
+
+# The ESP ports are still missing after a runtime overlay load. Ask to
+# restart so the bootloader applies config.txt, then continue this install.
+# Returns 1 if the user declines. Does not return on a successful reboot.
+offer_restart_for_uarts() {
+    local phase="$1"
+    if ! is_raspberry_pi; then
+        warn "ESP serial ports are missing, and this machine is not a Raspberry Pi"
+        return 1
+    fi
+    echo
+    warn "The ESP serial ports are not active on this boot."
+    info "The installer enabled the Pi UART overlays. /dev/ttyAMA2 and /dev/ttyAMA3 appear when those overlays load, which on this board happens at startup."
+    info "After the restart, log in and run the command below — the install continues from here."
+    echo
+    ask_yn "Restart now so the ESP32s can be detected?" y
+    if [[ "$REPLY" != "y" ]]; then
+        return 1
+    fi
+    save_install_resume "$phase"
+    ok "Restarting. When the Pi is back, log in and run:"
+    echo "    ${C_BOLD}sudo bash ${INSTALL_RESUME_SCRIPT}${C_RESET}"
+    sync
+    if ! systemctl reboot; then
+        warn "Could not restart automatically. Restart the Pi, then run the command above."
+        exit 1
+    fi
+    exit 0
 }
 
 # Start sccs.service if the unit exists and it is not already active.
@@ -339,11 +589,15 @@ ensure_sccs_service_running() {
     fi
 }
 
-# Insert dtoverlay=<name> immediately under [section] if it is not already
+# Append dtoverlay=<name> at the end of [section] if it is not already
 # present as a line-start assignment anywhere in config.txt.
+# Appending keeps boot order: inserting under the header reverses it, and on
+# Pi 4 the ttyAMA index follows that probe order.
 # Returns 0 if the file was changed.
 ensure_dtoverlay_in_section() {
-    local section="$1" ov="$2" line="dtoverlay=${ov}"
+    # ${ov} is not visible in the same local statement under set -u.
+    local section="$1" ov="$2" line
+    line="dtoverlay=${ov}"
     [[ -n "${CONFIG_TXT:-}" && -f "$CONFIG_TXT" ]] || return 1
     if grep -qE "^dtoverlay=${ov}([[:space:]]|,|$)" "$CONFIG_TXT"; then
         info "Already present: ${line}"
@@ -351,16 +605,17 @@ ensure_dtoverlay_in_section() {
     fi
     if grep -qE "^\[${section}\]" "$CONFIG_TXT"; then
         awk -v sec="[${section}]" -v line="$line" '
-            BEGIN { done = 0 }
-            $0 == sec {
+            BEGIN { insec = 0; done = 0 }
+            /^\[/ {
+                if (insec && !done) { print line; done = 1 }
+                insec = ($0 == sec)
                 print
-                if (!done) { print line; done = 1 }
                 next
             }
             { print }
             END {
                 if (!done) {
-                    print sec
+                    if (!insec) print sec
                     print line
                 }
             }
@@ -370,6 +625,21 @@ ensure_dtoverlay_in_section() {
     fi
     ok "Enabled ${line} under [${section}]"
     return 0
+}
+
+# Write the SCCS UART overlays into config.txt. Returns 0 if the file changed.
+configure_uart_overlays() {
+    [[ -n "${CONFIG_TXT:-}" && -f "$CONFIG_TXT" ]] || return 1
+    local section overlay node any=1
+    section="$(uart_config_section)"
+    while read -r overlay node; do
+        [[ -n "$overlay" ]] || continue
+        if ensure_dtoverlay_in_section "$section" "$overlay"; then
+            any=0
+            NEED_REBOOT=1
+        fi
+    done < <(host_uart_overlays)
+    return "$any"
 }
 
 # Ensure key=value exists under [section] in $CONFIG_TXT. Returns 0 if changed.
@@ -602,6 +872,58 @@ step_repo() {
     [[ -f "$CONF_DIST" ]] || die "Missing $CONF_DIST — incomplete checkout?"
 }
 
+# Hidden prompt. Uses the controlling terminal so a mismatched confirmation
+# can be re-entered without smbpasswd consuming the only attempt.
+read_secret_tty() {
+    local prompt="$1" __dest="$2" __val=""
+    if ( : </dev/tty ) 2>/dev/null; then
+        read -r -s -p "  ${prompt}" __val </dev/tty || return 1
+    elif [[ -t 0 ]]; then
+        read -r -s -p "  ${prompt}" __val || return 1
+    else
+        return 1
+    fi
+    echo
+    printf -v "$__dest" '%s' "$__val"
+}
+
+# Ask twice and retry while the two entries differ. smbpasswd -s still
+# reads the password twice; both lines are the confirmed value.
+set_samba_password() {
+    local pass="" confirm=""
+    info "Enter the Samba share password twice. If they differ, you can try again."
+    info "Leave both blank to skip."
+    while true; do
+        read_secret_tty "Samba password: " pass \
+            || die "No interactive terminal available for prompts"
+        read_secret_tty "Confirm Samba password: " confirm \
+            || die "No interactive terminal available for prompts"
+        if [[ -z "$pass" && -z "$confirm" ]]; then
+            skip_note "Samba password not set — set later with: sudo smbpasswd -a $USERNAME"
+            return 0
+        fi
+        if [[ "$pass" != "$confirm" ]]; then
+            warn "Passwords do not match. Try again."
+            continue
+        fi
+        # -s reads the new password and the confirmation from stdin.
+        if printf '%s\n%s\n' "$pass" "$confirm" | smbpasswd -a -s "$USERNAME"; then
+            pass=""
+            confirm=""
+            ok "Samba user configured — use it to open \\\\$(hostname -s)\\sccs"
+            return 0
+        fi
+        pass=""
+        confirm=""
+        warn "smbpasswd could not store the password."
+        ask_yn "Try again?" y
+        if [[ "$REPLY" != "y" ]]; then
+            skip_note "Samba password not set — set later with: sudo smbpasswd -a $USERNAME"
+            return 0
+        fi
+    done
+}
+
 step_samba() {
     step_begin "Samba share [sccs]"
     # Always (re)write the share so force user matches the installing login (whoami / SUDO_USER).
@@ -652,9 +974,7 @@ PY
     echo
     ask_yn "Set or update Samba password for '$USERNAME' now?" y
     if [[ "$REPLY" == "y" ]]; then
-        info "Enter the Samba share password twice when prompted…"
-        smbpasswd -a "$USERNAME" && ok "Samba user configured — use it to open \\\\$(hostname -s)\\sccs" \
-            || warn "smbpasswd failed — run later: sudo smbpasswd -a $USERNAME"
+        set_samba_password
     else
         skip_note "Samba password not set — set later with: sudo smbpasswd -a $USERNAME"
     fi
@@ -739,17 +1059,90 @@ step_config() {
     else
         ok "secret_key already set"
     fi
+    ensure_wifi_uplink_default
+}
+
+# Fresh installs prefer Wi-Fi. USB tethering stays available as the fallback.
+ensure_wifi_uplink_default() {
+    local pref="$SCCS_HOME/config/preferred_uplink.json"
+    [[ -f "$pref" ]] && return 0
+    run_as_user mkdir -p "$SCCS_HOME/config"
+    printf '%s\n' '{
+  "prefer": "wifi"
+}
+' | run_as_user tee "$pref" >/dev/null
+    ok "Preferred internet is Wi-Fi"
 }
 
 # mode: optional (full install — may skip) | required (menu path — configure now)
+w1_sensors_present() {
+    local id
+    for id in /sys/bus/w1/devices/28-*; do
+        [[ -e "$id" ]] || return 1
+        return 0
+    done
+    return 1
+}
+
+# GPIO ${W1_GPIO} is the DS18B20 bus. The overlay is written for the next boot
+# and loaded now so the sensor step can see probes on a first install.
+ensure_w1_bus() {
+    modprobe wire 2>/dev/null || true
+    modprobe w1-gpio 2>/dev/null || true
+    modprobe w1-therm 2>/dev/null || true
+    if w1_sensors_present; then
+        return 0
+    fi
+    if [[ -n "${CONFIG_TXT:-}" && -f "$CONFIG_TXT" ]] && ! grep -qE '^dtoverlay=w1-gpio' "$CONFIG_TXT"; then
+        local w1_line="dtoverlay=w1-gpio,gpiopin=${W1_GPIO}"
+        if grep -qE '^\[all\]' "$CONFIG_TXT"; then
+            awk -v line="$w1_line" '
+                BEGIN { done=0 }
+                /^\[all\]/ && !done { print; print line; done=1; next }
+                { print }
+                END { if (!done) print line }
+            ' "$CONFIG_TXT" >"${CONFIG_TXT}.sccs.tmp" && mv "${CONFIG_TXT}.sccs.tmp" "$CONFIG_TXT"
+        else
+            printf '\n[all]\n%s\n' "$w1_line" >>"$CONFIG_TXT"
+        fi
+        ok "Enabled $w1_line"
+        NEED_REBOOT=1
+    fi
+    if command -v dtoverlay >/dev/null 2>&1; then
+        dtoverlay w1-gpio "gpiopin=${W1_GPIO}" >/dev/null 2>&1 || true
+    fi
+    local i
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        w1_sensors_present && return 0
+        sleep 0.3
+    done
+    return 1
+}
+
 step_sensors() {
     local mode="${1:-optional}"
     step_begin "1-Wire temperature sensors"
     require_conf
 
-    modprobe w1-gpio 2>/dev/null || true
-    modprobe w1-therm 2>/dev/null || true
-    mapfile -t W1_IDS < <(ls /sys/bus/w1/devices/ 2>/dev/null | grep '^28' || true)
+    info "Bringing up the 1-Wire bus on GPIO ${W1_GPIO}…"
+    ensure_w1_bus || true
+    local scan_tries=0
+    local -a W1_IDS=()
+    while true; do
+        mapfile -t W1_IDS < <(ls /sys/bus/w1/devices/ 2>/dev/null | grep '^28' || true)
+        [[ ${#W1_IDS[@]} -gt 0 ]] && break
+        warn "No DS18B20 devices under /sys/bus/w1/devices/"
+        if (( scan_tries >= 2 )); then
+            break
+        fi
+        ask_yn "Scan again for temperature sensors?" y
+        if [[ "$REPLY" != "y" ]]; then
+            break
+        fi
+        scan_tries=$((scan_tries + 1))
+        ensure_w1_bus || true
+        sleep 1
+    done
 
     local cur_out cur_fridge cur_freezer
     cur_out="$(conf_get sensors outside_temp_sensor)"
@@ -774,13 +1167,8 @@ step_sensors() {
 
     local do_assign=0
     if [[ ${#W1_IDS[@]} -eq 0 ]]; then
-        warn "No DS18B20 devices under /sys/bus/w1/devices/"
         if [[ -z "$cur_out$cur_fridge$cur_freezer" ]]; then
-            if [[ "$mode" == "optional" ]]; then
-                skip_note "1-Wire skipped — no sensors detected (configure later from the menu)"
-            else
-                warn "Wire sensors / reboot after overlays, then try again"
-            fi
+            skip_note "1-Wire skipped — no sensors detected (configure later from the menu)"
             return 0
         fi
         info "Configured roles can still be deleted from sccs.conf"
@@ -945,27 +1333,16 @@ step_boot_firmware() {
         warn "config.txt not found — cannot enable overlays automatically"
     else
         cp -a "$CONFIG_TXT" "${CONFIG_TXT}.bak.sccs.$(date +%Y%m%d%H%M%S)"
-        local changed_cfg=0 ov w1_line
+        local changed_cfg=0 w1_line
 
         # Same GPIOs on both boards; overlay *names* differ:
         #   Pi 4 (BCM2711): uart2=GPIO0/1  uart3=GPIO4/5  uart4=GPIO8/9
         #   Pi 5 (RP1):     uart1-pi5=GPIO0/1  uart2-pi5=GPIO4/5  uart3-pi5=GPIO8/9
         # Device nodes stay /dev/ttyAMA1 (GPS), ttyAMA2 (ESP1), ttyAMA3 (ESP2).
         # Do not enable ctsrts — GPIO3 is 1-Wire and GPIO7 is a reed input.
-        local uart_section uart_overlays
-        if is_raspberry_pi5; then
-            uart_section=pi5
-            uart_overlays=(uart1-pi5 uart2-pi5 uart3-pi5)
-        else
-            uart_section=pi4
-            uart_overlays=(uart2 uart3 uart4)
+        if configure_uart_overlays; then
+            changed_cfg=1
         fi
-        for ov in "${uart_overlays[@]}"; do
-            if ensure_dtoverlay_in_section "$uart_section" "$ov"; then
-                changed_cfg=1
-                NEED_REBOOT=1
-            fi
-        done
 
         w1_line="dtoverlay=w1-gpio,gpiopin=${W1_GPIO}"
         if ! grep -qE "dtoverlay=w1-gpio" "$CONFIG_TXT"; then
@@ -986,8 +1363,17 @@ step_boot_firmware() {
             info "Already present: w1-gpio overlay"
         fi
 
-        [[ "$changed_cfg" -eq 0 ]] && ok "Boot overlays already match SCCS defaults" \
-            || ok "Updated $CONFIG_TXT (reboot required for new devices)"
+        # config.txt is read at startup. Load the UARTs now so the ESP flash
+        # in this same run can see /dev/ttyAMA2 and /dev/ttyAMA3.
+        activate_host_uarts || true
+
+        if [[ "$changed_cfg" -eq 0 ]]; then
+            ok "Boot overlays already match SCCS defaults"
+        elif esp_uarts_ready; then
+            ok "Updated $CONFIG_TXT — ESP serial ports are live on this boot"
+        else
+            ok "Updated $CONFIG_TXT — restart required before the ESP serial ports exist"
+        fi
     fi
 
     local cmdline="" before after
@@ -1033,14 +1419,22 @@ ensure_arduino_cli() {
 # Returns: 0 = port found (ESP_PORT set), 1 = timeout/fail, 2 = user skip
 # $1 = label, $2 = preferred host UART (e.g. /dev/ttyAMA2). The SCCS Core
 # wires each ESP's UART0 to that Pi UART — same pins as the ROM bootloader.
+# The ttyAMA node exists because the Pi UART overlay is loaded. Download mode
+# does not create it, so a missing node fails immediately instead of asking
+# the user to hold BOOT for three minutes.
 wait_for_esp_port() {
     local label="$1" preferred="${2:-}" tries=0 max_tries=90 ans
-    while (( tries < max_tries )); do
-        if [[ -n "$preferred" && -e "$preferred" ]]; then
+    if [[ -n "$preferred" ]]; then
+        if [[ -e "$preferred" ]]; then
             ESP_PORT="$preferred"
             ok "Found ${ESP_PORT} for ${label}" >&2
             return 0
         fi
+        warn "${preferred} is not available, so ${label} cannot be detected" >&2
+        info "That path is the Pi UART. It appears when the UART overlay loads." >&2
+        return 1
+    fi
+    while (( tries < max_tries )); do
         mapfile -t ports < <(ls /dev/ttyACM* /dev/ttyUSB* 2>/dev/null | sort || true)
         if [[ ${#ports[@]} -ge 1 ]]; then
             ESP_PORT="${ports[0]}"
@@ -1204,6 +1598,14 @@ flash_both_esps() {
     local ans wait_rc port1=/dev/ttyAMA2 port2=/dev/ttyAMA3
     local esp1_port="" esp2_port="" uploaded1=0 uploaded2=0
 
+    if ! esp_uarts_ready; then
+        activate_host_uarts || true
+    fi
+    if ! esp_uarts_ready; then
+        skip_note "ESP32 flash skipped — /dev/ttyAMA2 and /dev/ttyAMA3 are not active. Restart the Pi, then run: sudo $0 --esp"
+        return 0
+    fi
+
     while true; do
         echo
         echo "  Put ${C_BOLD}both ESP32s${C_RESET} into ${C_CYAN}UART0 download mode${C_RESET} together:"
@@ -1305,20 +1707,43 @@ step_esp() {
     trap 'ensure_sccs_service_running; exit 143' TERM
     trap 'ensure_sccs_service_running' ERR
 
-    echo
-    info "Firmware is loaded over ${C_BOLD}serial${C_RESET} when the Pi is fitted to the SCCS Core"
-    info "Put ${C_BOLD}both ESP32s${C_RESET} in download mode together — this step flashes both in one go."
-    info "If this Pi is ${C_BOLD}not${C_RESET} connected to the SCCS Core, skip this step."
-    info "If you start by mistake: type ${C_BOLD}s${C_RESET} to skip."
-    echo
-
     if [[ "$mode" == "optional" ]]; then
+        echo
+        info "If this Pi is ${C_BOLD}not${C_RESET} connected to the SCCS Core, skip this step."
         ask_yn "Is this Pi connected to the SCCS Core (flash both ESP32s now)?" n
         if [[ "$REPLY" != "y" ]]; then
             skip_note "ESP32 flash skipped — re-run when the Pi is on the SCCS Core"
             return 0
         fi
     fi
+
+    # The host UARTs have to exist before esptool can see a chip. Write the
+    # overlays (in case this is --esp on a Pi that has not run the full
+    # install) and load them into this boot. Do this before asking for
+    # download mode — holding BOOT does not create /dev/ttyAMA*.
+    if ! esp_uarts_ready; then
+        configure_uart_overlays || true
+        activate_host_uarts || true
+    fi
+    if ! esp_uarts_ready; then
+        if [[ "${UART_REBOOT_DECLINED:-0}" -eq 1 || -n "${SCCS_RESUME_PHASE:-}" ]]; then
+            skip_note "ESP32 flash skipped — restart the Pi so /dev/ttyAMA2 and /dev/ttyAMA3 exist, then run: sudo $0 --esp"
+            if [[ "${SCCS_RESUME_PHASE:-}" == "esp" ]]; then
+                clear_install_resume
+            fi
+            return 0
+        fi
+        if ! offer_restart_for_uarts esp; then
+            skip_note "ESP32 flash skipped — restart the Pi so /dev/ttyAMA2 and /dev/ttyAMA3 exist, then run: sudo $0 --esp"
+            return 0
+        fi
+    fi
+
+    echo
+    info "Firmware is loaded over ${C_BOLD}serial${C_RESET} when the Pi is fitted to the SCCS Core"
+    info "Put ${C_BOLD}both ESP32s${C_RESET} in download mode together — this step flashes both in one go."
+    info "If you start by mistake: type ${C_BOLD}s${C_RESET} to skip."
+    echo
 
     ensure_arduino_cli
     info "Arduino ESP32 core (may take several minutes on first run)…"
@@ -1339,9 +1764,260 @@ step_esp() {
 
     flash_both_esps
     ok "ESP32 flash step finished"
+    if [[ "${SCCS_RESUME_PHASE:-}" == "esp" ]]; then
+        clear_install_resume
+    fi
 }
 
 # mode: optional | required
+# Listen for one Victron Instant Readout device.
+# Stdout: a status word, then an optional detail line.
+#   OK | MISMATCH | NOT_HEARD | HEARD | BLE | NO_VENV
+victron_probe() {
+    local mode="probe" addr="" key=""
+    if [[ "${1:-}" == "--discover" ]]; then
+        mode="discover"
+    else
+        addr="$1"
+        key="$2"
+    fi
+    local py="$SCCS_HOME/venv/bin/python" out=""
+    if [[ ! -x "$py" ]]; then
+        printf 'NO_VENV\n'
+        return 0
+    fi
+    local -a cmd run_env
+    if command -v timeout >/dev/null 2>&1; then
+        cmd=(timeout 45 "$py" -)
+    else
+        cmd=("$py" -)
+    fi
+    run_env=("VICTRON_MODE=${mode}")
+    if [[ "$mode" == "probe" ]]; then
+        run_env+=("VICTRON_ADDR=${addr}" "VICTRON_KEY=${key}")
+    fi
+    # victron-probe-begin
+    if ! out="$(env "${run_env[@]}" "${cmd[@]}" <<'PY'
+import asyncio
+import os
+import sys
+
+TIMEOUT = 20.0
+
+
+def classify_victron_advert(data: bytes):
+    """Product type from the clear Instant Readout header. The key is not in it."""
+    if not data or not bytes(data).startswith(b"\x10") or len(data) < 5:
+        return None
+    import struct
+
+    from victron_ble.devices import detect_device_type
+    from victron_ble.devices.base import MODEL_ID_MAPPING
+
+    raw = bytes(data)
+    model_id = struct.unpack("<H", raw[2:4])[0]
+    klass = detect_device_type(raw)
+    if klass is None:
+        role = "other"
+        fallback = "Victron"
+    elif klass.__name__ == "BatteryMonitor":
+        role = "shunt"
+        fallback = "Battery monitor"
+    elif klass.__name__ == "SolarCharger":
+        role = "mppt"
+        fallback = "Solar charger"
+    else:
+        role = "other"
+        fallback = klass.__name__
+    model = MODEL_ID_MAPPING.get(model_id) or fallback
+    return {"role": role, "model": str(model)}
+
+
+def summary_line(parsed, device, adv) -> str:
+    parts = []
+    model = None
+    if hasattr(parsed, "get_model_name"):
+        try:
+            model = parsed.get_model_name()
+        except Exception:
+            model = None
+    if model and not str(model).startswith("<Unknown"):
+        parts.append(str(model))
+    elif getattr(device, "name", None):
+        parts.append(str(device.name))
+
+    def add(getter, fmt):
+        if not hasattr(parsed, getter):
+            return
+        try:
+            val = getattr(parsed, getter)()
+        except Exception:
+            return
+        if val is None:
+            return
+        parts.append(fmt(val))
+
+    add("get_voltage", lambda v: f"{float(v):.2f} V")
+    add("get_battery_voltage", lambda v: f"{float(v):.2f} V")
+    add("get_soc", lambda v: f"{float(v):.0f}%")
+    add("get_current", lambda v: f"{float(v):.2f} A")
+    add("get_battery_charging_current", lambda v: f"{float(v):.2f} A")
+    add("get_solar_power", lambda v: f"{float(v):.0f} W")
+    add(
+        "get_charge_state",
+        lambda v: str(getattr(v, "name", v)).replace("_", " "),
+    )
+    rssi = getattr(adv, "rssi", None)
+    if rssi is not None:
+        parts.append(f"RSSI {int(rssi)}")
+    return " · ".join(parts) if parts else "Instant Readout decrypted"
+
+
+def handle(state, address, key, device, adv) -> None:
+    if state.get("done"):
+        return
+    if (getattr(device, "address", "") or "").lower() != address:
+        return
+    state["heard"] = True
+    mfr = getattr(adv, "manufacturer_data", None) or {}
+    data = mfr.get(0x02E1)
+    if not data or not bytes(data).startswith(b"\x10"):
+        return
+    from victron_ble.devices import detect_device_type
+    from victron_ble.exceptions import AdvertisementKeyMismatchError
+
+    klass = detect_device_type(bytes(data))
+    if klass is None:
+        state["status"] = "HEARD"
+        state["detail"] = (
+            "The address is advertising, but the packet is not a known Instant Readout."
+        )
+        return
+    try:
+        parsed = klass(key).parse(bytes(data))
+    except AdvertisementKeyMismatchError:
+        state["status"] = "MISMATCH"
+        state["done"] = True
+        return
+    except Exception as exc:
+        state["status"] = "BLE"
+        state["detail"] = str(exc).strip() or exc.__class__.__name__
+        return
+    state["status"] = "OK"
+    state["detail"] = summary_line(parsed, device, adv)
+    state["done"] = True
+
+
+def finish(state) -> None:
+    if not state["done"] and state["heard"] and state["status"] == "NOT_HEARD":
+        state["status"] = "HEARD"
+        state["detail"] = (
+            "The Pi can see that Bluetooth address, but it is not sending Instant Readout."
+        )
+
+
+async def discover_main() -> None:
+    from bleak import BleakScanner
+
+    found: dict = {}
+
+    def callback(device, adv) -> None:
+        mfr = getattr(adv, "manufacturer_data", None) or {}
+        data = mfr.get(0x02E1)
+        if not data:
+            return
+        info = classify_victron_advert(bytes(data))
+        if not info:
+            return
+        addr = (getattr(device, "address", "") or "").strip().lower()
+        if not addr or addr in found:
+            return
+        name = (getattr(device, "name", None) or "").replace("\t", " ").strip()
+        rssi = getattr(adv, "rssi", None)
+        found[addr] = (info, rssi, name)
+
+    try:
+        scanner = BleakScanner(detection_callback=callback)
+        await scanner.start()
+    except Exception as exc:
+        print("BLE")
+        print(str(exc).strip() or exc.__class__.__name__)
+        return
+    try:
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + TIMEOUT
+        while loop.time() < deadline:
+            await asyncio.sleep(0.25)
+    finally:
+        try:
+            await scanner.stop()
+        except Exception:
+            pass
+
+    def sort_key(item):
+        _addr, (_info, rssi, _name) = item
+        return -(rssi if isinstance(rssi, (int, float)) else -999)
+
+    for addr, (info, rssi, name) in sorted(found.items(), key=sort_key):
+        rssi_s = "" if rssi is None else str(int(rssi))
+        print("\t".join((info["role"], info["model"], addr, rssi_s, name)))
+
+
+async def main() -> None:
+    if os.environ.get("VICTRON_MODE") == "discover":
+        await discover_main()
+        return
+
+    from bleak import BleakScanner
+
+    address = os.environ["VICTRON_ADDR"].strip().lower()
+    key = os.environ["VICTRON_KEY"].strip().lower()
+    state = {"done": False, "status": "NOT_HEARD", "detail": "", "heard": False}
+
+    def callback(device, adv):
+        handle(state, address, key, device, adv)
+
+    try:
+        scanner = BleakScanner(detection_callback=callback)
+        await scanner.start()
+    except Exception as exc:
+        print("BLE")
+        print(str(exc).strip() or exc.__class__.__name__)
+        return
+    try:
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + TIMEOUT
+        next_note = loop.time() + 5
+        while loop.time() < deadline and not state["done"]:
+            if loop.time() >= next_note:
+                print("  · still listening…", file=sys.stderr, flush=True)
+                next_note += 5
+            await asyncio.sleep(0.25)
+    finally:
+        try:
+            await scanner.stop()
+        except Exception:
+            pass
+    finish(state)
+    print(state["status"])
+    if state["detail"]:
+        print(state["detail"])
+
+
+asyncio.run(main())
+PY
+    )"; then
+        printf 'BLE\nprobe failed\n'
+        return 0
+    fi
+    # victron-probe-end
+    printf '%s\n' "$out"
+}
+
+victron_discover() {
+    victron_probe --discover
+}
+
 step_victron() {
     local mode="${1:-optional}"
     step_begin "Victron Equipment"
@@ -1352,9 +2028,11 @@ step_victron() {
     info "  · SmartShunt (or BMV) and MPPT added, firmware current"
     info "  · Devices ${C_BOLD}meshed${C_RESET} if you use VE.Smart Networking"
     info "  · ${C_BOLD}Instant readout via Bluetooth${C_RESET} enabled on each device"
-    info "  · gear → Product info → Instant readout → Show  (MAC + 32-char key)"
+    info "  · gear → Product info → Instant readout → Show  (32-character key)"
     echo
-    info "The Pi only listens for BLE advertisements — no VE.Direct cable."
+    info "The Pi listens for the devices and fills in the Bluetooth addresses."
+    info "The key is not in the broadcast — paste it from that screen. It is not the sticker PIN."
+    info "Each device is checked live. A mismatch or a missed advertisement can be retyped."
     echo
 
     local cur_sa cur_sk cur_ma cur_mk
@@ -1420,49 +2098,216 @@ step_victron() {
         done
     }
 
-    local shunt_args=() mppt_args=() victron_args=()
-    echo
-    info "SmartShunt / BMV"
-    if prompt_mac "Shunt" "$cur_sa"; then
-        shunt_args+=(shunt_address "$PROMPT_VAL")
-        ok "shunt_address = $PROMPT_VAL"
-        if prompt_key "Shunt" "$cur_sk"; then
-            shunt_args+=(shunt_key "$PROMPT_VAL")
-            ok "shunt_key saved"
-        else
-            warn "No shunt key — address alone is not enough"
+    pick_victron_mac() {
+        local role="$1" label="$2" current="$3"
+        local -a macs=() models=() rssis=()
+        local line role_f model mac rssi name i choice
+        for line in "${VICTRON_SCAN_LINES[@]}"; do
+            IFS=$'\t' read -r role_f model mac rssi name <<<"$line"
+            [[ "$role_f" == "$role" ]] || continue
+            macs+=("$mac")
+            models+=("$model")
+            rssis+=("$rssi")
+        done
+        if [[ ${#macs[@]} -eq 1 ]]; then
+            info "Using ${models[0]} at ${macs[0]}"
+            PROMPT_VAL="${macs[0]}"
+            return 0
         fi
-    else
-        info "Skipped shunt"
+        if [[ ${#macs[@]} -gt 1 ]]; then
+            info "Choose the ${label}:"
+            for i in "${!macs[@]}"; do
+                info "  $((i + 1))) ${models[$i]}  ${macs[$i]}${rssis[$i]:+  RSSI ${rssis[$i]}}"
+            done
+            info "  m) Type a MAC"
+            info "  s) Skip"
+            if ! read_input "  Choice [1]: "; then
+                return 1
+            fi
+            choice="${REPLY_LINE:-1}"
+            case "${choice,,}" in
+                s|skip) return 1 ;;
+                m)
+                    prompt_mac "$label" "$current"
+                    return $?
+                    ;;
+            esac
+            if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#macs[@]} )); then
+                PROMPT_VAL="${macs[$((choice - 1))]}"
+                return 0
+            fi
+            warn "Not a listed choice."
+            prompt_mac "$label" "$current"
+            return $?
+        fi
+        warn "No ${label} heard. It needs to be on, nearby, with Instant Readout enabled."
+        prompt_mac "$label" "$current"
+    }
+
+    # On success, append field/value pairs to the named array.
+    # A failed check offers another entry and does not replace saved credentials.
+    confirm_victron_device() {
+        local label="$1" addr_field="$2" key_field="$3"
+        local orig_addr="$4" orig_key="$5"
+        local -n _saved="$6"
+        local addr="$orig_addr" key="$orig_key"
+        local out="" status="" detail="" manual=0
+        local role="shunt"
+        [[ "$label" == "MPPT" ]] && role="mppt"
+        echo
+        info "$label"
+        while true; do
+            if [[ "$manual" -eq 1 ]]; then
+                manual=0
+                if ! prompt_mac "$label" "$addr"; then
+                    if [[ -n "$orig_addr" || -n "$orig_key" ]]; then
+                        info "Left the saved ${label} credentials unchanged."
+                    else
+                        info "Skipped ${label}"
+                    fi
+                    return 0
+                fi
+            elif ! pick_victron_mac "$role" "$label" "$addr"; then
+                if [[ -n "$orig_addr" || -n "$orig_key" ]]; then
+                    info "Left the saved ${label} credentials unchanged."
+                else
+                    info "Skipped ${label}"
+                fi
+                return 0
+            fi
+            addr="$PROMPT_VAL"
+            if ! prompt_key "$label" "$key"; then
+                warn "${label} needs the 32-character Instant Readout key before it can connect."
+                ask_yn "Retype the MAC and key?" y
+                if [[ "$REPLY" == "y" ]]; then
+                    continue
+                fi
+                if [[ -n "$orig_addr" || -n "$orig_key" ]]; then
+                    info "Left the saved ${label} credentials unchanged."
+                else
+                    info "Skipped ${label}"
+                fi
+                return 0
+            fi
+            key="$PROMPT_VAL"
+            info "Listening for ${label} at ${addr}…"
+            out="$(victron_probe "$addr" "$key")"
+            status="${out%%$'\n'*}"
+            if [[ "$out" == *$'\n'* ]]; then
+                detail="${out#*$'\n'}"
+            else
+                detail=""
+            fi
+            # BlueZ refuses a second discovery while sccs.service is scanning.
+            if [[ "$status" == "BLE" ]] && [[ "${detail,,}" == *inprogress* || "${detail,,}" == *"already in progress"* ]]; then
+                if systemctl is-active --quiet "${SERVICE_NAME}.service" 2>/dev/null; then
+                    info "Stopping ${SERVICE_NAME}.service so the Bluetooth scan can start…"
+                    systemctl stop "${SERVICE_NAME}.service" || true
+                    VICTRON_SERVICE_STOPPED=1
+                    out="$(victron_probe "$addr" "$key")"
+                    status="${out%%$'\n'*}"
+                    if [[ "$out" == *$'\n'* ]]; then
+                        detail="${out#*$'\n'}"
+                    else
+                        detail=""
+                    fi
+                fi
+            fi
+            case "$status" in
+                OK)
+                    ok "${label} connected — ${detail:-Instant Readout decrypted}"
+                    _saved+=("$addr_field" "$addr" "$key_field" "$key")
+                    return 0
+                    ;;
+                MISMATCH)
+                    warn "The Instant Readout key does not match ${label} (${addr})."
+                    ;;
+                NOT_HEARD)
+                    warn "No Bluetooth advertisement from ${addr}."
+                    info "The device needs to be on, nearby, with Instant Readout enabled."
+                    ;;
+                HEARD)
+                    warn "${detail:-${addr} is visible, but it is not sending Instant Readout.}"
+                    ;;
+                NO_VENV)
+                    warn "Cannot check the connection — the Python venv is not installed yet."
+                    ask_yn "Save these credentials without a live check?" n
+                    if [[ "$REPLY" == "y" ]]; then
+                        _saved+=("$addr_field" "$addr" "$key_field" "$key")
+                        return 0
+                    fi
+                    ;;
+                *)
+                    warn "Could not read ${label}${detail:+: ${detail}}"
+                    ;;
+            esac
+            ask_yn "Retype the key?" y
+            if [[ "$REPLY" != "y" ]]; then
+                if [[ -n "$orig_addr" || -n "$orig_key" ]]; then
+                    info "Left the saved ${label} credentials unchanged."
+                else
+                    info "Skipped ${label}"
+                fi
+                return 0
+            fi
+            ask_yn "Type a different MAC?" n
+            [[ "$REPLY" == "y" ]] && manual=1
+        done
+    }
+
+    local shunt_args=() mppt_args=() victron_args=()
+    local service_was_active=0
+    local scan_out="" scan_line="" role_f="" model="" mac="" rssi="" name="" role_label=""
+    VICTRON_SERVICE_STOPPED=0
+    VICTRON_SCAN_LINES=()
+    if systemctl is-active --quiet "${SERVICE_NAME}.service" 2>/dev/null; then
+        service_was_active=1
+        info "Stopping ${SERVICE_NAME}.service so the Bluetooth scan can start…"
+        systemctl stop "${SERVICE_NAME}.service" || true
+        VICTRON_SERVICE_STOPPED=1
     fi
 
-    echo
-    info "MPPT SmartSolar / BlueSolar"
-    if prompt_mac "MPPT" "$cur_ma"; then
-        mppt_args+=(mppt_address "$PROMPT_VAL")
-        ok "mppt_address = $PROMPT_VAL"
-        if prompt_key "MPPT" "$cur_mk"; then
-            mppt_args+=(mppt_key "$PROMPT_VAL")
-            ok "mppt_key saved"
-        else
-            warn "No MPPT key — address alone is not enough"
-        fi
+    info "Listening for Victron Instant Readout (about 20 seconds)…"
+    scan_out="$(victron_discover)"
+    if [[ "${scan_out%%$'\n'*}" == "BLE" || "${scan_out%%$'\n'*}" == "NO_VENV" ]]; then
+        warn "Could not scan for Victron devices."
+        [[ "$scan_out" == *$'\n'* ]] && warn "${scan_out#*$'\n'}"
     else
-        info "Skipped MPPT"
+        while IFS= read -r scan_line; do
+            [[ -n "$scan_line" ]] || continue
+            VICTRON_SCAN_LINES+=("$scan_line")
+        done <<<"$scan_out"
     fi
+    if [[ ${#VICTRON_SCAN_LINES[@]} -eq 0 ]]; then
+        warn "No Instant Readout devices heard. You can still type a MAC."
+    else
+        info "Heard:"
+        for scan_line in "${VICTRON_SCAN_LINES[@]}"; do
+            IFS=$'\t' read -r role_f model mac rssi name <<<"$scan_line"
+            role_label="$role_f"
+            [[ "$role_f" == "shunt" ]] && role_label="Shunt"
+            [[ "$role_f" == "mppt" ]] && role_label="MPPT"
+            info "  ${model} (${role_label}) ${mac}${rssi:+  RSSI ${rssi}}${name:+  ${name}}"
+        done
+    fi
+
+    confirm_victron_device "Shunt" shunt_address shunt_key "$cur_sa" "$cur_sk" shunt_args
+    confirm_victron_device "MPPT" mppt_address mppt_key "$cur_ma" "$cur_mk" mppt_args
 
     [[ ${#shunt_args[@]} -gt 0 ]] && victron_args+=("${shunt_args[@]}")
     [[ ${#mppt_args[@]} -gt 0 ]] && victron_args+=("${mppt_args[@]}")
     if [[ ${#victron_args[@]} -gt 0 ]]; then
         conf_set victron "${victron_args[@]}"
         ok "Updated [victron]"
-        info "Test: cd $SCCS_HOME && source venv/bin/activate && victron discover"
-        if systemctl is-active --quiet "${SERVICE_NAME}.service" 2>/dev/null; then
-            systemctl restart "${SERVICE_NAME}.service"
-            ok "Restarted ${SERVICE_NAME}.service to load new keys"
-        fi
     else
-        info "No Victron fields entered"
+        info "No Victron credentials saved"
+    fi
+    if [[ "$VICTRON_SERVICE_STOPPED" -eq 1 || ( ${#victron_args[@]} -gt 0 && "$service_was_active" -eq 1 ) ]]; then
+        if systemctl restart "${SERVICE_NAME}.service"; then
+            ok "Restarted ${SERVICE_NAME}.service to load Victron credentials"
+        else
+            warn "Could not restart ${SERVICE_NAME}.service"
+        fi
     fi
 }
 
@@ -2070,10 +2915,9 @@ PY
 # Prompt helpers for panel SSH credentials
 # ---------------------------------------------------------------------------
 prompt_secret() {
-    local prompt="$1" __dest="$2" __val=""
-    read -r -s -p "  ${prompt}" __val || true
-    echo
-    printf -v "$__dest" '%s' "$__val"
+    # Same terminal as the other installer prompts. Reading stdin misses the
+    # password when sudo or a previous ssh still owns that stream.
+    read_secret_tty "$@" || true
 }
 
 # Sets REPLY_USER and REPLY_PASS (password not echoed; not stored in conf).
@@ -2107,11 +2951,11 @@ _try_panel_ssh_once() {
 
     # || true: capture failure without aborting the installer (set -e)
     err="$(
-        run_as_user env \
+        run_user_bash env \
             SCREEN_USER="$screen_user" \
             SCREEN_HOST="$screen_host" \
             SCREEN_PASS="${screen_pass:-}" \
-            bash -s <<'EOS' 2>&1
+            <<'EOS' 2>&1
 set -euo pipefail
 KEY="$HOME/.ssh/sccs_screen"
 KNOWN_HOSTS="$HOME/.sccs/screen_known_hosts"
@@ -2150,20 +2994,21 @@ cat $(printf '%q' "$PASSFILE")
 ASK
 set +e
 out="$(
-    DISPLAY="${DISPLAY:-:0}" \
-    SSH_ASKPASS="$ASKPASS" \
-    SSH_ASKPASS_REQUIRE=force \
-    ssh "${SSH_COMMON[@]}" \
-        -o PreferredAuthentications=password,keyboard-interactive \
-        -o PubkeyAuthentication=no \
-        -o NumberOfPasswordPrompts=1 \
-        -o BatchMode=no \
-        "${SCREEN_USER}@${SCREEN_HOST}" 'echo sccs-ssh-ok' 2>&1
+    setsid -w env \
+        DISPLAY="${DISPLAY:-:0}" \
+        SSH_ASKPASS="$ASKPASS" \
+        SSH_ASKPASS_REQUIRE=force \
+        ssh "${SSH_COMMON[@]}" \
+            -o PreferredAuthentications=password,keyboard-interactive \
+            -o PubkeyAuthentication=no \
+            -o NumberOfPasswordPrompts=1 \
+            -o BatchMode=no \
+            "${SCREEN_USER}@${SCREEN_HOST}" 'echo sccs-ssh-ok' </dev/null 2>&1
 )"
 rc=$?
 rm -f "$PASSFILE" "$ASKPASS"
 set -e
-if [[ "$rc" -eq 0 ]] && echo "$out" | grep -qx 'sccs-ssh-ok'; then
+if [[ "$rc" -eq 0 ]] && printf '%s\n' "$out" | tr -d '\r' | grep -qx 'sccs-ssh-ok'; then
     echo "AUTH=password"
     exit 0
 fi
@@ -2262,11 +3107,11 @@ probe_panel_display_controls() {
     info "Querying display controls on ${screen_user}@${screen_host}…"
 
     out="$(
-        run_as_user env \
+        run_user_bash env \
             SCREEN_USER="$screen_user" \
             SCREEN_HOST="$screen_host" \
             SCREEN_PASS="${screen_pass:-}" \
-            bash -s <<'EOS'
+            <<'EOS'
 set -euo pipefail
 KEY="$HOME/.ssh/sccs_screen"
 KNOWN_HOSTS="$HOME/.sccs/screen_known_hosts"
@@ -2399,14 +3244,15 @@ run_remote() {
 cat $(printf '%q' "$PASSFILE")
 ASK
     local rc=0
-    DISPLAY="${DISPLAY:-:0}" \
-    SSH_ASKPASS="$ASKPASS" \
-    SSH_ASKPASS_REQUIRE=force \
-    ssh "${SSH_COMMON[@]}" \
-        -o PreferredAuthentications=password,keyboard-interactive \
-        -o PubkeyAuthentication=no \
-        -o NumberOfPasswordPrompts=1 \
-        "${SCREEN_USER}@${SCREEN_HOST}" bash -s <<<"$REMOTE_PROBE" || rc=$?
+    setsid -w env \
+        DISPLAY="${DISPLAY:-:0}" \
+        SSH_ASKPASS="$ASKPASS" \
+        SSH_ASKPASS_REQUIRE=force \
+        ssh "${SSH_COMMON[@]}" \
+            -o PreferredAuthentications=password,keyboard-interactive \
+            -o PubkeyAuthentication=no \
+            -o NumberOfPasswordPrompts=1 \
+            "${SCREEN_USER}@${SCREEN_HOST}" bash -s <<<"$REMOTE_PROBE" || rc=$?
     rm -f "$PASSFILE" "$ASKPASS"
     return $rc
 }
@@ -2555,10 +3401,10 @@ configure_touchscreen_panel() {
 
     # Fast path: already passwordless?
     if [[ -z "$screen_pass" ]]; then
-        if run_as_user env \
+        if run_user_bash env \
             SCREEN_USER="$screen_user" \
             SCREEN_HOST="$screen_host" \
-            bash -s <<'EOCHECK'
+            <<'EOCHECK'
 set -euo pipefail
 KEY="$HOME/.ssh/sccs_screen"
 KNOWN_HOSTS="$HOME/.sccs/screen_known_hosts"
@@ -2583,14 +3429,14 @@ EOCHECK
     fi
 
     # Note: do NOT invert with `!` — failure must yield non-zero rc (was a bug that always ✓'d).
-    if run_as_user env \
+    if run_user_bash env \
         SCREEN_USER="$screen_user" \
         SCREEN_HOST="$screen_host" \
         SCREEN_ALIAS="$screen_alias" \
         BLANK_PATH="$blank_path" \
         SKIP_BLANK="$skip_blank" \
         SCREEN_PASS="${screen_pass:-}" \
-        bash -s <<'EOS'
+        <<'EOS'
 set -euo pipefail
 KEY="$HOME/.ssh/sccs_screen"
 SSH_CONFIG="$HOME/.ssh/config"
@@ -2683,17 +3529,20 @@ ASK
 # Password SSH for one-time key install (OpenSSH askpass — no interactive prompt).
 ssh_password() {
     setup_askpass || return 1
-    DISPLAY="${DISPLAY:-:0}" \
-    SSH_ASKPASS="$ASKPASS" \
-    SSH_ASKPASS_REQUIRE=force \
-    ssh \
-        "${SSH_COMMON[@]}" \
-        -o PreferredAuthentications=password,keyboard-interactive \
-        -o PubkeyAuthentication=no \
-        -o NumberOfPasswordPrompts=1 \
-        -o BatchMode=no \
-        "${SCREEN_USER}@${SCREEN_HOST}" \
-        "$@"
+    # setsid drops the terminal so the password comes from askpass, not from
+    # whatever else is still on stdin (the installer script or a sudo pty).
+    setsid -w env \
+        DISPLAY="${DISPLAY:-:0}" \
+        SSH_ASKPASS="$ASKPASS" \
+        SSH_ASKPASS_REQUIRE=force \
+        ssh \
+            "${SSH_COMMON[@]}" \
+            -o PreferredAuthentications=password,keyboard-interactive \
+            -o PubkeyAuthentication=no \
+            -o NumberOfPasswordPrompts=1 \
+            -o BatchMode=no \
+            "${SCREEN_USER}@${SCREEN_HOST}" \
+            "$@" </dev/null
 }
 
 install_authorized_key() {
@@ -2889,14 +3738,14 @@ EOS
         prompt_panel_ssh_credentials "$screen_user" "${screen_host}"
         screen_user="$REPLY_USER"
         screen_pass="$REPLY_PASS"
-        if run_as_user env \
+        if run_user_bash env \
             SCREEN_USER="$screen_user" \
             SCREEN_HOST="$screen_host" \
             SCREEN_ALIAS="$screen_alias" \
             BLANK_PATH="$blank_path" \
             SKIP_BLANK="$skip_blank" \
             SCREEN_PASS="$screen_pass" \
-            bash -s <<'EOS2'
+            <<'EOS2'
 set -euo pipefail
 KEY="$HOME/.ssh/sccs_screen"
 KNOWN_HOSTS="$HOME/.sccs/screen_known_hosts"
@@ -3028,12 +3877,12 @@ configure_touchscreen_browser() {
 
     info "Configuring Chromium on ${screen_user}@${screen_host} → ${ui_url}"
 
-    if run_as_user env \
+    if run_user_bash env \
         SCREEN_USER="$screen_user" \
         SCREEN_HOST="$screen_host" \
         SCREEN_PASS="${screen_pass:-}" \
         SCCS_UI_URL="$ui_url" \
-        bash -s <<'EOS'
+        <<'EOS'
 set -euo pipefail
 KEY="$HOME/.ssh/sccs_screen"
 KNOWN_HOSTS="$HOME/.sccs/screen_known_hosts"
@@ -3302,7 +4151,7 @@ nm_con_for_device() {
     nmcli -t -f NAME,DEVICE connection show | awk -F: -v d="$dev" '$2==d {print $1; exit}'
 }
 
-# Guided phone USB tethering: detect interface, prefer over Wi‑Fi, refresh NAT.
+# Guided phone USB tethering: detect interface, keep Wi-Fi preferred, refresh NAT.
 # mode: optional | required
 step_usb_tether() {
     local mode="${1:-optional}"
@@ -3418,22 +4267,43 @@ step_usb_tether() {
     info "Addresses after connect:"
     ip -4 addr show dev "$found" 2>/dev/null | sed 's/^/    /' || warn "No IPv4 on $found yet"
 
-    # Prefer USB tether over Wi‑Fi (lower metric wins)
-    local tether_con wlan_con
-    tether_con="$(nm_con_for_device "$found")"
-    if [[ -n "$tether_con" ]]; then
-        nmcli connection modify "$tether_con" ipv4.route-metric 50 connection.autoconnect yes
-        ok "Route metric 50 on '${tether_con}' (preferred uplink)"
-        nmcli connection up "$tether_con" 2>/dev/null || true
-    else
-        warn "No NM connection name for $found — skip metric tweak"
+    # Wi-Fi is the default uplink (lower metric wins). USB is the fallback
+    # unless this Pi was already set to prefer the hotspot.
+    ensure_wifi_uplink_default
+    local tether_con wlan_con prefer="wifi" pref_file="$SCCS_HOME/config/preferred_uplink.json"
+    if [[ -f "$pref_file" ]]; then
+        prefer="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("prefer","wifi"))' "$pref_file" 2>/dev/null || echo wifi)"
     fi
-
+    [[ "$prefer" == "usb" ]] || prefer="wifi"
+    tether_con="$(nm_con_for_device "$found")"
+    wlan_con=""
     if ip link show wlan0 &>/dev/null; then
         wlan_con="$(nm_con_for_device wlan0)"
+    fi
+    if [[ "$prefer" == "wifi" ]]; then
+        if [[ -n "$wlan_con" ]]; then
+            nmcli connection modify "$wlan_con" ipv4.route-metric 50
+            ok "Route metric 50 on Wi-Fi '${wlan_con}' (preferred uplink)"
+            nmcli connection up "$wlan_con" 2>/dev/null || true
+        fi
+        if [[ -n "$tether_con" ]]; then
+            nmcli connection modify "$tether_con" ipv4.route-metric 200 connection.autoconnect yes
+            ok "Route metric 200 on '${tether_con}' (fallback)"
+            nmcli connection up "$tether_con" 2>/dev/null || true
+        else
+            warn "No NM connection name for $found — skip metric tweak"
+        fi
+    else
+        if [[ -n "$tether_con" ]]; then
+            nmcli connection modify "$tether_con" ipv4.route-metric 50 connection.autoconnect yes
+            ok "Route metric 50 on '${tether_con}' (preferred uplink)"
+            nmcli connection up "$tether_con" 2>/dev/null || true
+        else
+            warn "No NM connection name for $found — skip metric tweak"
+        fi
         if [[ -n "$wlan_con" ]]; then
             nmcli connection modify "$wlan_con" ipv4.route-metric 200
-            ok "Route metric 200 on Wi‑Fi '${wlan_con}' (fallback)"
+            ok "Route metric 200 on Wi-Fi '${wlan_con}' (fallback)"
             nmcli connection up "$wlan_con" 2>/dev/null || true
         fi
     fi
@@ -3618,16 +4488,59 @@ PY
     done
 }
 
-# Scan wired LAN for live clients. Prints TSV: ip\tmac\thostname\tsource
-# Sources: dhcp (Pi-hole lease), arp (neighbour table), both.
+# Classify an SSH identification string.
+# Prints debian, ubuntu, raspbian, or armbian. Armbian panels ship Debian or
+# Ubuntu OpenSSH, so the banner carries that suffix. Windows OpenSSH and
+# non-SSH clients are not panels.
+linux_banner_os() {
+    local banner="${1//$'\r'/}"
+    local low="${banner,,}"
+    [[ "$low" == ssh-2.0-openssh* ]] || return 1
+    [[ "$low" == *windows* ]] && return 1
+    if [[ "$low" == *armbian* ]]; then
+        printf 'armbian'
+        return 0
+    fi
+    if [[ "$low" == *debian* ]]; then
+        printf 'debian'
+        return 0
+    fi
+    if [[ "$low" == *ubuntu* ]]; then
+        printf 'ubuntu'
+        return 0
+    fi
+    if [[ "$low" == *raspbian* ]]; then
+        printf 'raspbian'
+        return 0
+    fi
+    return 1
+}
+
+# Read host:22's SSH banner and print the Linux/Armbian tag, or fail.
+linux_panel_os() {
+    local host="$1" banner=""
+    [[ "$host" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || return 1
+    banner="$(timeout 2 bash -c '
+        exec 3<>"/dev/tcp/${1}/22" || exit 1
+        IFS= read -r -t 2 line <&3 || exit 1
+        printf "%s" "$line"
+    ' _ "$host" 2>/dev/null || true)"
+    linux_banner_os "$banner"
+}
+
+# Scan wired LAN for live clients, then keep Linux/Armbian SSH hosts.
+# Prints TSV: ip\tmac\thostname\tsource
+# Sources: dhcp (Pi-hole lease), arp (neighbour table), plus debian/ubuntu/armbian.
 scan_wired_lan_clients() {
     local lan_if="$1"
     local self_ip="${2:-$LAN_ADDR}"
     local cidr_suffix start end i ip
     local lease_file="/etc/pihole/dhcp.leases"
-    local tmp_merge
+    local tmp_merge tmp_rows tmp_os
 
     tmp_merge="$(mktemp)"
+    tmp_rows="$(mktemp)"
+    tmp_os="$(mktemp -d)"
     # Seed from Pi-hole DHCP leases (includes hostname even if currently quiet)
     if [[ -r "$lease_file" ]]; then
         # expiry mac ip hostname client-id
@@ -3686,7 +4599,7 @@ scan_wired_lan_clients() {
         ' >>"$tmp_merge"
 
     # Merge by IP (prefer dhcp hostname; union sources)
-    python3 - "$tmp_merge" <<'PY'
+    python3 - "$tmp_merge" >"$tmp_rows" <<'PY'
 import sys
 from collections import OrderedDict
 path = sys.argv[1]
@@ -3738,7 +4651,35 @@ for ip, rec in sorted(rows.items(), key=sort_key):
     src = "+".join(sorted(rec["src"]))
     print(f"{ip}\t{mac}\t{host}\t{src}")
 PY
-    rm -f "$tmp_merge"
+
+    echo "  Checking SSH banners — keeping Linux/Armbian panels…" >&2
+    local idx=0 ip mac host src id
+    local -a probe_pids=()
+    while IFS=$'\t' read -r ip mac host src; do
+        [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || continue
+        printf -v id '%04d' "$idx"
+        (
+            local os_tag=""
+            if os_tag="$(linux_panel_os "$ip")"; then
+                printf '%s\t%s\t%s\t%s+%s\n' "$ip" "$mac" "$host" "$src" "$os_tag" \
+                    >"${tmp_os}/${id}"
+            fi
+        ) &
+        probe_pids+=("$!")
+        idx=$((idx + 1))
+        if (( ${#probe_pids[@]} >= 24 )); then
+            wait "${probe_pids[0]}" || true
+            probe_pids=("${probe_pids[@]:1}")
+        fi
+    done <"$tmp_rows"
+    wait || true
+    local hit
+    for hit in "${tmp_os}"/*; do
+        [[ -f "$hit" ]] || continue
+        cat "$hit"
+    done
+    rm -f "$tmp_merge" "$tmp_rows"
+    rm -rf "$tmp_os"
 }
 
 # True if host:22 accepts TCP (sshd listening).
@@ -3951,12 +4892,9 @@ define_touchscreen_from_client() {
     section_title "Define touchscreen"
     info "Selected: ${C_BOLD}${discovered_ip}${C_RESET}  mac=${mac}  hostname=${hostname}"
 
-    # Suggest internal name from hostname
-    def_name="$(printf '%s' "$hostname" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g; s/^_+//; s/_+$//; s/_+/_/g')"
-    [[ "$def_name" =~ ^[a-z][a-z0-9_]*$ ]] || def_name=""
-    if [[ -z "$def_name" || "$def_name" == "-" ]]; then
-        def_name="panel"
-    fi
+    # Suggested names. Hostname is shown above; these are the examples to accept or edit.
+    def_name="kitchen"
+    def_friendly="Kitchen Touchscreen"
 
     while true; do
         read -r -p "  Internal name (config key) [${def_name}]: " name || true
@@ -3968,7 +4906,6 @@ define_touchscreen_from_client() {
         warn "Use lowercase letters, digits, underscore (e.g. kitchen)"
     done
 
-    def_friendly="${name//_/ }"
     read -r -p "  Friendly name [${def_friendly}]: " friendly || true
     friendly="${friendly:-$def_friendly}"
 
@@ -4207,11 +5144,11 @@ PY
 # Args: user host alias
 ensure_screen_ssh_config() {
     local screen_user="$1" screen_host="$2" screen_alias="$3"
-    run_as_user env \
+    run_user_bash env \
         SCREEN_USER="$screen_user" \
         SCREEN_HOST="$screen_host" \
         SCREEN_ALIAS="$screen_alias" \
-        bash -s <<'EOS'
+        <<'EOS'
 set -euo pipefail
 SSH_CONFIG="$HOME/.ssh/config"
 KNOWN_HOSTS="$HOME/.sccs/screen_known_hosts"
@@ -4607,7 +5544,7 @@ step_screens() {
 
     while true; do
         echo
-        section_title "Wired LAN scan (${lan_if})"
+        section_title "Linux / Armbian panels (${lan_if})"
         # Capture TSV only; drop anything that is not a real client row.
         # (status text must never be listed — progress goes to stderr inside the scan)
         local -a CLIENTS_RAW=() CLIENTS=()
@@ -4620,8 +5557,8 @@ step_screens() {
         done
 
         if [[ ${#CLIENTS[@]} -eq 0 ]]; then
-            warn "No clients found on ${lan_if}"
-            info "Ensure the panel is powered, cabled to the van LAN, and has a DHCP lease."
+            warn "No Linux or Armbian panels found on ${lan_if}"
+            info "The panel must be on this LAN with SSH enabled. Phones and other clients are skipped."
             ask_yn "Scan again?" y
             [[ "$REPLY" == "y" ]] || break
             continue
@@ -4711,6 +5648,11 @@ step_screens() {
                     info "Already configured as ${SCREEN_BY_IP[$ip]} — re-running setup"
                     setup_existing_screens_ssh_one "${SCREEN_BY_IP[$ip]}" || true
                 else
+                    if ! linux_panel_os "$ip" >/dev/null; then
+                        warn "${ip} does not look like a Linux/Armbian panel (no Debian, Ubuntu, or Armbian OpenSSH banner)."
+                        ask_yn "Set it up anyway?" n
+                        [[ "$REPLY" == "y" ]] || continue
+                    fi
                     define_touchscreen_from_client "$ip" "$mac" "$host" || true
                 fi
                 ;;
@@ -4935,6 +5877,8 @@ finish_summary() {
         if [[ "$REPLY" == "y" ]]; then
             ok "Rebooting…"
             systemctl reboot
+        elif [[ -e /dev/ttyAMA2 && -e /dev/ttyAMA3 ]]; then
+            warn "Reboot later if Bluetooth or 1-Wire are not active yet"
         else
             warn "Reboot later if UART / Bluetooth / 1-Wire are not active yet"
         fi
@@ -4968,20 +5912,48 @@ run_install() {
     STEP=0
     SKIPPED_NOTES=()
     section_title "Install SCCS"
-    info "Full install for a new Pi. Hardware steps can be skipped and finished later."
-    echo
-    ask_yn "Start Install SCCS?" y
-    [[ "$REPLY" == "y" ]] || return 0
 
-    step_packages
-    step_groups_and_dirs
-    step_repo
-    step_samba
-    step_nginx
-    step_venv
-    step_config
+    if [[ "${SCCS_RESUME_PHASE:-}" == "after-uart" ]]; then
+        info "Continuing after the restart that brings up the ESP serial ports."
+        # packages, repo, config, and boot firmware already ran
+        STEP=9
+        if ! esp_uarts_ready; then
+            activate_host_uarts || true
+        fi
+        if esp_uarts_ready; then
+            ok "ESP serial ports are available"
+        else
+            UART_REBOOT_DECLINED=1
+            warn "The ESP serial ports are still missing after the restart."
+            info "The rest of the install will continue. Flash later with: sudo $0 --esp"
+        fi
+    else
+        info "Full install for a new Pi. Hardware steps can be skipped and finished later."
+        echo
+        ask_yn "Start Install SCCS?" y
+        [[ "$REPLY" == "y" ]] || return 0
+
+        step_packages
+        step_groups_and_dirs
+        step_repo
+        step_samba
+        step_nginx
+        step_venv
+        step_config
+        step_boot_firmware
+
+        if ! esp_uarts_ready; then
+            if ! offer_restart_for_uarts after-uart; then
+                UART_REBOOT_DECLINED=1
+                warn "ESP flashing needs a restart before /dev/ttyAMA2 and /dev/ttyAMA3 exist."
+                info "The rest of the install will continue. Flash later with: sudo $0 --esp"
+            fi
+        fi
+    fi
+
+    # After the 1-Wire overlay is in the boot config (and loaded live). Asking
+    # earlier finds an empty bus and skips the assignment prompts.
     step_sensors optional
-    step_boot_firmware
 
     echo
     section_title "Optional hardware setup"
@@ -5018,6 +5990,7 @@ run_install() {
     step_service
     step_checklist
     finish_summary
+    clear_install_resume
 }
 
 run_partial() {
@@ -5161,7 +6134,28 @@ case "${1:-}" in
 esac
 
 require_root "$@"
+load_install_resume || true
 resolve_identity
+
+# A restart was taken so the UART overlays could load. Continue that install
+# instead of dropping the user back at the menu. Explicit flags (--update,
+# --lan, …) still do what they say.
+if [[ -n "${SCCS_RESUME_PHASE:-}" ]]; then
+    case "${1:-}" in
+        ""|--menu|menu|--install|install)
+            logo
+            show_context
+            if [[ "$SCCS_RESUME_PHASE" == "esp" ]]; then
+                info "Continuing ESP32 flash after the restart"
+                run_partial "ESP32 firmware" step_esp required
+            else
+                run_install
+            fi
+            clear_install_resume
+            exit 0
+            ;;
+    esac
+fi
 
 case "${1:-}" in
     --install|install) RUN_MODE=install ;;

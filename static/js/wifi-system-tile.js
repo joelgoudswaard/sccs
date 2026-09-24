@@ -76,7 +76,7 @@
         const uplink = state.status?.uplink || {};
         const preferred = uplink.preferred === 'wifi' || uplink.preferred === 'usb'
             ? uplink.preferred
-            : (uplink.active || 'usb');
+            : (uplink.active || 'wifi');
         const active = uplink.active;
         const busy = state.preferring || state.connecting || state.disconnecting;
 

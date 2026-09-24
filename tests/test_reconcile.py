@@ -39,6 +39,64 @@ class TestReconcile(unittest.TestCase):
             if call.args[0] == "kitchen_panel"
         ]
 
+    def _lights_relay_on_calls(self):
+        return [
+            call
+            for call in self.relays.set_relay.call_args_list
+            if call.args and call.args[0] == "lights" and call.args[1] is True
+        ]
+
+    def _all_reeds_closed(self):
+        self.world.clear_all_reed_forces()
+        self.world.update_reeds({name: True for name in self.cfg.reed_names})
+        self.world.update_observed_lights(
+            {name: 0 for name in self.cfg.light_names}
+        )
+
+    def test_startup_turns_lighting_relay_on_when_a_light_is_already_on(self):
+        self._all_reeds_closed()
+        self.world.update_observed_lights({"accent": 40})
+        self.reconciler.reconcile(ramp_source="startup")
+        self.assertEqual(len(self._lights_relay_on_calls()), 1)
+
+    def test_startup_turns_lighting_relay_on_when_policy_lights_a_channel(self):
+        self._all_reeds_closed()
+        self.world.set_reed_force("kitchen_panel", False)
+        self.reconciler.reconcile(ramp_source="startup")
+        self.assertEqual(len(self._lights_relay_on_calls()), 1)
+
+    def test_startup_leaves_lighting_relay_off_when_no_lights_are_on(self):
+        self._all_reeds_closed()
+        self.reconciler.reconcile(ramp_source="startup")
+        self.assertEqual(self._lights_relay_on_calls(), [])
+
+    def test_later_reconcile_does_not_force_lighting_relay_from_stale_pwm(self):
+        self._all_reeds_closed()
+        self.world.update_observed_lights({"accent": 40})
+        self.reconciler.reconcile(ramp_source="auto")
+        self.assertEqual(self._lights_relay_on_calls(), [])
+
+    def test_lighting_relay_turns_on_when_lights_rise_from_all_off(self):
+        self._all_reeds_closed()
+        self.reconciler.reconcile(ramp_source="auto")
+        self.relays.reset_mock()
+        self.world.set_light_intent("accent", 50)
+        self.reconciler.reconcile(ramp_source="ui")
+        self.assertEqual(len(self._lights_relay_on_calls()), 1)
+
+    def test_lighting_relay_stays_off_when_follow_option_is_disabled(self):
+        self.cfg.lighting_relay_on_with_lights = False
+        self._all_reeds_closed()
+        self.reconciler.reconcile(ramp_source="auto")
+        self.relays.reset_mock()
+        self.world.set_light_intent("accent", 50)
+        self.reconciler.reconcile(ramp_source="ui")
+        self.assertEqual(self._lights_relay_on_calls(), [])
+        self.relays.reset_mock()
+        self.world.update_observed_lights({"accent": 40})
+        self.reconciler.reconcile(ramp_source="startup")
+        self.assertEqual(self._lights_relay_on_calls(), [])
+
     def test_stale_commanded_cache_blocks_hardware_until_invalidated(self):
         self.world.update_observed_lights({"kitchen_panel": 100}, {"kitchen_panel": "white"})
         self.reconciler._commanded_lights["kitchen_panel"] = (100, "white")

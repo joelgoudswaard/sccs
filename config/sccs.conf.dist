@@ -79,6 +79,9 @@ scene_ramp_time_ms = 4000
 # Ramp time in milliseconds during automatic Day → Evening → Night phase transitions
 phase_ramp_time_ms = 4000
 
+# When the dimmers change from all off to any light on, also turn on the Lights relay.
+lighting_relay_on_with_lights = true
+
 # =============================================================================
 # HARDWARE MAPPINGS
 # =============================================================================
@@ -136,14 +139,14 @@ rgb_mode_switch_ramp_ms = 250
 #
 # Pin fields are ESP pin IDs ({ESP}-{module GPIO}), e.g. 1-4 = ESP32-1 GPIO 4.
 # rgb_bug pins are white | red | green.
-# Spare PWM channels (not assigned): 1-10, 1-11, 2-10, 2-11.
+# Spare PWM channels (not assigned): 2-10, 2-11.
 
 kitchen_panel     = Kitchen Panel     | rgb_bug | 1-4 | 1-5 | 1-6 | fa-utensils     | 1
-kitchen_bench     = Kitchen Bench     | pwm     | 1-7        | fa-mug-hot       | 2
-storage_panel     = Storage Panel     | pwm     | 1-8        | fa-boxes-stacked | 3
-rear_drawer       = Rear Drawer       | pwm     | 1-9        | fa-archive       | 4
-accent            = Accent Lights     | pwm     | 2-4        | fa-lightbulb     | 5
-rooftop_tent      = Rooftop Tent      | pwm     | 2-5        | fa-tent          | 6
+kitchen_bench     = Kitchen Bench     | rgb_bug | 1-7 | 1-8 | 1-9 | fa-mug-hot       | 2
+storage_panel     = Storage Panel     | pwm     | 2-4        | fa-boxes-stacked | 3
+rear_drawer       = Rear Drawer       | pwm     | 2-5        | fa-archive       | 4
+accent            = Accent Lights     | pwm     | 1-10       | fa-lightbulb     | 5
+rooftop_tent      = Rooftop Tent      | pwm     | 1-11       | fa-tent          | 6
 awning            = Awning Lights     | rgb_bug | 2-6 | 2-7 | 2-8 | fa-umbrella      | 7
 ensuite           = Ensuite           | pwm     | 2-9        | fa-bath          | 8
 
@@ -151,11 +154,12 @@ ensuite           = Ensuite           | pwm     | 2-9        | fa-bath          
 # Format: internal_name = Friendly Name | pin | active_high | initial_state | icon | order
 # The order can be mixed and matched with the above lights.
 # active_high: true = GPIO high energizes the relay (this PCB); false = active-low modules.
+# Relay channels: 1 = GPIO22, 2 = GPIO10, 3 = GPIO11, 4 = GPIO6.
 
-floodlights         = Floodlights       | 22 | true  | false | fa-lightbulb     | 20
-# water_circuit     = Water Circuit     | 10 | true  | false | fa-faucet        | 21
-# lighting_circuit  = Lighting Circuit  | 11 | true  | false | fa-lightbulb     | 22
-# fridge_oven       = Fridge + Oven     |  6 | true  | false | fa-kitchen-set   | 23
+floodlights = Floodlights | 22 | true | false | fa-lightbulb   | 20
+water       = Water       | 10 | true | false | fa-faucet      | 21
+lights      = Lights      | 11 | true | false | fa-lightbulb   | 22
+fridge_oven = Fridge/Oven |  6 | true | false | fa-kitchen-set | 23
 
 [reeds]
 # Reed inputs on the SCCS PCB (external pull-up; reed closes to GND = active low).
@@ -233,7 +237,7 @@ kitchen_bench = kitchen_panel
 #                       Sysfs blank needs one-time panel sudo setup (installer menu 8).
 #   mac               → Ethernet MAC for DHCP reservation (installer menu 6 / 8)
 #
-# Installer menu 8 (or --screens) scans the wired LAN, lets you pick a client,
+# Installer menu 8 (or --screens) scans the wired LAN for Linux/Armbian panels,
 # SSHs in (username/password once), probes brightness/blank paths, writes this
 # section, installs passwordless SSH + sudoers, and refreshes Pi-hole DHCP.
 #
@@ -251,7 +255,7 @@ kitchen_bench = kitchen_panel
 # - Screens tile reports remote state (sysfs, D-Bus brightness, or GetActive).
 #
 # Example (written automatically by menu 8, or uncomment and edit by hand):
-# kitchen          = Kitchen         | kitchen_panel | 10.10.10.10 | joel  | dbus:org.kde.ScreenBrightness:/org/kde/ScreenBrightness/display0 | fa-utensils | 100 | 30 | 5 | kscreen:HDMI-A-1 | 02:00:00:00:10:10
+# kitchen          = Kitchen Touchscreen | kitchen_panel | 10.10.10.10 | joel  | dbus:org.kde.ScreenBrightness:/org/kde/ScreenBrightness/display0 | fa-utensils | 100 | 30 | 5 | kscreen:HDMI-A-1 | 02:00:00:00:10:10
 
 
 [reed_monitor]
