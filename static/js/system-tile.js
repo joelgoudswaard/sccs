@@ -127,8 +127,17 @@
         }
     }
 
-    fetchStatus();
-    setInterval(fetchStatus, POLL_INTERVAL_MS);
+    function pollStatus() {
+        /* Lighting and Scenes read ESP online state from this payload. */
+        if (window.SCCS?.activeSection === 'system') return;
+        fetchStatus();
+    }
+
+    pollStatus();
+    setInterval(pollStatus, POLL_INTERVAL_MS);
+    document.addEventListener('sccs:section-activating', (event) => {
+        if (event.detail?.sectionId !== 'system') fetchStatus();
+    });
 
     window.systemTile = { update, refresh: fetchStatus };
 })();

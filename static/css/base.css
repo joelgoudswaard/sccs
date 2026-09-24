@@ -239,8 +239,7 @@ body::-webkit-scrollbar {
     border-radius: calc(var(--tile-radius) / 2);
     background: var(--color-accent);
     box-shadow: var(--shadow-accent-glow);
-    transition: left var(--duration-nav) var(--ease-standard),
-                width var(--duration-nav) var(--ease-standard);
+    transition: transform var(--duration-nav) var(--ease-standard);
     pointer-events: none;
 }
 
@@ -426,9 +425,12 @@ main {
     z-index: 0;
     opacity: 0;
     visibility: hidden;
-    transition: opacity var(--duration-page-fade) ease,
-                visibility var(--duration-page-fade) ease;
+    transition: opacity var(--duration-page-fade) var(--ease-standard);
     pointer-events: none;
+}
+
+.page-section.is-fading {
+    will-change: opacity;
 }
 
 .page-section.active {
@@ -634,4 +636,12 @@ html:-webkit-full-screen[data-theme="minimal"] {
     font-size: var(--font-size-sm);
     line-height: 1.4;
     text-align: center;
+}
+
+/* Apple and Google icons live on the System tab. Leaving the brands family
+   unset until that tab opens skips the brands webfont on Home. */
+html:not(.fa-brands-ready) .fa-brands,
+html:not(.fa-brands-ready) .fab {
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
 }

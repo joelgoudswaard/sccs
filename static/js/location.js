@@ -150,8 +150,7 @@
     setCoords(null, null);
     setAltitude(null);
     if (els.satellites) els.satellites.textContent = '— / —';
-    fetchGps();
-    setInterval(fetchGps, POLL_INTERVAL_MS);
+    window.SCCS.bindSectionPoll('home', fetchGps, POLL_INTERVAL_MS);
 
     window.SCCS = window.SCCS || {};
     window.SCCS.location = { update, onGpsUpdate, refresh: fetchGps };

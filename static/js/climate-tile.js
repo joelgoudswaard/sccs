@@ -1206,10 +1206,8 @@
         applySensorTemps(data);
     }
 
-    fetchSensors();
-    fetchApiWeather();
-    setInterval(fetchSensors, SENSOR_POLL_INTERVAL_MS);
-    setInterval(fetchApiWeather, API_WEATHER_INTERVAL_MS);
+    window.SCCS.bindSectionPoll('home', fetchSensors, SENSOR_POLL_INTERVAL_MS);
+    window.SCCS.bindSectionPoll('home', fetchApiWeather, API_WEATHER_INTERVAL_MS);
 
     if (els.forecastArc) {
         bindForecastPathHover();
@@ -1238,7 +1236,7 @@
             if (!document.hidden) updateForecastGeometry();
         });
 
-        setInterval(() => {
+        window.SCCS.bindSectionPoll('home', () => {
             updateForecastCurve(lastHourlyForecast, lastCurrentTemp);
         }, SCROLL_TICK_MS);
     }

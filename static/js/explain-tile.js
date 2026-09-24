@@ -142,7 +142,7 @@
         }
     }
 
-    setInterval(refresh, POLL_INTERVAL_MS);
+    window.SCCS.bindSectionPoll('system', refresh, POLL_INTERVAL_MS);
 
     window.SCCS = window.SCCS || {};
     window.SCCS.explain = { refresh, render, getLast: () => lastPayload };

@@ -275,11 +275,11 @@ html.light[data-theme="claymorphism"] body::after {
 
 [data-theme="claymorphism"] .tile__icon {
     color: var(--color-accent);
-    filter: drop-shadow(0 0 6px var(--color-accent-glow));
+    text-shadow: 0 0 6px var(--color-accent-glow);
 }
 
 [data-theme="claymorphism"] .slider-card-title i {
-    filter: drop-shadow(0 0 5px var(--color-accent-glow));
+    text-shadow: 0 0 5px var(--color-accent-glow);
 }
 
 [data-theme="claymorphism"] .scene-btn.active {
@@ -295,7 +295,7 @@ html.light[data-theme="claymorphism"] body::after {
 
 [data-theme="claymorphism"] .scene-btn.active i {
     color: var(--color-accent-hover) !important;
-    filter: drop-shadow(0 0 6px var(--color-accent-glow));
+    text-shadow: 0 0 6px var(--color-accent-glow);
 }
 
 [data-theme="claymorphism"] .slider-card.rooftop-disabled {

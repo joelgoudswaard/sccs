@@ -386,7 +386,7 @@ html.light[data-theme="glassmorphism"] .appearance-tile__select option {
 
 [data-theme="glassmorphism"] .tile__icon {
     color: var(--color-accent);
-    filter: drop-shadow(0 0 8px var(--color-accent-glow));
+    text-shadow: 0 0 8px var(--color-accent-glow);
 }
 
 [data-theme="glassmorphism"] .sonos-tile__track.is-scrolling .sonos-tile__marquee-text,
@@ -402,7 +402,7 @@ html.light[data-theme="glassmorphism"] .appearance-tile__select option {
 }
 
 [data-theme="glassmorphism"] .slider-card-title i {
-    filter: drop-shadow(0 0 8px var(--color-accent-glow));
+    text-shadow: 0 0 8px var(--color-accent-glow);
 }
 
 /* ── Scenes & hover ── */
@@ -418,7 +418,7 @@ html.light[data-theme="glassmorphism"] .appearance-tile__select option {
 
 [data-theme="glassmorphism"] .scene-btn.active i {
     color: var(--color-accent) !important;
-    filter: drop-shadow(0 0 8px var(--color-accent-glow));
+    text-shadow: 0 0 8px var(--color-accent-glow);
 }
 
 [data-theme="glassmorphism"] .tile:hover::before,

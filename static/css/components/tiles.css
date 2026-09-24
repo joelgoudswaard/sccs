@@ -136,7 +136,7 @@
     padding-bottom: 5px;
     font-size: var(--font-size-tile-icon);
     color: var(--color-accent);
-    filter: drop-shadow(0 0 10px var(--color-accent-glow));
+    text-shadow: 0 0 10px var(--color-accent-glow);
     line-height: 1;
 }
 

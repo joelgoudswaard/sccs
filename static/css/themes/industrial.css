@@ -240,11 +240,11 @@ html.light[data-theme="industrial"] body::after {
 
 [data-theme="industrial"] .tile__icon {
     color: var(--color-accent);
-    filter: drop-shadow(0 0 4px var(--color-accent-glow));
+    text-shadow: 0 0 4px var(--color-accent-glow);
 }
 
 [data-theme="industrial"] .slider-card-title i {
-    filter: drop-shadow(0 0 4px var(--color-accent-glow));
+    text-shadow: 0 0 4px var(--color-accent-glow);
 }
 
 [data-theme="industrial"] .scene-btn.active {
@@ -258,7 +258,7 @@ html.light[data-theme="industrial"] body::after {
 
 [data-theme="industrial"] .scene-btn.active i {
     color: var(--color-accent) !important;
-    filter: drop-shadow(0 0 4px var(--color-accent-glow));
+    text-shadow: 0 0 4px var(--color-accent-glow);
 }
 
 [data-theme="industrial"] .tile:hover,

@@ -1,0 +1,8 @@
+/* A tap on a touch panel leaves :hover applied, which keeps the lifted tile layer. */
+@media (hover: none), (pointer: coarse) {
+    [data-theme] .tile:hover,
+    [data-theme] .slider-card:hover,
+    [data-theme] .scene-btn:hover:not(.active) {
+        transform: none !important;
+    }
+}

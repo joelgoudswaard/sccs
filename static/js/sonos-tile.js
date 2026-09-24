@@ -357,9 +357,10 @@
     }
 
     bindControls();
-    fetchStatus().then(refreshMarquees);
-    setInterval(fetchStatus, POLL_INTERVAL_MS);
-    setInterval(tickLocalProgress, TICK_INTERVAL_MS);
+    window.SCCS.bindSectionPoll('home', () => {
+        fetchStatus().then(refreshMarquees);
+    }, POLL_INTERVAL_MS);
+    window.SCCS.bindSectionPoll('home', tickLocalProgress, TICK_INTERVAL_MS);
 
     const socket = getSocket();
     if (socket) {

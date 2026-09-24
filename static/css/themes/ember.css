@@ -305,7 +305,7 @@ html.light[data-theme="ember"] .relay-toggle .relay-knob {
 
 [data-theme="ember"] .tile__icon {
     color: var(--color-accent-hover);
-    filter: drop-shadow(0 0 6px var(--color-accent-glow));
+    text-shadow: 0 0 6px var(--color-accent-glow);
 }
 
 [data-theme="ember"] .tile__value,
@@ -315,7 +315,7 @@ html.light[data-theme="ember"] .relay-toggle .relay-knob {
 }
 
 [data-theme="ember"] .slider-card-title i {
-    filter: drop-shadow(0 0 6px var(--color-accent-glow));
+    text-shadow: 0 0 6px var(--color-accent-glow);
 }
 
 /* ── Scenes & hover ── */
@@ -336,7 +336,7 @@ html.light[data-theme="ember"] .relay-toggle .relay-knob {
 
 [data-theme="ember"] .scene-btn.active i {
     color: var(--color-accent-hover) !important;
-    filter: drop-shadow(0 0 6px var(--color-accent-glow));
+    text-shadow: 0 0 6px var(--color-accent-glow);
 }
 
 [data-theme="ember"] .slider-card.rooftop-disabled {

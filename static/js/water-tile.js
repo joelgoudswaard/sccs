@@ -157,8 +157,7 @@
 
     const POLL_INTERVAL_MS = 5000;
 
-    fetchSensors();
-    setInterval(fetchSensors, POLL_INTERVAL_MS);
+    window.SCCS.bindSectionPoll('home', fetchSensors, POLL_INTERVAL_MS);
 
     window.SCCS = window.SCCS || {};
     window.SCCS.water = { update, onSensorUpdate, refresh: fetchSensors };

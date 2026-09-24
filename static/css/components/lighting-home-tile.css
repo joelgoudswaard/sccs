@@ -128,10 +128,10 @@
     height: var(--size-status-dot);
     flex-shrink: 0;
     color: var(--color-accent);
-    filter: drop-shadow(0 0 4px var(--color-accent-glow));
+    text-shadow: 0 0 4px var(--color-accent-glow);
     transition:
         color var(--duration-bug-mode-crossfade) ease,
-        filter var(--duration-bug-mode-crossfade) ease;
+        text-shadow var(--duration-bug-mode-crossfade) ease;
 }
 
 .lighting-home-tile__icon i {
@@ -141,7 +141,7 @@
 
 .lighting-home-tile__item.is-bug-mode .lighting-home-tile__icon {
     color: var(--color-bug);
-    filter: drop-shadow(0 0 4px var(--color-bug-glow));
+    text-shadow: 0 0 4px var(--color-bug-glow);
 }
 
 #tile-lighting-home .lighting-home-tile__name {

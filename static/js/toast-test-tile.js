@@ -95,8 +95,7 @@
     });
 
     setType('info');
-    updateStats();
-    setInterval(updateStats, 800);
+    window.SCCS.bindSectionPoll('system', updateStats, 800);
 
     window.toastTestTile = {
         sendToast,

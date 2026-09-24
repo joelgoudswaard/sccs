@@ -219,7 +219,7 @@ html.light[data-theme="minimal"] .relay-toggle .relay-knob {
    colours in tile bodies (bug-mode lights, offline modules, sun/moon, etc.). */
 [data-theme="minimal"] .tile__icon {
     color: #14f0d4;
-    filter: drop-shadow(0 0 6px rgba(20, 240, 212, 0.65));
+    text-shadow: 0 0 6px rgba(20, 240, 212, 0.65);
 }
 
 [data-theme="minimal"] .tile__value,
@@ -234,7 +234,7 @@ html.light[data-theme="minimal"] .tile-value {
 }
 
 [data-theme="minimal"] .slider-card-title i {
-    filter: drop-shadow(0 0 6px rgba(20, 240, 212, 0.65));
+    text-shadow: 0 0 6px rgba(20, 240, 212, 0.65);
 }
 
 /* ── Disabled ── */
@@ -261,5 +261,5 @@ html.light[data-theme="minimal"] .tile-value {
 
 [data-theme="minimal"] .scene-btn.active i {
     color: #14f0d4 !important;
-    filter: drop-shadow(0 0 6px rgba(20, 240, 212, 0.65));
+    text-shadow: 0 0 6px rgba(20, 240, 212, 0.65);
 }

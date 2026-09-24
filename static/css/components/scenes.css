@@ -105,7 +105,7 @@
     /* Larger than home tile icons so the title sits lower on the button */
     font-size: calc(var(--font-size-tile-icon) * 1.55);
     color: var(--color-accent);
-    filter: drop-shadow(0 0 10px var(--color-accent-glow));
+    text-shadow: 0 0 10px var(--color-accent-glow);
     line-height: 1;
 }
 

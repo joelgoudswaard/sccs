@@ -378,11 +378,11 @@ html.light[data-theme="terminal"] .relay-toggle .relay-knob {
 
 [data-theme="terminal"] .tile__icon {
     color: var(--color-accent);
-    filter: drop-shadow(0 0 6px var(--color-accent-glow));
+    text-shadow: 0 0 6px var(--color-accent-glow);
 }
 
 [data-theme="terminal"] .slider-card-title i {
-    filter: drop-shadow(0 0 6px var(--color-accent-glow));
+    text-shadow: 0 0 6px var(--color-accent-glow);
 }
 
 /* ── Scenes & hover ── */
@@ -402,7 +402,7 @@ html.light[data-theme="terminal"] .relay-toggle .relay-knob {
 
 [data-theme="terminal"] .scene-btn.active i {
     color: var(--color-accent) !important;
-    filter: drop-shadow(0 0 6px var(--color-accent-glow));
+    text-shadow: 0 0 6px var(--color-accent-glow);
 }
 
 [data-theme="terminal"] .slider-card.rooftop-disabled {

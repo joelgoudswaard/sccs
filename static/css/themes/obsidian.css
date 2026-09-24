@@ -240,7 +240,7 @@ html.light[data-theme="obsidian"] .relay-toggle .relay-knob {
 
 [data-theme="obsidian"] .tile__icon {
     color: var(--color-accent-hover);
-    filter: drop-shadow(0 0 4px var(--color-accent-glow));
+    text-shadow: 0 0 4px var(--color-accent-glow);
 }
 
 [data-theme="obsidian"] .tile__value,
@@ -250,7 +250,7 @@ html.light[data-theme="obsidian"] .relay-toggle .relay-knob {
 }
 
 [data-theme="obsidian"] .slider-card-title i {
-    filter: drop-shadow(0 0 4px var(--color-accent-glow));
+    text-shadow: 0 0 4px var(--color-accent-glow);
 }
 
 /* ── Scenes & hover ── */
@@ -271,7 +271,7 @@ html.light[data-theme="obsidian"] .relay-toggle .relay-knob {
 
 [data-theme="obsidian"] .scene-btn.active i {
     color: var(--color-accent-hover) !important;
-    filter: drop-shadow(0 0 4px var(--color-accent-glow));
+    text-shadow: 0 0 4px var(--color-accent-glow);
 }
 
 [data-theme="obsidian"] .slider-card.rooftop-disabled {

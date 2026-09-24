@@ -226,8 +226,7 @@
         await fetchPower();
     }
 
-    fetchPower();
-    setInterval(fetchPowerIfNeeded, POLL_INTERVAL_MS);
+    window.SCCS.bindSectionPoll('home', fetchPowerIfNeeded, POLL_INTERVAL_MS);
 
     window.powerTile = { update, refresh: fetchPower, onVictronUpdate };
 })();

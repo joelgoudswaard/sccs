@@ -6,15 +6,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="format-detection" content="telephone=no">
     <title>The Singularity Camper Control System</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='fontawesome/css/all.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/themes/neuglass.css') }}" data-theme-link="true">
+    <link rel="stylesheet" href="{{ url_for('ui_fontawesome') }}?v={{ ui_fa_version }}">
+    <link rel="stylesheet" href="{{ url_for('ui_stylesheet') }}?v={{ ui_css_version }}">
+    <link rel="stylesheet" href="{{ url_for('ui_theme_css', name='neuglass.css') }}?v={{ ui_theme_version }}" data-theme-link="true">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/coarse-pointer.css') }}" data-coarse-link="true">
     <script>
         (function () {
             var html = document.documentElement;
-            var themeBase = {{ url_for('static', filename='css/themes/') | tojson }};
+            var themeBase = {{ theme_base | tojson }};
             window.SCCS = window.SCCS || {};
             window.SCCS.developmentMode = {{ development_mode | default(false) | tojson }};
+            window.SCCS.themeBase = themeBase;
             try {
                 var mode = localStorage.getItem('sccs-color-mode');
                 html.classList.add(mode === 'light' ? 'light' : 'dark');
@@ -28,13 +30,15 @@
                     link.href = themeBase + theme + '.css';
                     link.setAttribute('data-theme-link', 'true');
                     document.head.appendChild(link);
+                    var coarse = document.querySelector('link[data-coarse-link]');
+                    if (coarse) document.head.appendChild(coarse);
                 }
             } catch (e) { /* ignore private browsing */ }
 
-            /* Failsafe: never leave the page blank if boot.js fails to load (e.g. static 404). */
+            /* Failsafe: never leave the page blank if the bundle fails to load. */
             setTimeout(function () {
                 html.classList.add('theme-ready');
-            }, 1600);
+            }, 4000);
         })();
     </script>
     <noscript>
@@ -145,11 +149,7 @@
 
     <div id="toast-container" aria-live="polite" aria-relevant="additions"></div>
 
-    <script src="{{ url_for('static', filename='js/boot.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/theme-manager.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/dark-mode.js') }}"></script>
-    <script src="{{ url_for('static', filename='nav.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/fullscreen.js') }}"></script>
+    <script src="{{ url_for('ui_javascript') }}?v={{ ui_js_version }}" defer></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

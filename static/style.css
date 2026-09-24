@@ -1,4 +1,5 @@
-/* Entry point — import order matters */
+/* Bundle manifest for /assets/app.css. Import order matters.
+   Kept as @import so opening this file directly still works. */
 @import url("css/tokens.css");
 @import url("css/base.css");
 @import url("css/components/tiles.css");

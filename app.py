@@ -11,7 +11,7 @@ import threading
 from datetime import datetime
 from urllib.parse import urlparse
 
-from flask import Flask, Response, jsonify, render_template, request
+from flask import Flask, Response, jsonify, render_template, request, url_for
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 
@@ -23,6 +23,14 @@ from modules.logger import setup_logging
 from modules.phases import PhaseManager
 from modules.sensors import SensorManager
 from modules.toasts import ToastManager
+from modules.ui_assets import (
+    apply_gzip,
+    fontawesome_css,
+    javascript_bundle,
+    stylesheet_bundle,
+    template_asset_versions,
+    theme_css,
+)
 from modules.ui_state import ConfigManager
 
 import modules.toasts
@@ -165,11 +173,59 @@ NAV_ITEMS = [
 ]
 
 
+def _cached_asset(body: bytes, mimetype: str, token: str, modified: datetime, *, immutable: bool):
+    resp = Response(body, mimetype=mimetype)
+    resp.set_etag(token, weak=True)
+    resp.last_modified = modified
+    if immutable:
+        # The HTML query string changes when the sources change.
+        resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    else:
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp.make_conditional(request)
+
+
+@app.after_request
+def _compress_response(response):
+    return apply_gzip(response, request)
+
+
+@app.route("/assets/app.css")
+def ui_stylesheet():
+    token, body, modified = stylesheet_bundle()
+    return _cached_asset(body, "text/css; charset=utf-8", token, modified, immutable=True)
+
+
+@app.route("/assets/app.js")
+def ui_javascript():
+    token, body, modified = javascript_bundle()
+    return _cached_asset(body, "text/javascript; charset=utf-8", token, modified, immutable=True)
+
+
+@app.route("/assets/fontawesome.css")
+def ui_fontawesome():
+    prefix = url_for("static", filename="fontawesome/webfonts/")
+    token, body, modified = fontawesome_css(prefix)
+    return _cached_asset(body, "text/css; charset=utf-8", token, modified, immutable=False)
+
+
+@app.route("/assets/themes/<name>")
+def ui_theme_css(name):
+    found = theme_css(name)
+    if found is None:
+        return Response("Not found", status=404, mimetype="text/plain")
+    token, body, modified = found
+    return _cached_asset(body, "text/css; charset=utf-8", token, modified, immutable=False)
+
+
 @app.context_processor
 def inject_nav():
+    theme_file = url_for("ui_theme_css", name="neuglass.css")
     return {
         "nav_items": NAV_ITEMS,
         "development_mode": development_mode,
+        "theme_base": theme_file.removesuffix("neuglass.css"),
+        **template_asset_versions(),
     }
 
 

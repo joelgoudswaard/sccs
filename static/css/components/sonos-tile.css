@@ -105,7 +105,7 @@
     max-width: none;
     overflow: visible;
     text-overflow: clip;
-    animation: sonos-marquee-scroll var(--sonos-marquee-duration, 8s) ease-in-out infinite;
+    animation: sonos-marquee-scroll var(--sonos-marquee-duration, 8s) ease-in-out 1 forwards;
 }
 
 @keyframes sonos-marquee-scroll {

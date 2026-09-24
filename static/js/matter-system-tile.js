@@ -174,6 +174,5 @@
         }
     });
 
-    refresh();
-    setInterval(refresh, POLL_MS);
+    window.SCCS.bindSectionPoll('system', refresh, POLL_MS);
 }());

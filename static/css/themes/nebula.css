@@ -292,11 +292,11 @@ html.light[data-theme="nebula"] body::after {
 
 [data-theme="nebula"] .tile__icon {
     color: var(--color-accent);
-    filter: drop-shadow(0 0 8px var(--color-accent-glow));
+    text-shadow: 0 0 8px var(--color-accent-glow);
 }
 
 [data-theme="nebula"] .slider-card-title i {
-    filter: drop-shadow(0 0 8px var(--color-accent-glow));
+    text-shadow: 0 0 8px var(--color-accent-glow);
 }
 
 [data-theme="nebula"] .scene-btn.active {
@@ -311,7 +311,7 @@ html.light[data-theme="nebula"] body::after {
 
 [data-theme="nebula"] .scene-btn.active i {
     color: var(--color-accent) !important;
-    filter: drop-shadow(0 0 8px var(--color-accent-glow));
+    text-shadow: 0 0 8px var(--color-accent-glow);
 }
 
 [data-theme="nebula"] .tile:hover,

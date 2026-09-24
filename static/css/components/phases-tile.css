@@ -72,17 +72,17 @@
     flex-shrink: 0;
     font-size: 1.35rem;
     color: var(--color-sun);
-    filter: drop-shadow(0 0 8px var(--color-sun-glow));
+    text-shadow: 0 0 8px var(--color-sun-glow);
 }
 
 #tile-phases.is-evening .phases-tile__summary-icon {
     color: var(--color-accent);
-    filter: drop-shadow(0 0 8px var(--color-accent-glow));
+    text-shadow: 0 0 8px var(--color-accent-glow);
 }
 
 #tile-phases.is-night .phases-tile__summary-icon {
     color: var(--color-moon);
-    filter: drop-shadow(0 0 8px var(--color-moon-glow));
+    text-shadow: 0 0 8px var(--color-moon-glow);
 }
 
 .phases-tile__headline {

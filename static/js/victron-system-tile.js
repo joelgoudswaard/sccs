@@ -249,8 +249,7 @@
         await fetchVictron();
     }
 
-    fetchVictron();
-    setInterval(fetchIfNeeded, POLL_INTERVAL_MS);
+    window.SCCS.bindSectionPoll('system', fetchIfNeeded, POLL_INTERVAL_MS);
     document.addEventListener('sccs:core-connectivity', () => {
         if (lastData) renderSummary(lastData);
     });

@@ -990,6 +990,20 @@ server {
     server_name _;
     root $SCCS_HOME;
 
+    # Text assets only. woff2 is already compressed, and proxied responses
+    # (HTML and /assets/) are gzipped by Flask — gzip_proxied stays off.
+    gzip on;
+    gzip_vary on;
+    gzip_comp_level 5;
+    gzip_min_length 860;
+    gzip_types
+        text/css
+        text/javascript
+        application/javascript
+        application/json
+        image/svg+xml
+        application/manifest+json;
+
     location / {
         proxy_pass http://127.0.0.1:5000;
         proxy_http_version 1.1;
@@ -3925,6 +3939,8 @@ echo "Browser: \$BROWSER"
 
 mkdir -p "\$HOME/.config/autostart"
 DESKTOP="\$HOME/.config/autostart/sccs-ui.desktop"
+# 10" panels are 1280×800. Scale factor 1 keeps one CSS pixel per device
+# pixel; a compositor scale of 1.5 or 2 makes Chromium fill a larger buffer.
 # Expand BROWSER/UI_URL when writing so the .desktop has concrete paths.
 cat > "\$DESKTOP" <<DESK
 [Desktop Entry]
@@ -3932,7 +3948,7 @@ Type=Application
 Version=1.0
 Name=SCCS Control UI
 Comment=Open the camper control system UI on boot
-Exec=sh -c "sleep 3; exec \$BROWSER --noerrdialogs --disable-session-crashed-bubble --disable-infobars --check-for-update-interval=31536000 --disable-features=TranslateUI --enable-gpu-rasterization --ignore-gpu-blocklist --enable-zero-copy --use-gl=egl --homepage=\$UI_URL \$UI_URL"
+Exec=sh -c "sleep 3; exec \$BROWSER --noerrdialogs --disable-session-crashed-bubble --disable-infobars --check-for-update-interval=31536000 --disable-features=TranslateUI --enable-gpu-rasterization --ignore-gpu-blocklist --enable-zero-copy --use-gl=egl --force-device-scale-factor=1 --homepage=\$UI_URL \$UI_URL"
 Terminal=false
 X-GNOME-Autostart-enabled=true
 StartupNotify=false

@@ -128,7 +128,7 @@
     height: var(--size-status-dot);
     flex-shrink: 0;
     color: var(--color-accent);
-    filter: drop-shadow(0 0 4px var(--color-accent-glow));
+    text-shadow: 0 0 4px var(--color-accent-glow);
 }
 
 .reed-tile__icon i {

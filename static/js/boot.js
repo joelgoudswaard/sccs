@@ -1,11 +1,11 @@
 /**
- * SCCS boot — reveal page after theme/CSS/fonts are ready (prevents FOUC).
+ * SCCS boot — reveal once CSS is in and fonts are ready (or the cap hits).
+ * Does not wait for the window load event, which also waits on favicons.
  */
 (function () {
     'use strict';
 
     const MAX_WAIT_MS = 1200;
-    const FONT_WAIT_MS = 320;
     let revealed = false;
 
     function reveal() {
@@ -22,7 +22,7 @@
 
         return Promise.race([
             fontWait,
-            new Promise((resolve) => setTimeout(resolve, FONT_WAIT_MS)),
+            new Promise((resolve) => setTimeout(resolve, MAX_WAIT_MS)),
         ]);
     }
 
@@ -51,10 +51,10 @@
         });
     }
 
-    if (document.readyState === 'complete') {
-        init();
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init, { once: true });
     } else {
-        window.addEventListener('load', init, { once: true });
+        init();
     }
 
     window.addEventListener('resize', fitLogoAlign);

@@ -106,10 +106,10 @@
     font-size: var(--font-size-tile-icon);
     color: var(--color-accent);
     flex-shrink: 0;
-    filter: drop-shadow(0 0 10px var(--color-accent-glow));
+    text-shadow: 0 0 10px var(--color-accent-glow);
     transition:
         color var(--duration-bug-mode-crossfade) ease,
-        filter var(--duration-bug-mode-crossfade) ease;
+        text-shadow var(--duration-bug-mode-crossfade) ease;
 }
 
 .slider-label {
@@ -423,7 +423,7 @@
 
 .slider-card.bug-mode .slider-card-title i {
     color: var(--color-bug);
-    filter: drop-shadow(0 0 6px var(--color-bug-glow));
+    text-shadow: 0 0 6px var(--color-bug-glow);
 }
 
 /* ── Toggle pills & relay switches ── */

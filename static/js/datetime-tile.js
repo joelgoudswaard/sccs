@@ -94,6 +94,7 @@
     let sunAnimFrame = null;
     let curveAnimFrame = null;
     let lastSunDay = null;
+    let lastTickKey = '';
 
     function stripLeadingZero(str) {
         return str ? str.replace(/^0(\d):/, '$1:') : str;
@@ -341,6 +342,10 @@
     function tick() {
         const now = new Date();
         const dayKey = now.toDateString();
+        const minuteKey = `${dayKey}-${now.getHours()}-${now.getMinutes()}`;
+        /* The face shows hours and minutes. Skip the SVG write on the other 59 ticks. */
+        if (minuteKey === lastTickKey) return;
+        lastTickKey = minuteKey;
 
         if (lastSunDay !== dayKey) {
             lastSunDay = dayKey;
@@ -448,9 +453,8 @@
     }
 
     computeSunTimes(new Date());
-    tick();
     loadPhaseTimes();
-    setInterval(tick, 1000);
+    window.SCCS.bindSectionPoll('home', tick, 1000);
 
     requestAnimationFrame(() => {
         updateCurveGeometry();

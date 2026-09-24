@@ -87,8 +87,7 @@
         }
     }
 
-    fetchStatus();
-    setInterval(fetchStatus, POLL_INTERVAL_MS);
+    window.SCCS.bindSectionPoll('home', fetchStatus, POLL_INTERVAL_MS);
 
     window.SCCS = window.SCCS || {};
     window.SCCS.network = { update, refresh: fetchStatus };

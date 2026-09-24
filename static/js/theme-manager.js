@@ -5,7 +5,7 @@
 (function () {
     'use strict';
 
-    const THEME_PATH = '/static/css/themes/';
+    const THEME_PATH = (window.SCCS && window.SCCS.themeBase) || '/assets/themes/';
     const STORAGE_KEY = 'sccs-theme';
     const DEFAULT_THEME = 'neuglass';
     const THEME_ALIASES = {
@@ -88,6 +88,8 @@
         link.href = `${THEME_PATH}${name}.css`;
         link.dataset.themeLink = 'true';
         document.head.appendChild(link);
+        const coarse = document.querySelector('link[data-coarse-link]');
+        if (coarse) document.head.appendChild(coarse);
 
         populateSelects(name);
 
