@@ -3391,8 +3391,8 @@ print(bright + "\t" + blank + "\t" + method + "\t" + "; ".join(detail))
 # Password optional if key auth already works; otherwise prompted.
 # Key material + ssh run as USERNAME (not root). Password is never written to disk.
 # On success, also sets Chromium homepage to the control Pi and autostarts it.
-# After DHCP renew, if reserved_ip differs and becomes reachable, post-renew
-# steps (Chromium) use the reserved address instead of the original lease.
+# When reserved_ip differs from the live lease, the panel is told to drop that
+# lease. Later steps (Chromium) run only after the reserved address answers.
 # ---------------------------------------------------------------------------
 configure_touchscreen_panel() {
     local screen_user="$1" screen_host="$2" screen_alias="$3"
@@ -3664,80 +3664,11 @@ fi
 ssh "${SSH_BATCH[@]}" "${SCREEN_USER}@${SCREEN_HOST}" \
     "sudo -n -l | grep -E 'shutdown -h now|/sbin/poweroff|/usr/sbin/poweroff'" >/dev/null
 
-# --- Force DHCP renew so Pi-hole static reservation (e.g. .10) takes effect ---
-# Upload a small script and run it detached (IP may change; don't block on it).
-echo "Scheduling DHCP renew on panel (picks up static reservation)…"
-renew_script=$(cat <<'RENEW'
-#!/bin/bash
-# Installed by SCCS — one-shot DHCP renew after static reservation
-exec >/tmp/sccs-dhcp-renew.log 2>&1
-set +e
-echo "sccs dhcp renew $(date -Is 2>/dev/null || date)"
-ifaces=()
-for d in /sys/class/net/*; do
-  n=$(basename "$d")
-  case "$n" in lo|wlan*|docker*|veth*|br*|virbr*) continue ;; esac
-  ifaces+=("$n")
-done
-echo "ifaces: ${ifaces[*]:-}"
-renewed=0
-if command -v nmcli >/dev/null 2>&1; then
-  for n in "${ifaces[@]}"; do
-    st=$(nmcli -t -f DEVICE,STATE dev status 2>/dev/null | awk -F: -v d="$n" '$1==d{print $2}')
-    [ "$st" = "connected" ] || continue
-    echo "nmcli reapply $n"
-    nmcli device reapply "$n" && renewed=1 && break
-    nmcli device disconnect "$n"; nmcli device connect "$n" && renewed=1 && break
-  done
-fi
-if [ "$renewed" -eq 0 ] && command -v dhcpcd >/dev/null 2>&1; then
-  for n in "${ifaces[@]:-eth0}"; do
-    echo "dhcpcd -n $n"; dhcpcd -n "$n" && renewed=1 && break
-  done
-  [ "$renewed" -eq 0 ] && dhcpcd -n && renewed=1
-fi
-if [ "$renewed" -eq 0 ] && command -v dhclient >/dev/null 2>&1; then
-  for n in "${ifaces[@]:-eth0}"; do
-    echo "dhclient -r/- $n"
-    dhclient -r "$n"; dhclient "$n" && renewed=1 && break
-  done
-fi
-if [ "$renewed" -eq 0 ] && command -v networkctl >/dev/null 2>&1; then
-  for n in "${ifaces[@]:-eth0}"; do
-    echo "networkctl renew $n"; networkctl renew "$n" && renewed=1 && break
-  done
-fi
-echo "renewed=$renewed"
-ip -4 -br addr 2>/dev/null || ip -4 addr
-# self-remove (script + log kept? remove script only)
-rm -f /tmp/sccs-dhcp-renew.sh
-RENEW
-)
-# shellcheck disable=SC2029
-if ssh "${SSH_BATCH[@]}" "${SCREEN_USER}@${SCREEN_HOST}" \
-    "cat > /tmp/sccs-dhcp-renew.sh && chmod 755 /tmp/sccs-dhcp-renew.sh" \
-    <<<"$renew_script"; then
-    if [[ -n "${SCREEN_PASS:-}" ]]; then
-        printf '%s\n' "$SCREEN_PASS" | ssh "${SSH_BATCH[@]}" "${SCREEN_USER}@${SCREEN_HOST}" \
-            "sudo -S -p '' bash -c 'nohup /tmp/sccs-dhcp-renew.sh >/dev/null 2>&1 & sleep 0.2; echo scheduled'" \
-            || echo "DHCP renew schedule failed (panel may need reboot to get reserved IP)" >&2
-    else
-        ssh "${SSH_BATCH[@]}" "${SCREEN_USER}@${SCREEN_HOST}" \
-            "sudo -n bash -c 'nohup /tmp/sccs-dhcp-renew.sh >/dev/null 2>&1 & sleep 0.2; echo scheduled'" \
-            2>/dev/null \
-            || echo "DHCP renew schedule failed (need sudo); reboot panel to pick up reserved IP" >&2
-    fi
-    sleep 3
-else
-    echo "Could not upload DHCP renew script — reboot panel to pick up reserved IP" >&2
-fi
-
 cleanup_askpass
 trap - EXIT
 unset SCREEN_PASS
 
 echo "Done — SCCS can control ${SCREEN_USER}@${SCREEN_HOST} over SSH."
-echo "Panel DHCP renew scheduled; it should move to its reserved IP shortly (if different)."
 EOS
     then
         rc=0
@@ -3822,18 +3753,22 @@ EOS2
     fi
 
     if [[ "$rc" -eq 0 ]]; then
-        # DHCP renew was scheduled on the panel during key/sudoers setup. If a
-        # reserved/desired IP was requested and differs from the live host, wait
-        # for the panel to land there so Chromium config hits the final address
-        # (and so we do not keep talking to the original lease after it is gone).
+        # The panel still holds its old lease until something releases it.
+        # Drop that lease, then do every later step (Chromium) on the reserved address.
         if [[ -n "$reserved_ip" && "$reserved_ip" != "$live_host" ]]; then
-            info "Waiting for panel at reserved IP ${reserved_ip} after DHCP renew…"
-            if wait_panel_ssh "$reserved_ip" 45; then
-                ok "Panel reachable at reserved IP ${reserved_ip}"
+            info "Releasing the panel DHCP lease so it takes ${reserved_ip}…"
+            if ! force_panel_dhcp_renew "$screen_user" "$live_host" "${screen_pass:-}"; then
+                warn "Could not start a DHCP renew on ${live_host}"
+            fi
+            info "Waiting for the panel to answer on ${reserved_ip}…"
+            if wait_panel_ssh "$reserved_ip" 60; then
+                ok "Panel is at ${reserved_ip}"
                 screen_host="$reserved_ip"
             else
-                warn "Panel has not moved to ${reserved_ip} yet — finishing via ${screen_host}"
-                info "After the panel renews (or reboots), SCCS will use ${reserved_ip} from sccs.conf."
+                warn "Panel did not appear at ${reserved_ip} after the lease refresh"
+                info "The SSH key is installed. Re-run menu 8 when the panel answers on ${reserved_ip}."
+                unset screen_pass REPLY_PASS 2>/dev/null || true
+                return 1
             fi
         elif [[ -n "$reserved_ip" ]]; then
             screen_host="$reserved_ip"
@@ -4733,6 +4668,120 @@ resolve_panel_ssh_target() {
     return 1
 }
 
+# Drop the panel's current DHCP lease so Pi-hole hands out the reserved address.
+# The link goes down, so the renew runs detached and this returns without waiting
+# for the new address. Call wait_panel_ssh on the reserved IP afterwards.
+# Args: user host [password]
+force_panel_dhcp_renew() {
+    local screen_user="$1" screen_host="$2" screen_pass="${3:-}"
+    run_user_bash env \
+        SCREEN_USER="$screen_user" \
+        SCREEN_HOST="$screen_host" \
+        SCREEN_PASS="${screen_pass:-}" \
+        <<'EOS'
+set -euo pipefail
+KEY="$HOME/.ssh/sccs_screen"
+KNOWN_HOSTS="$HOME/.sccs/screen_known_hosts"
+SSH_BATCH=(
+    -o BatchMode=yes
+    -o PreferredAuthentications=publickey
+    -o IdentitiesOnly=yes
+    -o UserKnownHostsFile="${KNOWN_HOSTS}"
+    -o StrictHostKeyChecking=accept-new
+    -o ConnectTimeout=15
+    -i "${KEY}"
+)
+[[ -f "$KEY" ]] || { echo "Missing $KEY" >&2; exit 1; }
+
+renew_script=$(cat <<'RENEW'
+#!/bin/bash
+# One-shot: release the current lease and request again (picks up a static reservation).
+exec >/tmp/sccs-dhcp-renew.log 2>&1
+set +e
+echo "sccs dhcp renew $(date -Is 2>/dev/null || date)"
+# Let the installer's SSH session exit before the interface drops.
+sleep 2
+ifaces=()
+for d in /sys/class/net/*; do
+  n=$(basename "$d")
+  case "$n" in
+    lo|wlan*|docker*|veth*|br-*|virbr*|tailscale*|zt*|wg*) continue ;;
+  esac
+  carrier=$(cat "/sys/class/net/$n/carrier" 2>/dev/null || echo 0)
+  [[ "$carrier" == "1" ]] || continue
+  ifaces+=("$n")
+done
+[[ ${#ifaces[@]} -eq 0 ]] && ifaces=(eth0)
+echo "ifaces: ${ifaces[*]}"
+renewed=0
+# reapply keeps the current lease. Disconnect forces a new DHCP request.
+if command -v nmcli >/dev/null 2>&1; then
+  for n in "${ifaces[@]}"; do
+    echo "nmcli disconnect/connect $n"
+    nmcli device disconnect "$n" || true
+    sleep 1
+    if nmcli device connect "$n"; then
+      renewed=1
+      break
+    fi
+  done
+fi
+if [[ "$renewed" -eq 0 ]] && command -v dhcpcd >/dev/null 2>&1; then
+  for n in "${ifaces[@]}"; do
+    echo "dhcpcd -k/-n $n"
+    dhcpcd -k "$n" || true
+    sleep 1
+    if dhcpcd -n "$n" || dhcpcd "$n"; then
+      renewed=1
+      break
+    fi
+  done
+fi
+if [[ "$renewed" -eq 0 ]] && command -v networkctl >/dev/null 2>&1; then
+  for n in "${ifaces[@]}"; do
+    echo "networkctl reconfigure $n"
+    if networkctl reconfigure "$n"; then
+      renewed=1
+      break
+    fi
+  done
+fi
+if [[ "$renewed" -eq 0 ]] && command -v dhclient >/dev/null 2>&1; then
+  for n in "${ifaces[@]}"; do
+    echo "dhclient -r/- $n"
+    dhclient -r "$n" || true
+    sleep 1
+    if dhclient "$n"; then
+      renewed=1
+      break
+    fi
+  done
+fi
+echo "renewed=$renewed"
+ip -4 -br addr 2>/dev/null || ip -4 addr
+RENEW
+)
+
+if ! ssh "${SSH_BATCH[@]}" "${SCREEN_USER}@${SCREEN_HOST}" \
+    "cat > /tmp/sccs-dhcp-renew.sh && chmod 755 /tmp/sccs-dhcp-renew.sh" \
+    <<<"$renew_script"; then
+    echo "Could not upload DHCP renew script" >&2
+    exit 1
+fi
+
+# systemd-run survives the SSH session dying when the address changes.
+launch='systemd-run --quiet --collect --unit=sccs-dhcp-renew /bin/bash /tmp/sccs-dhcp-renew.sh || setsid /bin/bash /tmp/sccs-dhcp-renew.sh </dev/null >/dev/null 2>&1 &'
+if [[ -n "${SCREEN_PASS:-}" ]]; then
+    printf '%s\n' "$SCREEN_PASS" | ssh "${SSH_BATCH[@]}" "${SCREEN_USER}@${SCREEN_HOST}" \
+        "sudo -S -p '' bash -c $(printf '%q' "$launch")"
+else
+    ssh "${SSH_BATCH[@]}" "${SCREEN_USER}@${SCREEN_HOST}" \
+        "sudo -n bash -c $(printf '%q' "$launch")"
+fi
+echo "DHCP renew started on ${SCREEN_USER}@${SCREEN_HOST}"
+EOS
+}
+
 # Poll host:22 until open or timeout. Returns 0 when reachable.
 wait_panel_ssh() {
     local host="$1" timeout_s="${2:-45}" interval=2 elapsed=0
@@ -5143,9 +5192,6 @@ PY
             ensure_screen_ssh_config "$user" "$ssh_target" "${alias}-live" || true
         fi
         ok "Screen ${name} — SSH control + Chromium UI ready"
-        if [[ "$ip" != "$ssh_target" ]]; then
-            info "If the panel is still at ${ssh_target}, it should take reserved ${ip} after DHCP renew/reboot."
-        fi
     else
         warn "Could not finish SSH setup for ${name}"
         info "Config + DHCP reservation were saved. Enable SSH on the panel, then menu 8 → option 2."
@@ -5410,7 +5456,7 @@ PY
         fi
         ok "Screen ${name} re-setup complete"
         if [[ "$host" != "$old_host" ]]; then
-            ok "Reserved IP is now ${host} (was ${old_host}) — panel should land there after DHCP renew"
+            ok "Reserved IP is now ${host} (was ${old_host})"
         fi
         unset pass REPLY_PASS 2>/dev/null || true
         return 0
