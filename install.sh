@@ -80,6 +80,8 @@ INSTALL_RESUME_DIR="/var/lib/sccs"
 INSTALL_RESUME_FILE="/var/lib/sccs/install-resume"
 INSTALL_RESUME_SCRIPT="/var/lib/sccs/install-resume.sh"
 INSTALL_RESUME_PROFILE="/etc/profile.d/sccs-install-resume.sh"
+INSTALL_RESUME_SUDOERS="/etc/sudoers.d/sccs-install-resume"
+INSTALL_RESUME_LOCK="/var/lib/sccs/install-resume.lock"
 RUN_MODE="menu"   # menu | install | sensors | esp | victron | lan | screens | service
 
 # ---------------------------------------------------------------------------
@@ -495,24 +497,41 @@ USERNAME=${USERNAME}
 SCCS_HOME=${SCCS_HOME}
 EOF
     chmod 644 "$INSTALL_RESUME_FILE"
+    # Login hook only — not a boot service. The install is interactive, so it
+    # has to run on the terminal that appears when someone SSHes in.
     cat >"$INSTALL_RESUME_PROFILE" <<EOF
 # Created by the SCCS installer. Removed when the install continues.
 case \$- in
   *i*) ;;
   *) return ;;
 esac
-if [ -f ${INSTALL_RESUME_FILE} ]; then
-  echo
-  echo "SCCS install is waiting to continue — the ESP serial ports come up after this restart."
-  echo "Run:  sudo bash ${INSTALL_RESUME_SCRIPT}"
-  echo
+[ -t 1 ] || return
+[ "\$(id -un)" = "${USERNAME}" ] || return
+[ -f ${INSTALL_RESUME_FILE} ] || return
+[ -x ${INSTALL_RESUME_SCRIPT} ] || return
+exec 9>>${INSTALL_RESUME_LOCK}
+if ! flock -n 9; then
+  echo "SCCS install is already running in another session."
+  return
 fi
+echo
+echo "SCCS install is continuing in this session."
+sudo ${INSTALL_RESUME_SCRIPT}
+exec 9>&-
 EOF
     chmod 644 "$INSTALL_RESUME_PROFILE"
+    cat >"$INSTALL_RESUME_SUDOERS" <<EOF
+${USERNAME} ALL=(root) NOPASSWD: ${INSTALL_RESUME_SCRIPT}
+EOF
+    chmod 440 "$INSTALL_RESUME_SUDOERS"
+    if ! visudo -cf "$INSTALL_RESUME_SUDOERS" >/dev/null 2>&1; then
+        rm -f "$INSTALL_RESUME_SUDOERS"
+    fi
 }
 
 clear_install_resume() {
-    rm -f "$INSTALL_RESUME_FILE" "$INSTALL_RESUME_SCRIPT" "$INSTALL_RESUME_PROFILE"
+    rm -f "$INSTALL_RESUME_FILE" "$INSTALL_RESUME_SCRIPT" "$INSTALL_RESUME_PROFILE" \
+        "$INSTALL_RESUME_SUDOERS" "$INSTALL_RESUME_LOCK"
     SCCS_RESUME_PHASE=""
 }
 
@@ -556,18 +575,18 @@ offer_restart_for_uarts() {
     echo
     warn "The ESP serial ports are not active on this boot."
     info "The installer enabled the Pi UART overlays. /dev/ttyAMA2 and /dev/ttyAMA3 appear when those overlays load, which on this board happens at startup."
-    info "After the restart, log in and run the command below — the install continues from here."
+    info "After the restart, SSH in as ${USERNAME}. The installer continues in that session."
     echo
     ask_yn "Restart now so the ESP32s can be detected?" y
     if [[ "$REPLY" != "y" ]]; then
         return 1
     fi
     save_install_resume "$phase"
-    ok "Restarting. When the Pi is back, log in and run:"
-    echo "    ${C_BOLD}sudo bash ${INSTALL_RESUME_SCRIPT}${C_RESET}"
+    ok "Restarting. SSH back in as ${USERNAME} and the install continues on that terminal."
+    echo "    ${C_DIM}If it does not start: sudo ${INSTALL_RESUME_SCRIPT}${C_RESET}"
     sync
     if ! systemctl reboot; then
-        warn "Could not restart automatically. Restart the Pi, then run the command above."
+        warn "Could not restart automatically. Restart the Pi, then SSH in as ${USERNAME}."
         exit 1
     fi
     exit 0
