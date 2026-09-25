@@ -122,11 +122,12 @@
         }).catch((err) => console.warn('[SCCS] relay_change HTTP failed', err));
     }
 
-    function cancelSceneAnimations() {
-        Object.values(sceneAnimationCancels).forEach((cancel) => {
+    function cancelSceneAnimations(keep) {
+        Object.keys(sceneAnimationCancels).forEach((name) => {
+            if (keep && keep.has(name)) return;
+            const cancel = sceneAnimationCancels[name];
             if (typeof cancel === 'function') cancel();
         });
-        Object.keys(sceneAnimationCancels).forEach((k) => delete sceneAnimationCancels[k]);
     }
 
     function isActivelyDragging(name) {
@@ -257,8 +258,16 @@
         if (document.hidden) shouldAnimate = false;
         const effectiveRampMs = meta.rampMs || rampMs;
 
+        // An on/off tap (or a track click) already started this slide. The UI
+        // echo must not cancel it. A phase, reed, or scene ramp still takes over.
+        const keepLocalSlide = new Set();
+        const uiEcho = !AUTOMATION_TRIGGERS.has(meta.trigger);
         state.lightsConfig.forEach((light) => {
             if (newState[light.name] === undefined) return;
+            if (uiEcho && state.locallyAnimating.has(light.name) && state.userJustSet.has(light.name)) {
+                keepLocalSlide.add(light.name);
+                return;
+            }
             state.locallyAnimating.delete(light.name);
         });
 
@@ -266,7 +275,7 @@
         state.lightsConfig.forEach((light) => {
             if (isActivelyDragging(light.name)) protectedBrightness.add(light.name);
         });
-        if (!AUTOMATION_TRIGGERS.has(meta.trigger)) {
+        if (uiEcho) {
             state.userJustSet.forEach((name) => protectedBrightness.add(name));
         }
 
@@ -282,9 +291,10 @@
             return;
         }
 
-        cancelSceneAnimations();
+        cancelSceneAnimations(keepLocalSlide);
 
         protectedBrightness.forEach((name) => {
+            if (keepLocalSlide.has(name)) return;
             const light = state.lightsConfig.find((item) => item.name === name);
             const val = state.currentState[name];
             if (!light || val === undefined) return;

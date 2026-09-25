@@ -500,7 +500,8 @@ button.relay-toggle {
     height: 2.375rem;
     background: var(--color-toggle-handle);
     border-radius: var(--radius-pill);
-    transform: translateY(-50%);
+    /* Same translate() form in both states so the thumb slides instead of snapping. */
+    transform: translate(0, -50%);
     transition:
         transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
         width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
