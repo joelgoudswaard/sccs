@@ -1,10 +1,15 @@
+import subprocess
 import unittest
+from unittest.mock import patch
 
 from actuators.screens import (
     DbusKdeBrightnessControl,
     DbusScreenSaverControl,
+    ScreenActuator,
     SysfsControl,
+    _color_mode_ssh_command,
     _compose_screen_remote,
+    color_mode_remote_script,
     _effective_blank_path,
     _parse_busctl_bool,
     _parse_busctl_int,
@@ -230,6 +235,71 @@ class ScreenControlTests(unittest.TestCase):
         self.assertIn("SetBrightness", remote)
         self.assertIn("SimulateUserActivity", remote)
         self.assertNotIn("SetActive", remote)
+
+
+class ScreenColorModeTests(unittest.TestCase):
+    def test_script_rejects_unknown_mode(self):
+        with self.assertRaises(ValueError):
+            color_mode_remote_script("dim")
+
+    def test_script_selects_desktop_themes(self):
+        dark = color_mode_remote_script("dark")
+        light = color_mode_remote_script("light")
+        self.assertIn("MODE=dark", dark)
+        self.assertIn("MODE=light", light)
+        self.assertNotIn("__SCCS_MODE__", dark)
+        for script in (dark, light):
+            self.assertIn("BreezeDark", script)
+            self.assertIn("BreezeLight", script)
+            self.assertIn("PiXonyx", script)
+            self.assertIn("PiXtrix", script)
+            self.assertIn("PiXnoir", script)
+            self.assertIn("PiXflat", script)
+            self.assertIn("prefer-dark", script)
+            self.assertIn("prefer-light", script)
+        subprocess.run(["bash", "-n"], input=dark, text=True, check=True)
+        subprocess.run(["bash", "-n"], input=light, text=True, check=True)
+
+    def test_apply_color_mode_sshs_each_panel(self):
+        actuator = ScreenActuator.__new__(ScreenActuator)
+        actuator._screens = {
+            "kitchen": {
+                "username": "joel",
+                "host": "10.10.10.10",
+                "friendly": "Kitchen Touchscreen",
+            }
+        }
+        actuator._theme_lock = __import__("threading").Lock()
+        actuator._theme_pending = None
+        actuator._theme_running = False
+
+        def run_now(*_args, **kwargs):
+            class Fake:
+                def start(self):
+                    kwargs["target"]()
+
+            return Fake()
+
+        completed = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout="THEME_OK desktop=kde theme=BreezeDark mode=dark\n",
+            stderr="",
+        )
+        with patch("actuators.screens.threading.Thread", side_effect=run_now), patch(
+            "actuators.screens.subprocess.run", return_value=completed
+        ) as run:
+            actuator.apply_color_mode("dark")
+
+        cmd = run.call_args.args[0]
+        self.assertIn("joel@10.10.10.10", cmd)
+        self.assertIn("MODE=dark", cmd)
+        self.assertIn("plasma-apply-colorscheme", cmd)
+        self.assertIn("SCCS_THEME", cmd)
+        self.assertEqual(
+            _color_mode_ssh_command("joel", "10.10.10.10", "light").count("MODE=light"),
+            1,
+        )
 
 
 if __name__ == "__main__":

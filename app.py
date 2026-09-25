@@ -1101,6 +1101,12 @@ def _startup():
     set_system_gps(gps_module)
     phase_manager = PhaseManager(config, gps_module, socketio, dark_mode_config)
     phase_manager.on_phase_change = lambda p, f, inv: runtime.on_phase_change(p, f, inv)
+
+    def _sync_screen_theme(mode):
+        if runtime.screen_actuator:
+            runtime.screen_actuator.apply_color_mode(mode)
+
+    phase_manager.on_dark_mode_change = _sync_screen_theme
     runtime.phase_manager = phase_manager
     runtime.gps = gps_module
 

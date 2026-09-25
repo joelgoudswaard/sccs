@@ -33,6 +33,7 @@ class PhaseManager:
         self.gps = gps_module
         self.socketio = socketio
         self.on_phase_change = None  # optional callback(phase, forced_phase, invalidate)
+        self.on_dark_mode_change = None  # optional callback(mode) for panel desktop themes
         self.dark_mode_config = dark_mode_config
         
         self.fallback_latitude, self.fallback_longitude = self.gps.get_fallback_coords()
@@ -114,6 +115,7 @@ class PhaseManager:
         self._calculate_and_cache_times()
         self._update_phase(use_fallback=False)
         self._auto_update_dark_mode()
+        self._notify_dark_mode()
 
         self.thread = threading.Thread(target=self._phase_loop, daemon=True, name="PhaseLoop")
         self.thread.start()
@@ -336,14 +338,23 @@ class PhaseManager:
             except Exception:
                 pass
 
+    def _notify_dark_mode(self):
+        callback = self.on_dark_mode_change
+        if not callback:
+            return
+        try:
+            callback(self.get_current_dark_mode())
+        except Exception as e:
+            logger.debug(f"Dark mode screen theme callback failed: {e}")
+
     def _broadcast_dark_mode(self):
         """Send update with manual override flag"""
-        if not self.socketio:
-            return
-        self.socketio.emit('global_dark_mode_update', {
-            'mode': self.get_current_dark_mode(),
-            'manual': self.manual_dark_mode is not None
-        })
+        if self.socketio:
+            self.socketio.emit('global_dark_mode_update', {
+                'mode': self.get_current_dark_mode(),
+                'manual': self.manual_dark_mode is not None
+            })
+        self._notify_dark_mode()
 
     # ====================== HELPERS ======================
     def _has_valid_gps(self) -> bool:

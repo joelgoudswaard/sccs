@@ -60,6 +60,248 @@ def _ssh_cmd(username: str, host: str, remote: str, timeout: int) -> str:
     )
 
 
+# Remote bash. __SCCS_MODE__ is replaced with dark or light before it is sent.
+_COLOR_MODE_SCRIPT = r"""
+MODE=__SCCS_MODE__
+DARK=0
+[ "$MODE" = "dark" ] && DARK=1
+THEME=""
+KIND=""
+
+session_env() {
+    uid=$(id -u)
+    export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$uid}"
+    if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ] && [ -S "$XDG_RUNTIME_DIR/bus" ]; then
+        export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
+    fi
+    if command -v systemctl >/dev/null 2>&1; then
+        env_file=$(mktemp)
+        systemctl --user show-environment >"$env_file" 2>/dev/null || true
+        while IFS= read -r line; do
+            case "$line" in
+                DISPLAY=*|WAYLAND_DISPLAY=*|XDG_CURRENT_DESKTOP=*|DESKTOP_SESSION=*|XDG_SESSION_TYPE=*|XDG_SESSION_DESKTOP=*)
+                    export "$line" 2>/dev/null || true
+                    ;;
+            esac
+        done <"$env_file"
+        rm -f "$env_file"
+    fi
+    if [ -z "${WAYLAND_DISPLAY:-}" ] && [ -S "$XDG_RUNTIME_DIR/wayland-0" ]; then
+        export WAYLAND_DISPLAY=wayland-0
+    fi
+    if [ -z "${DISPLAY:-}" ] && [ -S /tmp/.X11-unix/X0 ]; then
+        export DISPLAY=:0
+    fi
+}
+
+set_ini_key() {
+    file=$1
+    section=$2
+    key=$3
+    value=$4
+    mkdir -p "$(dirname "$file")"
+    if [ ! -f "$file" ]; then
+        printf '[%s]\n%s=%s\n' "$section" "$key" "$value" >"$file"
+        return
+    fi
+    if grep -q "^${key}=" "$file"; then
+        sed -i "s|^${key}=.*|${key}=${value}|" "$file"
+    elif grep -q "^\[${section}\]" "$file"; then
+        sed -i "/^\[${section}\]/a ${key}=${value}" "$file"
+    else
+        printf '\n[%s]\n%s=%s\n' "$section" "$key" "$value" >>"$file"
+    fi
+}
+
+write_gtk_ini() {
+    theme=$1
+    prefer=0
+    [ "$DARK" = 1 ] && prefer=1
+    for file in "$HOME/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"; do
+        [ -n "$theme" ] && set_ini_key "$file" Settings gtk-theme-name "$theme"
+        set_ini_key "$file" Settings gtk-application-prefer-dark-theme "$prefer"
+    done
+}
+
+scheme_file() {
+    name=$1
+    [ -f "/usr/share/color-schemes/${name}.colors" ] && return 0
+    [ -f "$HOME/.local/share/color-schemes/${name}.colors" ] && return 0
+    return 1
+}
+
+apply_kde() {
+    wanted=""
+    if [ "$DARK" = 1 ]; then
+        candidates="BreezeDark BreezeDarkClassic"
+    else
+        candidates="BreezeLight BreezeClassic Breeze"
+    fi
+    listed=""
+    if command -v plasma-apply-colorscheme >/dev/null 2>&1; then
+        listed=$(plasma-apply-colorscheme --list-schemes 2>/dev/null | sed -E 's/[[:space:]]*\(current\)$//; s/^\*[[:space:]]*//')
+    fi
+    for name in $candidates; do
+        if scheme_file "$name" || printf '%s\n' "$listed" | grep -qx "$name"; then
+            wanted=$name
+            break
+        fi
+    done
+    if [ -z "$wanted" ] && [ -n "$listed" ]; then
+        if [ "$DARK" = 1 ]; then
+            wanted=$(printf '%s\n' "$listed" | grep -i dark | head -n 1)
+        else
+            wanted=$(printf '%s\n' "$listed" | grep -iv dark | head -n 1)
+        fi
+    fi
+    [ -n "$wanted" ] || return 1
+    if command -v plasma-apply-colorscheme >/dev/null 2>&1; then
+        plasma-apply-colorscheme "$wanted" >/dev/null 2>&1 || true
+    fi
+    kw=""
+    if command -v kwriteconfig6 >/dev/null 2>&1; then
+        kw=kwriteconfig6
+    elif command -v kwriteconfig5 >/dev/null 2>&1; then
+        kw=kwriteconfig5
+    fi
+    if [ -n "$kw" ]; then
+        "$kw" --file kdeglobals --group General --key ColorScheme "$wanted" >/dev/null 2>&1 || true
+    fi
+    if [ "$DARK" = 1 ] && [ -d /usr/share/themes/Breeze-Dark ]; then
+        THEME=Breeze-Dark
+    elif [ "$DARK" != 1 ] && [ -d /usr/share/themes/Breeze ]; then
+        THEME=Breeze
+    fi
+    KIND=kde
+    echo "$wanted"
+}
+
+apply_rpi() {
+    theme=""
+    if [ -d /usr/share/themes/PiXtrix ] || [ -d /usr/share/themes/PiXonyx ]; then
+        if [ "$DARK" = 1 ]; then theme=PiXonyx; else theme=PiXtrix; fi
+    elif [ -d /usr/share/themes/PiXflat ] || [ -d /usr/share/themes/PiXnoir ]; then
+        if [ "$DARK" = 1 ]; then theme=PiXnoir; else theme=PiXflat; fi
+    fi
+    [ -n "$theme" ] || return 1
+    if command -v gsettings >/dev/null 2>&1; then
+        gsettings set org.gnome.desktop.interface gtk-theme "$theme" >/dev/null 2>&1 || true
+        if [ "$DARK" = 1 ]; then
+            gsettings set org.gnome.desktop.interface color-scheme prefer-dark >/dev/null 2>&1 || true
+        else
+            gsettings set org.gnome.desktop.interface color-scheme prefer-light >/dev/null 2>&1 || true
+        fi
+    fi
+    conf="$HOME/.config/xsettingsd/xsettingsd.conf"
+    if [ -f "$conf" ]; then
+        if grep -q 'Net/ThemeName' "$conf"; then
+            sed -i "s#Net/ThemeName .*#Net/ThemeName \"$theme\"#" "$conf"
+        else
+            echo "Net/ThemeName \"$theme\"" >>"$conf"
+        fi
+        killall -HUP xsettingsd >/dev/null 2>&1 || true
+    fi
+    desk="$HOME/.config/lxsession/rpd-x/desktop.conf"
+    if [ -f "$desk" ] && grep -q 'sNet/ThemeName=' "$desk"; then
+        sed -i "s#sNet/ThemeName=.*#sNet/ThemeName=$theme#" "$desk"
+    fi
+    rc="$HOME/.config/labwc/rc.xml"
+    if [ -f "$rc" ]; then
+        sed -i -E "s#(PiXtrix|PiXonyx|PiXflat|PiXnoir)(_l)?#${theme}\2#g" "$rc"
+        labwc --reconfigure >/dev/null 2>&1 || true
+    elif command -v labwc >/dev/null 2>&1; then
+        labwc --reconfigure >/dev/null 2>&1 || true
+    fi
+    if command -v openbox >/dev/null 2>&1; then
+        openbox --reconfigure >/dev/null 2>&1 || true
+    fi
+    THEME=$theme
+    KIND=raspberrypi
+}
+
+theme_installed() {
+    [ -d "/usr/share/themes/$1" ] || [ -d "$HOME/.themes/$1" ]
+}
+
+first_installed() {
+    for name in "$@"; do
+        if theme_installed "$name"; then
+            printf '%s\n' "$name"
+            return 0
+        fi
+    done
+    return 1
+}
+
+apply_xfce() {
+    if [ "$DARK" = 1 ]; then
+        theme=$(first_installed Adwaita-dark Arc-Dark Materia-dark Orchis-Dark)
+    else
+        theme=$(first_installed Adwaita Arc Materia Orchis)
+    fi
+    [ -n "$theme" ] || return 1
+    xfconf-query -c xsettings -p /Net/ThemeName -s "$theme" >/dev/null 2>&1 || return 1
+    xfconf-query -c xfwm4 -p /general/theme -n -t string -s "$theme" >/dev/null 2>&1 || true
+    THEME=$theme
+    KIND=xfce
+}
+
+apply_gnome() {
+    command -v gsettings >/dev/null 2>&1 || return 1
+    gsettings list-schemas 2>/dev/null | grep -qx org.gnome.desktop.interface || return 1
+    if [ "$DARK" = 1 ]; then
+        gsettings set org.gnome.desktop.interface color-scheme prefer-dark >/dev/null 2>&1 || true
+        theme=$(first_installed Adwaita-dark Yaru-dark)
+    else
+        gsettings set org.gnome.desktop.interface color-scheme prefer-light >/dev/null 2>&1 || true
+        theme=$(first_installed Adwaita Yaru)
+    fi
+    if [ -n "$theme" ]; then
+        gsettings set org.gnome.desktop.interface gtk-theme "$theme" >/dev/null 2>&1 || true
+        THEME=$theme
+    fi
+    KIND=gnome
+}
+
+session_env
+desktop="${XDG_CURRENT_DESKTOP:-}${XDG_SESSION_DESKTOP:-}${DESKTOP_SESSION:-}"
+kde=0
+if command -v plasma-apply-colorscheme >/dev/null 2>&1 || pgrep -x plasmashell >/dev/null 2>&1; then
+    kde=1
+    apply_kde >/dev/null || true
+fi
+if [ -z "$KIND" ] && [ "$kde" = 0 ] && { [ -d /usr/share/themes/PiXtrix ] || [ -d /usr/share/themes/PiXonyx ] || [ -d /usr/share/themes/PiXflat ] || [ -d /usr/share/themes/PiXnoir ]; }; then
+    apply_rpi || true
+fi
+if [ -z "$KIND" ] && [ "$kde" = 0 ] && command -v xfconf-query >/dev/null 2>&1 && { printf '%s' "$desktop" | grep -qi xfce || pgrep -x xfce4-session >/dev/null 2>&1; }; then
+    apply_xfce || true
+fi
+if [ -z "$KIND" ] && [ "$kde" = 0 ]; then
+    apply_gnome || true
+fi
+
+if [ -z "$KIND" ]; then
+    echo "THEME_SKIP no desktop theme support" >&2
+    exit 1
+fi
+write_gtk_ini "$THEME"
+printf 'THEME_OK desktop=%s theme=%s mode=%s\n' "$KIND" "${THEME:-color-scheme}" "$MODE"
+"""
+
+
+def color_mode_remote_script(mode: str) -> str:
+    """Bash that switches a panel desktop between its light and dark theme."""
+    if mode not in ("dark", "light"):
+        raise ValueError(f"invalid color mode: {mode!r}")
+    return _COLOR_MODE_SCRIPT.replace("__SCCS_MODE__", mode)
+
+
+def _color_mode_ssh_command(username: str, host: str, mode: str) -> str:
+    script = color_mode_remote_script(mode)
+    remote = "bash -s <<'SCCS_THEME'\n" + script + "SCCS_THEME\n"
+    return _ssh_cmd(username, host, remote, 8)
+
+
 def _parse_control(path: str) -> Optional[ScreenControl]:
     if not path:
         return None
@@ -422,11 +664,72 @@ class ScreenActuator:
         self._screens = screens
         self._observed: Dict[str, int] = {n: 0 for n in screens}
         self._on_command_failed = on_command_failed
+        self._theme_lock = threading.Lock()
+        self._theme_pending: Optional[str] = None
+        self._theme_running = False
         if screens:
             threading.Thread(target=self._probe_all, daemon=True, name="screen-probe").start()
 
     def set_on_command_failed(self, callback: OnCommandFailed):
         self._on_command_failed = callback
+
+    def apply_color_mode(self, mode: str):
+        """Match every panel's desktop theme to the UI colour scheme.
+
+        KDE Plasma (Armbian), Raspberry Pi OS, XFCE, and GNOME each get their
+        own light/dark theme. An offline panel is skipped.
+        """
+        if mode not in ("dark", "light") or not self._screens:
+            return
+        with self._theme_lock:
+            self._theme_pending = mode
+            if self._theme_running:
+                return
+            self._theme_running = True
+        threading.Thread(
+            target=self._theme_loop,
+            daemon=True,
+            name="screen-theme",
+        ).start()
+
+    def _theme_loop(self):
+        try:
+            while True:
+                with self._theme_lock:
+                    mode = self._theme_pending
+                    self._theme_pending = None
+                    if mode is None:
+                        self._theme_running = False
+                        return
+                for name in list(self._screens):
+                    self._apply_color_mode_one(name, mode)
+        except Exception as e:
+            logger.warning(f"Screen theme loop: {e}")
+            with self._theme_lock:
+                self._theme_running = False
+
+    def _apply_color_mode_one(self, name: str, mode: str):
+        conf = self._screens.get(name)
+        if not conf:
+            return
+        label = conf.get("friendly", name)
+        cmd = _color_mode_ssh_command(conf["username"], conf["host"], mode)
+        try:
+            result = subprocess.run(cmd, shell=True, timeout=20, capture_output=True, text=True)
+        except Exception as e:
+            logger.warning(f"Screen {label} theme SSH: {e}")
+            return
+        detail = (result.stdout or result.stderr or "").strip().splitlines()
+        summary = detail[-1] if detail else ""
+        if result.returncode == 0:
+            logger.info(f"🖥️ {label} theme → {mode} ({summary or 'ok'})")
+        else:
+            logger.warning(
+                "Screen %s theme failed (exit %s): %s",
+                label,
+                result.returncode,
+                summary[:200] or "no output",
+            )
 
     def set_screen(self, name: str, brightness_pct: int):
         brightness_pct = max(0, min(100, int(brightness_pct)))

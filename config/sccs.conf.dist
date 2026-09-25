@@ -242,6 +242,8 @@ kitchen_bench = kitchen_panel
 # section, installs passwordless SSH + sudoers, and refreshes Pi-hole DHCP.
 # The panel account password is saved in ~/.sccs/screen_credentials (mode 600)
 # and reused for later setup and package updates. It is not stored in this file.
+# UI dark/light mode also sets each panel's desktop theme to match
+# (KDE Plasma, Raspberry Pi OS, XFCE, or GNOME).
 #
 # brightness_path options:
 #   sysfs blank/backlight — e.g. /sys/class/graphics/fb0/blank
