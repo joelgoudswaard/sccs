@@ -81,7 +81,7 @@
 
         if (paired) {
             headlineEl.textContent = 'Paired with Home';
-            detailEl.textContent = `${name} · ${count} accessories on van Wi‑Fi`;
+            detailEl.textContent = `${name} · ${count} accessories on your iPhone`;
             pairEl.hidden = true;
             resetBtn.hidden = confirming;
             if (!confirming) {

@@ -81,7 +81,7 @@
 
         if (paired) {
             headlineEl.textContent = 'Connected to Google Home';
-            detailEl.textContent = `${name} · ${count} accessories on van Wi‑Fi`;
+            detailEl.textContent = `${name} · ${count} accessories on your Android`;
             pairEl.hidden = true;
             resetBtn.hidden = confirming;
             if (!confirming) {

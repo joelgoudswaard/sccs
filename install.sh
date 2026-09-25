@@ -608,6 +608,39 @@ ensure_sccs_service_running() {
     fi
 }
 
+# The app reads sccs.conf once at process start. A step that changes that
+# file has to restart the unit or the running process keeps the old values.
+restart_sccs_service() {
+    local why="${1:-}"
+    local detail=""
+    [[ -n "$why" ]] && detail=" ${why}"
+    if systemctl restart "${SERVICE_NAME}.service"; then
+        ok "Restarted ${SERVICE_NAME}.service${detail}"
+    else
+        warn "Could not restart ${SERVICE_NAME}.service${detail} — journalctl -u ${SERVICE_NAME}.service -b --no-pager"
+    fi
+}
+
+# No-op when the unit is not installed yet (fresh install, before step_service)
+# or when it is stopped. The next start loads the file.
+restart_sccs_service_if_active() {
+    if ! systemctl is-active --quiet "${SERVICE_NAME}.service" 2>/dev/null; then
+        return 0
+    fi
+    restart_sccs_service "${1:-}"
+}
+
+# Set by conf_upsert_screen / conf_remove_screen. step_screens restarts once
+# on the way out, after every panel in that step has been written.
+SCREEN_CONFIG_CHANGED=0
+
+restart_sccs_if_screen_config_changed() {
+    if [[ "${SCREEN_CONFIG_CHANGED:-0}" -eq 1 ]]; then
+        restart_sccs_service_if_active "to load touchscreen config"
+        SCREEN_CONFIG_CHANGED=0
+    fi
+}
+
 # Append dtoverlay=<name> at the end of [section] if it is not already
 # present as a line-start assignment anywhere in config.txt.
 # Appending keeps boot order: inserting under the header reverses it, and on
@@ -1089,6 +1122,7 @@ step_config() {
     if [[ -z "$secret" || "$secret" == "CHANGE_ME_TO_A_LONG_RANDOM_STRING" ]]; then
         conf_set system secret_key "$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
         ok "Generated system.secret_key"
+        restart_sccs_service_if_active "to load the new secret key"
     else
         ok "secret_key already set"
     fi
@@ -1354,6 +1388,7 @@ step_sensors() {
     if [[ ${#set_args[@]} -gt 0 ]]; then
         conf_set sensors "${set_args[@]}"
         ok "Updated [sensors]"
+        restart_sccs_service_if_active "to load temperature sensors"
     else
         info "No sensor roles chosen"
     fi
@@ -2336,11 +2371,7 @@ step_victron() {
         info "No Victron credentials saved"
     fi
     if [[ "$VICTRON_SERVICE_STOPPED" -eq 1 || ( ${#victron_args[@]} -gt 0 && "$service_was_active" -eq 1 ) ]]; then
-        if systemctl restart "${SERVICE_NAME}.service"; then
-            ok "Restarted ${SERVICE_NAME}.service to load Victron credentials"
-        else
-            warn "Could not restart ${SERVICE_NAME}.service"
-        fi
+        restart_sccs_service "to load Victron credentials"
     fi
 }
 
@@ -2469,10 +2500,7 @@ step_voice_assistants() {
     conf_set matter enabled "$([ "$want_gh" == "y" ] && echo true || echo false)" bind_address "$bind"
     ok "Updated [homekit] and [matter]"
 
-    if systemctl is-active --quiet "${SERVICE_NAME}.service" 2>/dev/null; then
-        systemctl restart "${SERVICE_NAME}.service"
-        ok "Restarted ${SERVICE_NAME}.service"
-    fi
+    restart_sccs_service_if_active "to load HomeKit / Google Home"
     info "Open Settings → HomeKit / Google Home on the UI to pair."
 }
 
@@ -4372,6 +4400,7 @@ open(path, "w", encoding="utf-8").write(text)
 print(f"wrote [screens] {name}")
 PY
     chown "$USERNAME":www-data "$CONF" 2>/dev/null || true
+    SCREEN_CONFIG_CHANGED=1
 }
 
 # Remove one [screens] key (used when renaming internal name on re-setup).
@@ -4399,6 +4428,7 @@ if n:
     print(f"removed [screens] {name}")
 PY
     chown "$USERNAME":www-data "$CONF" 2>/dev/null || true
+    SCREEN_CONFIG_CHANGED=1
 }
 
 # Interactive: pick a reed for a screen. Args: current_reed (may be empty).
@@ -5558,6 +5588,9 @@ step_screens() {
 
     step_begin "Touchscreens (scan LAN · config · SSH · Chromium UI)"
     require_conf
+    # One restart after the last panel in this step, including early returns.
+    SCREEN_CONFIG_CHANGED=0
+    trap 'trap - RETURN; restart_sccs_if_screen_config_changed' RETURN
 
     if [[ "$mode" == "optional" ]]; then
         ask_yn "Configure touchscreen panel(s) now?" n

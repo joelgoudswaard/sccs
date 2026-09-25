@@ -165,20 +165,33 @@
 }
 
 .datetime-tile__footer {
+    /* Icon column, then the label/time column, on each side of the clock.
+       The label and the time share a column so their text starts together. */
+    --sun-line: 1.2em;
+    --sun-row-gap: 0.15em;
+    --sun-block: calc(var(--sun-line) * 2 + var(--sun-row-gap));
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto auto minmax(0, 1fr) auto auto;
     grid-template-rows: auto auto;
     flex-shrink: 0;
-    align-items: center;
-    column-gap: var(--space-datetime-gap);
-    row-gap: 0.15em;
+    align-items: stretch;
+    column-gap: var(--space-nav-icon-gap);
+    row-gap: var(--sun-row-gap);
     padding-top: var(--space-datetime-footer-pad);
     border-top: 1px solid var(--color-border);
+    font-size: var(--font-size-title);
+}
+
+.datetime-tile__sun-readout {
+    display: contents;
 }
 
 .datetime-tile__sun-label {
     grid-row: 1;
-    font-size: var(--font-size-title);
+    grid-column: 2;
+    justify-self: start;
+    align-self: end;
+    font-size: 1em;
     font-weight: var(--font-weight-medium);
     color: var(--color-text-muted);
     line-height: 1.2;
@@ -186,42 +199,65 @@
 }
 
 .datetime-tile__sun-label--end {
-    grid-column: 3;
-    justify-self: end;
+    grid-column: 5;
 }
 
-.datetime-tile__sun-readout {
+.datetime-tile__sun-time {
     grid-row: 2;
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: var(--space-nav-icon-gap);
-    font-size: var(--font-size-title);
+    grid-column: 2;
+    justify-self: start;
+    align-self: start;
+    font-size: 1em;
     font-weight: var(--font-weight-medium);
     color: var(--color-text);
-    white-space: nowrap;
     line-height: 1.2;
+    white-space: nowrap;
 }
 
-.datetime-tile__sun-readout--end {
-    grid-column: 3;
-    justify-self: end;
+.datetime-tile__sun-readout--end .datetime-tile__sun-time {
+    grid-column: 5;
+}
+
+.datetime-tile__sun-icon,
+.datetime-tile__moon-icon {
+    grid-row: 1 / span 2;
+    align-self: stretch;
+    justify-self: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--sun-block);
+    min-width: var(--sun-block);
+    min-height: 0;
+    line-height: 1;
 }
 
 .datetime-tile__sun-icon {
-    font-size: var(--font-size-title);
+    grid-column: 1;
     color: var(--color-sun);
 }
 
 .datetime-tile__moon-icon {
-    font-size: var(--font-size-title);
+    grid-column: 4;
     color: var(--color-text-label);
 }
 
+/* Glyph ink is a fraction of the em square. Scale it so the drawn icon
+   matches the label line, the gap, and the time line together. */
+.datetime-tile__sun-icon::before {
+    font-size: calc(var(--sun-block) * 512 / 516);
+    line-height: 1;
+}
+
+.datetime-tile__moon-icon::before {
+    font-size: calc(var(--sun-block) * 512 / 448);
+    line-height: 1;
+}
+
 .datetime-tile__time {
-    grid-column: 2;
-    grid-row: 2;
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    align-self: end;
     justify-self: center;
     min-width: 0;
     font-size: var(--font-size-datetime-time);

@@ -5,6 +5,9 @@ All notable changes to SCCS are documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- HomeKit and Google Home pairing copy now says to use your iPhone or Android instead of the van Wi‑Fi.
+- Date & Time sunrise and sunset labels now start in line with the time, and the sun and moon icons span that label and the time.
+- Configuring temperature sensors or touchscreens left the running service on the old `sccs.conf` until something else restarted it. Those steps now restart `sccs.service` when it is already running, after the config for that step is saved.
 - First-run ESP32 flashing waited on `/dev/ttyAMA2` and `/dev/ttyAMA3` before the UART overlays were active, so the chips were not detected until the Pi was restarted. The installer now loads those overlays on the running system, and when the kernel only creates the ports at startup it restarts and continues the install instead of asking for the BOOT button.
 - A mismatched Samba password confirmation ended the share setup. The installer asks again until the two entries match, or both are left blank to skip.
 - Victron setup saved a MAC and Instant Readout key without checking them. The installer now listens for each device, prints a live reading when the key decrypts, and offers to retype the credentials when the key does not match or the device is not heard.
