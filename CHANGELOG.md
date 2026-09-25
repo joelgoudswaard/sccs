@@ -2,7 +2,7 @@
 
 All notable changes to SCCS are documented in this file.
 
-## [Unreleased]
+## [1.2.0.26092026] - 2026-09-26
 
 ### Added
 - Update (menu 2 / `--update`) checks UniFi OS Server against Ubiquiti's release feed and runs the official installer when a newer version is published. An install that is already current is left alone. The controller restarts during the upgrade; adopted access points and the Podman volumes stay. The container DNS fix is applied again afterwards.
@@ -12,7 +12,7 @@ All notable changes to SCCS are documented in this file.
 ### Fixed
 - Kitchen bench night is 10% red. It was off.
 - Dragging a lighting slider thumb no longer opens the browser right-click menu. A press on the thumb is a drag.
-- Neumorphism cards use the original halfway highlight again. Rewriting that fade, and painting it with GPU compositing forced off, turned it into a few flat shades on the kitchen panel.
+- Neumorphism cards keep the halfway highlight. Panel Chromium composites on the GPU and rasterizes on the CPU, so that gradient stays a smooth ramp and page and fullscreen changes are not a two-frame jump. The Neumorphism tile blur is off; the tiles are already nearly opaque, and the blur was re-painted on every fade.
 - Closing the kitchen panel reed powers the touchscreen off. Brightness 0% only dimmed it. Wake turns the panel back on at the phase brightness.
 - After a reboot the van LAN address could sit on the iPhone USB tether instead of the touchscreen port. Pi-hole then had nothing to lease from, so the panel came up with no address. The LAN profile is now pinned to that port’s name and MAC, and a phone tether is never treated as the van LAN.
 - Victron setup offers the enrolled SmartShunt and MPPT Instant Readout keys as suggestions. Press Enter to use that device's key, or type 1 or 2. Those keys are the defaults in a new install.

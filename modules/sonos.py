@@ -299,7 +299,9 @@ class SonosManager:
         if original_url.startswith(('https://', 'http://')) and not any(x in original_url for x in ['192.168.', '10.', '172.16.']):
             return original_url
 
-        encoded = quote(original_url, safe=':/?=&')
+        # Encode the whole speaker URL. Leaving "&" raw splits off the track
+        # id, and Sonos then 404s getaa?s=1 with no u= parameter.
+        encoded = quote(original_url, safe="")
         return f"/sonos-art?url={encoded}"
 
     def _broadcast_speakers(self):

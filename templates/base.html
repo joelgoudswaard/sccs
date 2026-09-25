@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="neuglass">
+<html lang="en" data-theme="neuglass" data-color-mode="{{ color_mode }}">
 <head>
     <style id="sccs-boot-hide">html:not(.theme-ready){visibility:hidden}</style>
     <meta charset="UTF-8">
@@ -18,8 +18,12 @@
             window.SCCS.developmentMode = {{ development_mode | default(false) | tojson }};
             window.SCCS.themeBase = themeBase;
             try {
-                var mode = localStorage.getItem('sccs-color-mode');
-                html.classList.add(mode === 'light' ? 'light' : 'dark');
+                var serverMode = html.getAttribute('data-color-mode');
+                var stored = localStorage.getItem('sccs-color-mode');
+                var mode = (serverMode === 'light' || serverMode === 'dark')
+                    ? serverMode
+                    : (stored === 'light' ? 'light' : 'dark');
+                html.classList.add(mode);
 
                 var theme = localStorage.getItem('sccs-theme') || 'neuglass';
                 html.setAttribute('data-theme', theme);

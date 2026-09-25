@@ -5231,17 +5231,57 @@ DESKTOP="\$HOME/.config/autostart/sccs-ui.desktop"
 # pixel; a compositor scale of 1.5 or 2 makes Chromium fill a larger buffer.
 # KDE session restore launches the stock Chromium desktop file first. A later
 # autostart then hits "Opening in existing browser session" and exits, so
-# these flags never apply. Kill that restored browser before starting the
-# real one. --disable-gpu --disable-gpu-compositing paints the Neumorphism
-# halfway highlight as a few flat bands, so the EGL launch flags stay.
-# Expand BROWSER/UI_URL when writing so the .desktop has concrete paths.
+# these flags never apply. Kill that restored browser and wait until it is
+# gone before starting the real one, or the new process adds a second UI tab
+# to the one still running. Session files are removed so "continue where you
+# left off" does not open the page again beside the launch URL.
+# GPU rasterization paints the Neumorphism shine as a few flat bands. Leave
+# the GL compositor on (--use-gl=egl) and rasterize on the CPU
+# (--disable-gpu-rasterization). --disable-gpu would also drop the compositor
+# and make page and fullscreen fades jump.
+mkdir -p "\$HOME/.config/sccs"
+python3 - "\$HOME/.config/sccs/launch-chromium.sh" "\$BROWSER" "\$UI_URL" "\$PIHOLE_URL" <<'PY'
+import os, shlex, sys
+dest, browser, ui, pihole = sys.argv[1:]
+home = os.environ["HOME"]
+profile = os.path.join(home, ".config", "chromium", "Default")
+session_files = " ".join(
+    shlex.quote(os.path.join(profile, name))
+    for name in ("Last Session", "Current Session", "Last Tabs", "Current Tabs")
+)
+script = "\n".join([
+    "#!/bin/sh",
+    "sleep 4",
+    "killall -q chromium chromium-browser 2>/dev/null || true",
+    "for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do",
+    "    if ! pgrep -x chromium >/dev/null 2>&1 && ! pgrep -x chromium-browser >/dev/null 2>&1; then",
+    "        break",
+    "    fi",
+    "    sleep 0.3",
+    "done",
+    "killall -q -9 chromium chromium-browser 2>/dev/null || true",
+    "rm -f " + session_files,
+    "python3 " + shlex.quote(os.path.join(home, ".config", "sccs", "ensure-chromium-bookmarks.py"))
+    + " " + shlex.quote(profile) + " " + shlex.quote(pihole) + " || true",
+    "exec " + shlex.quote(browser)
+    + " --noerrdialogs --disable-session-crashed-bubble --disable-infobars"
+    + " --check-for-update-interval=31536000 --disable-features=TranslateUI"
+    + " --disable-gpu-rasterization --ignore-gpu-blocklist --use-gl=egl"
+    + " --force-device-scale-factor=1 --homepage=" + shlex.quote(ui)
+    + " " + shlex.quote(ui),
+    "",
+])
+with open(dest, "w", encoding="utf-8") as handle:
+    handle.write(script)
+os.chmod(dest, 0o755)
+PY
 cat > "\$DESKTOP" <<DESK
 [Desktop Entry]
 Type=Application
 Version=1.0
 Name=SCCS Control UI
 Comment=Open the camper control system UI on boot
-Exec=sh -c "sleep 4; killall -q chromium || true; sleep 1; python3 \$HOME/.config/sccs/ensure-chromium-bookmarks.py \$HOME/.config/chromium/Default \$PIHOLE_URL; exec \$BROWSER --noerrdialogs --disable-session-crashed-bubble --disable-infobars --check-for-update-interval=31536000 --disable-features=TranslateUI --enable-gpu-rasterization --ignore-gpu-blocklist --enable-zero-copy --use-gl=egl --force-device-scale-factor=1 --homepage=\$UI_URL \$UI_URL"
+Exec=\$HOME/.config/sccs/launch-chromium.sh
 Terminal=false
 X-GNOME-Autostart-enabled=true
 StartupNotify=false
@@ -5268,10 +5308,9 @@ if [[ ! -f "\$PREF_DIR/Preferences" ]]; then
     "skip_first_run_ui": true
   },
   "homepage": "\$UI_URL",
-  "homepage_is_newtabpage": false,
+  "homepage_is_newtabpage": true,
   "session": {
-    "restore_on_startup": 4,
-    "startup_urls": ["\$UI_URL"]
+    "restore_on_startup": 5
   }
 }
 PREF
@@ -5287,10 +5326,12 @@ try:
 except Exception:
     sys.exit(0)
 data["homepage"] = url
-data["homepage_is_newtabpage"] = False
+data["homepage_is_newtabpage"] = True
 sess = data.setdefault("session", {})
-sess["restore_on_startup"] = 4
-sess["startup_urls"] = [url]
+# 5 = new tab page. The launcher opens the UI once. A startup URL list
+# plus that launch argument is how Chromium was opening two UI tabs.
+sess["restore_on_startup"] = 5
+sess.pop("startup_urls", None)
 browser = data.setdefault("browser", {})
 browser["has_seen_welcome_page"] = True
 with open(path, "w", encoding="utf-8") as f:
@@ -5461,18 +5502,19 @@ chmod 755 "\$HOME/.config/sccs/ensure-chromium-bookmarks.py"
 python3 "\$HOME/.config/sccs/ensure-chromium-bookmarks.py" \
     "\$HOME/.config/chromium/Default" "\$PIHOLE_URL"
 
-# Verify GPU acceleration is actually active rather than a silent
-# SwiftShader/llvmpipe software fallback (Chromium's GPU allowlist can
-# reject unrecognized Mesa/V3D/Panfrost driver strings without erroring).
-# Uses a throwaway profile so it doesn't collide with the kiosk instance.
+# Compositor on the Pi GPU, rasterization on the CPU. GPU rasterization bands
+# the Neumorphism shine; disabling the GPU entirely makes fades jump.
+# Throwaway profile so this does not collide with the panel browser.
 GPU_TMP="\$(mktemp -d)"
-if "\$BROWSER" --headless=new --disable-gpu-sandbox --enable-gpu-rasterization \
+if "\$BROWSER" --headless=new --disable-gpu-sandbox --disable-gpu-rasterization \
     --ignore-gpu-blocklist --use-gl=egl --user-data-dir="\$GPU_TMP" \
     --dump-dom chrome://gpu >"\$GPU_TMP/gpu.html" 2>/dev/null; then
     if grep -qiE "swiftshader|llvmpipe" "\$GPU_TMP/gpu.html"; then
-        echo "GPU: WARNING - Chromium is using software rendering (SwiftShader/llvmpipe); check chrome://gpu on the panel"
+        echo "GPU: WARNING - compositor is software (SwiftShader/llvmpipe); check chrome://gpu on the panel"
+    elif grep -A6 -i "rasterization" "\$GPU_TMP/gpu.html" | grep -qi "hardware accelerated"; then
+        echo "GPU: WARNING - GPU rasterization is on; the Neumorphism highlight will band"
     elif grep -qi "hardware accelerated" "\$GPU_TMP/gpu.html"; then
-        echo "GPU: hardware acceleration confirmed"
+        echo "GPU: compositor on, rasterization off"
     else
         echo "GPU: status unclear - check chrome://gpu on the panel manually"
     fi
@@ -5502,10 +5544,9 @@ for base in /etc/chromium /etc/chromium-browser; do
 {
   "BookmarkBarEnabled": true,
   "HomepageLocation": "\$UI_URL",
-  "HomepageIsNewTabPage": false,
+  "HomepageIsNewTabPage": true,
   "ShowHomeButton": true,
-  "RestoreOnStartup": 4,
-  "RestoreOnStartupURLs": ["\$UI_URL"]
+  "RestoreOnStartup": 5
 }
 POL
     chmod 644 "\$base/policies/managed/sccs-touchscreen.json"

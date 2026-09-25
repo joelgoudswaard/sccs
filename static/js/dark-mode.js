@@ -85,9 +85,16 @@
         }
     }
 
+    function initialMode() {
+        const fromServer = document.documentElement.getAttribute('data-color-mode');
+        if (fromServer === 'light' || fromServer === 'dark') return fromServer;
+        return getStoredMode();
+    }
+
     function init() {
-        const mode = getStoredMode();
+        const mode = initialMode();
         applyMode(mode);
+        persistMode(mode);
         bindButtons();
         updateActiveButtons(mode);
         loadFromServer();

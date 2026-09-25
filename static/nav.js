@@ -81,9 +81,11 @@ window.SCCS.bindSectionPoll = function (sectionId, fn, intervalMs) {
         switching = true;
         const reduced = prefersReducedMotion();
         next.hidden = false;
-        // Paint the incoming page at opacity 0 before .active. A same-turn
-        // class change after display:none skips the fade in Chrome.
+        // Upload both pages as compositor layers before the opacity change.
+        // will-change on the same frame as the fade is the layer upload itself.
         if (!reduced) {
+            if (current) current.classList.add('is-fading');
+            next.classList.add('is-fading');
             void next.offsetWidth;
             await afterPaint();
         }
@@ -91,10 +93,6 @@ window.SCCS.bindSectionPoll = function (sectionId, fn, intervalMs) {
         if (current) current.classList.add('is-leaving');
         next.classList.add('active');
         if (current) current.classList.remove('active');
-        if (!reduced) {
-            if (current) current.classList.add('is-fading');
-            next.classList.add('is-fading');
-        }
         setNavActive(sectionId);
 
         await waitForFade(reduced ? 0 : fadeMs);

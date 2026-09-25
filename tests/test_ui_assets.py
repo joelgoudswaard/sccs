@@ -71,10 +71,25 @@ class TestUiBundle(unittest.TestCase):
             "linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, transparent 50%)",
             text,
         )
-        self.assertNotIn("--blur-tile: none", text)
+        self.assertIn("--blur-tile: none", text)
+        self.assertIn("--blur-surface: none", text)
         self.assertNotIn("backdrop-filter: none", text)
         minimal = theme_css("minimal.css")[1].decode("utf-8")
         self.assertIn("blur(32px)", minimal)
+
+    def test_panel_chromium_composites_without_gpu_raster(self):
+        install = _read("install.sh")
+        launch = install.split("launch-chromium.sh", 1)[1].split("Wrote", 1)[0]
+        self.assertIn("--disable-gpu-rasterization", launch)
+        self.assertIn("--use-gl=egl", launch)
+        self.assertIn("--ignore-gpu-blocklist", launch)
+        self.assertIn("--force-device-scale-factor=1", launch)
+        self.assertNotIn("--enable-gpu-rasterization", launch)
+        self.assertNotIn("--enable-zero-copy", launch)
+        self.assertNotIn("--disable-gpu-compositing", launch)
+        self.assertNotRegex(launch, r"--disable-gpu(?!-)")
+        self.assertIn('"restore_on_startup": 5', install)
+        self.assertNotIn("RestoreOnStartupURLs", install)
 
     def test_gzip_roundtrip_and_skips(self):
         payload = b"x" * 2000

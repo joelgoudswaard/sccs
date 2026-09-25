@@ -33,6 +33,12 @@
 
     --shadow-drop-sm: 0 4px 20px rgba(0, 0, 0, 0.45);
     --shadow-drop-md: 0 4px 24px rgba(0, 0, 0, 0.5);
+
+    /* Tiles are ~90% opaque, so this blur is not the highlight. It forces
+       every tile to re-blur during a page fade. */
+    --blur-header: none;
+    --blur-surface: none;
+    --blur-tile: none;
 }
 
 /* Ambient background — theme-specific, not shared with other themes */

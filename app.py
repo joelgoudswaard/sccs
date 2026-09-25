@@ -221,9 +221,13 @@ def ui_theme_css(name):
 @app.context_processor
 def inject_nav():
     theme_file = url_for("ui_theme_css", name="neuglass.css")
+    mode = "dark"
+    if phase_manager is not None:
+        mode = phase_manager.get_current_dark_mode()
     return {
         "nav_items": NAV_ITEMS,
         "development_mode": development_mode,
+        "color_mode": mode,
         "theme_base": theme_file.removesuffix("neuglass.css"),
         **template_asset_versions(),
     }

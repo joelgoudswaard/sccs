@@ -1,5 +1,10 @@
-/* A tap on a touch panel leaves :hover applied, which keeps the lifted tile layer. */
+/* A tap on a touch panel leaves :hover applied, which keeps the lifted tile layer.
+   The page fade stays, but 0.45s holds both pages open long enough to stutter. */
 @media (hover: none), (pointer: coarse) {
+    :root {
+        --duration-page-fade: 0.2s;
+    }
+
     [data-theme] .tile:hover,
     [data-theme] .slider-card:hover,
     [data-theme] .scene-btn:hover:not(.active) {

@@ -114,6 +114,10 @@ class PhaseManager:
 
         self._calculate_and_cache_times()
         self._update_phase(use_fallback=False)
+        # bootstrap_initial_phase may already have stored Day, so the change
+        # above is a no-op and would leave a saved manual "dark" in place
+        # through the daytime. Reconcile against the phase we are in now.
+        self._maybe_clear_manual_dark_mode()
         self._auto_update_dark_mode()
         self._notify_dark_mode()
 
