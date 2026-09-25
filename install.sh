@@ -8,7 +8,7 @@
 # After install (or from a checkout of install.sh alone):
 #   sudo ./install.sh              # interactive menu
 #   sudo ./install.sh --install    # Install SCCS
-#   sudo ./install.sh --update     # git pull + deps + Pi-hole
+#   sudo ./install.sh --update     # git pull + deps + Pi-hole + touchscreen apt
 #   sudo ./install.sh --esp        # ESP32 flash only
 #   sudo ./install.sh --victron    # Victron only
 #   sudo ./install.sh --sensors    # 1-Wire only
@@ -4069,6 +4069,14 @@ EOS2
             ensure_screen_ssh_config "$screen_user" "$screen_host" "$screen_alias" || true
         fi
 
+        # Menu 2 runs this helper with sudo -n. Install it now while the
+        # panel password (if any) is still available.
+        if touchscreen_apt "$screen_user" "$screen_host" "${screen_pass:-}" install; then
+            ok "Passwordless apt upgrade is available on ${screen_host}"
+        else
+            info "Update will ask for the panel password before apt upgrade on ${screen_host}"
+        fi
+
         if configure_touchscreen_browser "$screen_user" "$screen_host" "${screen_pass:-}"; then
             ok "Chromium homepage + autostart → ${SCCS_UI_URL}"
         else
@@ -6103,6 +6111,255 @@ step_checklist() {
     ok "Done"
 }
 
+# ---------------------------------------------------------------------------
+# apt update + upgrade on a configured touchscreen.
+# mode "install" only writes /usr/local/sbin/sccs-apt-upgrade and a NOPASSWD
+# sudoers rule. mode "upgrade" installs that helper if needed, then runs it.
+# Exit 0: done. Exit 2: sudo needs the panel password. Exit 10: upgrade
+# finished and /var/run/reboot-required is present. Any other non-zero: failed.
+# Args: user host [password] mode
+# ---------------------------------------------------------------------------
+touchscreen_apt() {
+    local screen_user="$1" screen_host="$2" screen_pass="${3:-}" mode="${4:-upgrade}"
+    [[ "$mode" == "install" || "$mode" == "upgrade" ]] || return 1
+    [[ "$screen_user" =~ ^[A-Za-z_][-A-Za-z0-9_]*$ ]] || return 1
+    [[ "$screen_host" =~ ^[A-Za-z0-9][-A-Za-z0-9._]*$ ]] || return 1
+
+    run_user_bash env \
+        SCREEN_USER="$screen_user" \
+        SCREEN_HOST="$screen_host" \
+        SCREEN_PASS="${screen_pass:-}" \
+        SCREEN_APT_MODE="$mode" \
+        <<'EOS'
+set -euo pipefail
+KEY="$HOME/.ssh/sccs_screen"
+KNOWN_HOSTS="$HOME/.sccs/screen_known_hosts"
+SSH_BATCH=(
+    -o BatchMode=yes
+    -o PreferredAuthentications=publickey
+    -o IdentitiesOnly=yes
+    -o UserKnownHostsFile="${KNOWN_HOSTS}"
+    -o StrictHostKeyChecking=accept-new
+    -o ConnectTimeout=15
+    -o ServerAliveInterval=30
+    -o ServerAliveCountMax=120
+    -i "${KEY}"
+)
+[[ -f "$KEY" ]] || { echo "Missing SSH key $KEY" >&2; exit 1; }
+
+if ! ssh "${SSH_BATCH[@]}" "${SCREEN_USER}@${SCREEN_HOST}" "echo sccs-ssh-ok" </dev/null 2>/dev/null \
+    | tr -d '\r' | grep -qx 'sccs-ssh-ok'; then
+    echo "SSH key login failed for ${SCREEN_USER}@${SCREEN_HOST}" >&2
+    exit 1
+fi
+
+helper_ready() {
+    ssh "${SSH_BATCH[@]}" "${SCREEN_USER}@${SCREEN_HOST}" \
+        "test -x /usr/local/sbin/sccs-apt-upgrade && sudo -n -l /usr/local/sbin/sccs-apt-upgrade" \
+        </dev/null >/dev/null 2>&1
+}
+
+# Root-side installer. $1 is the panel username. Written via base64 so the
+# panel login shell does not have to be bash.
+install_root=$(cat <<'EOF'
+set -euo pipefail
+user="$1"
+[[ "$user" =~ ^[A-Za-z_][-A-Za-z0-9_]*$ ]] || { echo "refusing unsafe username" >&2; exit 1; }
+install -d -m 755 /usr/local/sbin /etc/sudoers.d
+helper="$(mktemp /usr/local/sbin/.sccs-apt-upgrade.XXXXXX)"
+cat > "$helper" <<'SCRIPT'
+#!/bin/bash
+# Installed by the SCCS installer. Passwordless via /etc/sudoers.d/sccs-screen-apt.
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+export NEEDRESTART_SUSPEND=1
+export APT_LISTCHANGES_FRONTEND=none
+export UCF_FORCE_CONFFOLD=1
+if ! command -v apt-get >/dev/null 2>&1; then
+    echo "apt-get not found" >&2
+    exit 3
+fi
+dpkg --configure -a
+apt-get update -y
+apt-get -y \
+    -o Dpkg::Options::=--force-confdef \
+    -o Dpkg::Options::=--force-confold \
+    upgrade
+echo "Package upgrade finished"
+SCRIPT
+chmod 755 "$helper"
+mv "$helper" /usr/local/sbin/sccs-apt-upgrade
+rule="$(mktemp /etc/sudoers.d/.sccs-screen-apt.XXXXXX)"
+printf '%s\n' "$user ALL=(root) NOPASSWD: /usr/local/sbin/sccs-apt-upgrade" > "$rule"
+chmod 440 "$rule"
+if ! visudo -cf "$rule"; then
+    rm -f "$rule"
+    exit 1
+fi
+mv "$rule" /etc/sudoers.d/sccs-screen-apt
+chmod 440 /etc/sudoers.d/sccs-screen-apt
+visudo -c
+rm -f /tmp/sccs-apt-install.sh
+echo "Installed /usr/local/sbin/sccs-apt-upgrade"
+EOF
+)
+if ! b64="$(printf '%s' "$install_root" | base64 -w 0 2>/dev/null)"; then
+    b64="$(printf '%s' "$install_root" | base64 | tr -d '\n')"
+fi
+
+install_helper() {
+    local how="$1" rc=0 remote
+    remote="command -v base64 >/dev/null 2>&1 || { echo 'base64 missing on panel' >&2; exit 1; }; umask 077; printf '%s' $(printf '%q' "$b64") | base64 -d > /tmp/sccs-apt-install.sh; chmod 700 /tmp/sccs-apt-install.sh; sudo -${how} -p '' bash /tmp/sccs-apt-install.sh $(printf '%q' "$SCREEN_USER"); rc=\$?; rm -f /tmp/sccs-apt-install.sh; exit \$rc"
+    if [[ "$how" == "S" ]]; then
+        printf '%s\n' "$SCREEN_PASS" | ssh "${SSH_BATCH[@]}" "${SCREEN_USER}@${SCREEN_HOST}" "$remote" || rc=$?
+    else
+        ssh "${SSH_BATCH[@]}" "${SCREEN_USER}@${SCREEN_HOST}" "$remote" </dev/null || rc=$?
+    fi
+    return "$rc"
+}
+
+if ! helper_ready; then
+    if [[ -n "${SCREEN_PASS:-}" ]]; then
+        if ! install_helper S; then
+            if helper_ready; then
+                exit 1
+            fi
+            exit 2
+        fi
+    elif ssh "${SSH_BATCH[@]}" "${SCREEN_USER}@${SCREEN_HOST}" "sudo -n true" </dev/null >/dev/null 2>&1; then
+        if ! install_helper n; then
+            exit 1
+        fi
+    else
+        exit 2
+    fi
+fi
+
+if ! helper_ready; then
+    exit 1
+fi
+
+if [[ "$SCREEN_APT_MODE" == "install" ]]; then
+    unset SCREEN_PASS
+    exit 0
+fi
+
+# Map any helper failure to 1. Exit 2 is reserved for "sudo needs a password"
+# (dpkg can also exit 2).
+if ! ssh "${SSH_BATCH[@]}" "${SCREEN_USER}@${SCREEN_HOST}" \
+    "sudo -n /usr/local/sbin/sccs-apt-upgrade" </dev/null; then
+    unset SCREEN_PASS
+    exit 1
+fi
+if ssh "${SSH_BATCH[@]}" "${SCREEN_USER}@${SCREEN_HOST}" \
+    "test -f /var/run/reboot-required" </dev/null >/dev/null 2>&1; then
+    unset SCREEN_PASS
+    exit 10
+fi
+unset SCREEN_PASS
+exit 0
+EOS
+}
+
+# apt update + upgrade on every [screens] panel that accepts the SCCS SSH key.
+# Unreachable panels are skipped. A panel without passwordless apt asks once.
+upgrade_configured_touchscreens() {
+    local listing="" line name host user _blank _mac friendly label
+    local rc=0 cached="" tried_cached=0 pass=""
+    local -a rows=()
+
+    if [[ ! -f "$CONF" ]]; then
+        info "No sccs.conf — skip touchscreen package updates"
+        return 0
+    fi
+    if ! listing="$(list_configured_screens)"; then
+        warn "Could not read [screens] — skip touchscreen package updates"
+        return 0
+    fi
+    if [[ -z "$listing" ]]; then
+        info "No touchscreens in [screens] — skip package updates"
+        return 0
+    fi
+
+    mapfile -t rows < <(printf '%s\n' "$listing")
+    if [[ ${#rows[@]} -eq 1 ]]; then
+        info "apt update + upgrade on 1 configured touchscreen…"
+    else
+        info "apt update + upgrade on ${#rows[@]} configured touchscreens…"
+    fi
+
+    for line in "${rows[@]}"; do
+        [[ -n "$line" ]] || continue
+        IFS=$'\t' read -r name host user _blank _mac friendly <<<"$line"
+        label="${friendly:-$name}"
+        [[ -n "$label" ]] || label="$host"
+        if [[ ! "$user" =~ ^[A-Za-z_][-A-Za-z0-9_]*$ ]] \
+            || [[ ! "$host" =~ ^[A-Za-z0-9][-A-Za-z0-9._]*$ ]]; then
+            warn "${label}: skipped package update — unexpected host or username in [screens]"
+            skip_note "${label} package update skipped — check host and username in [screens]"
+            continue
+        fi
+        if ! panel_ssh_port_open "$host" 3; then
+            warn "${label} (${host}) is not reachable — skipped package update"
+            skip_note "${label} package update skipped — panel not reachable"
+            continue
+        fi
+
+        info "apt update + upgrade on ${label} (${user}@${host})…"
+        rc=0
+        tried_cached=0
+        if [[ -n "$cached" ]]; then
+            tried_cached=1
+            touchscreen_apt "$user" "$host" "$cached" upgrade || rc=$?
+        else
+            touchscreen_apt "$user" "$host" "" upgrade || rc=$?
+        fi
+
+        if [[ "$rc" -eq 2 ]]; then
+            if [[ "$tried_cached" -eq 1 ]]; then
+                warn "Saved panel password was not accepted for ${label}"
+            fi
+            ask_yn "Upgrade packages on ${label} (${user}@${host})? The panel password is required once." y
+            if [[ "$REPLY" != "y" ]]; then
+                skip_note "${label} package update skipped"
+                continue
+            fi
+            pass=""
+            prompt_secret "SSH password for ${user}@${host}: " pass
+            if [[ -z "$pass" ]]; then
+                skip_note "${label} package update skipped — no password"
+                continue
+            fi
+            rc=0
+            touchscreen_apt "$user" "$host" "$pass" upgrade || rc=$?
+            # Exit 2 is a rejected password. Any other result means sudo
+            # accepted it, so the next panel can try the same password.
+            if [[ "$rc" -ne 2 ]]; then
+                cached="$pass"
+            fi
+            pass=""
+        fi
+
+        if [[ "$rc" -eq 0 || "$rc" -eq 10 ]]; then
+            ok "Packages updated on ${label}"
+            if [[ "$rc" -eq 10 ]]; then
+                warn "Reboot ${label} to finish the package upgrade"
+            fi
+        elif [[ "$rc" -eq 2 ]]; then
+            fail "Package update on ${label} needs the panel password (sudo refused)"
+            skip_note "${label} package update skipped — sudo refused the password"
+        else
+            warn "Package update failed on ${label} (${user}@${host})"
+            skip_note "${label} package update failed"
+        fi
+    done
+
+    cached=""
+    unset cached
+    return 0
+}
+
 step_update() {
     step_begin "Update from repository"
     require_checkout
@@ -6133,6 +6390,7 @@ step_update() {
     if ! run_as_user env GIT_TERMINAL_PROMPT=0 git -C "$SCCS_HOME" pull --ff-only; then
         warn "git pull --ff-only failed (diverged history or local edits)"
         warn "Resolve manually in $SCCS_HOME, then re-run Update"
+        upgrade_configured_touchscreens
         return 1
     fi
 
@@ -6190,6 +6448,8 @@ step_update() {
     else
         info "Pi-hole not installed — skip (install via menu 6 / --lan when needed)"
     fi
+
+    upgrade_configured_touchscreens
 
     # Same ownership + permission sweep step_groups_and_dirs does on a fresh
     # install — chown -R alone fixes ownership on files git pull adds, but
@@ -6396,7 +6656,7 @@ ${C_BOLD}SCCS setup${C_RESET}
 
   sudo $0                 Interactive menu
   sudo $0 --install       Install SCCS
-  sudo $0 --update        Pull latest code + deps + Pi-hole
+  sudo $0 --update        Pull latest code + deps + Pi-hole + touchscreen apt
   sudo $0 --sensors       1-Wire temperature sensors
   sudo $0 --esp           Flash ESP32 firmware
   sudo $0 --victron       Victron Equipment
