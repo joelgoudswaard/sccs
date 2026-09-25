@@ -657,8 +657,16 @@
             emitLightChange(payload);
         }
 
+        // A finger held on the thumb is a drag. Chromium treats that hold as a
+        // right-click and opens the context menu unless the event is cancelled.
+        wrapper.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+
         wrapper.addEventListener('pointerdown', (e) => {
-            if (e.button !== 0) return;
+            const onThumb = !!e.target.closest?.('.slider-thumb');
+            const touch = e.pointerType === 'touch' || e.pointerType === 'pen';
+            if (e.button !== 0 && !touch && !onThumb) return;
             if (name === 'rooftop_tent' && isRooftopTentPhysicallyClosed()) return;
             if (e.pointerType === 'mouse' && Date.now() - lastTouchPointerUp < 600) return;
 
@@ -668,7 +676,10 @@
             valueAtPointerStart = parseInt(wrapper.dataset.value, 10) || 0;
             isDragging = false;
 
-            if (e.pointerType === 'mouse') {
+            // Capture a thumb press immediately so the long-press menu never arms.
+            // A press on the track still waits for a horizontal move, so a vertical
+            // swipe can scroll the page.
+            if (!touch || onThumb) {
                 e.preventDefault();
                 wrapper.setPointerCapture(e.pointerId);
             }

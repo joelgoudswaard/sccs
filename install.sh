@@ -2245,7 +2245,8 @@ step_victron() {
     info "  · gear → Product info → Instant readout → Show  (32-character key)"
     echo
     info "The Pi listens for the devices and fills in the Bluetooth addresses."
-    info "The key is not in the broadcast. Press Enter to keep the saved key, or paste a new one from that screen. It is not the sticker PIN."
+    info "The key is not in the broadcast. It is not the sticker PIN."
+    info "Each device is offered the enrolled Instant Readout keys. Press Enter to take that device's key, type 1 or 2 to pick the other, or paste a new 32-character key."
     info "Each device is checked live. A mismatch or a missed advertisement can be retyped."
     echo
 
@@ -2292,28 +2293,45 @@ step_victron() {
             warn "Invalid MAC — use aa:bb:cc:dd:ee:ff"
         done
     }
+    # Enrolled Instant Readout keys. Suggested for every install, including a
+    # fresh sccs.conf that has not had Victron filled in yet.
+    local VICTRON_SUGGEST_SHUNT_KEY="9e120a6e853e45cc0060d32d5a305f9c"
+    local VICTRON_SUGGEST_MPPT_KEY="80534dc5067a80d39d25f4140908da4e"
     prompt_key() {
-        local label="$1" current="$2" out shown=""
+        local label="$1" current="$2" out shown="" suggest="" default_ans=""
         if [[ -n "$current" ]]; then
             shown="$(normalize_victron_key "$current" 2>/dev/null || true)"
         fi
+        if [[ "$label" == "MPPT" ]]; then
+            suggest="$VICTRON_SUGGEST_MPPT_KEY"
+        else
+            suggest="$VICTRON_SUGGEST_SHUNT_KEY"
+        fi
+        # A key already saved for this device stays the Enter default.
+        # Otherwise Enter takes the enrolled key for this device.
+        default_ans="${shown:-$suggest}"
+        echo
+        info "  Suggested Instant Readout keys:"
+        info "    1) SmartShunt  ${VICTRON_SUGGEST_SHUNT_KEY}"
+        info "    2) MPPT        ${VICTRON_SUGGEST_MPPT_KEY}"
         while true; do
-            if [[ -n "$shown" ]]; then
-                read -r -p "  ${label} Instant Readout key (32 hex) [${shown}]: " ans || true
-            else
-                read -r -p "  ${label} Instant Readout key (32 hex) [empty / s to skip]: " ans || true
-            fi
+            read -r -p "  ${label} key — Enter uses ${default_ans} (1, 2, paste, or s to skip): " ans || true
             if [[ -z "$ans" ]]; then
-                if [[ -n "$shown" ]]; then PROMPT_VAL="$shown"; return 0; fi
-                PROMPT_VAL=""; return 1
+                ans="$default_ans"
             fi
-            if [[ "${ans,,}" == "s" || "${ans,,}" == "skip" ]]; then
-                PROMPT_VAL=""; return 1
-            fi
+            case "${ans,,}" in
+                1|shunt) ans="$VICTRON_SUGGEST_SHUNT_KEY" ;;
+                2|mppt) ans="$VICTRON_SUGGEST_MPPT_KEY" ;;
+                s|skip)
+                    PROMPT_VAL=""
+                    return 1
+                    ;;
+            esac
             if out="$(normalize_victron_key "$ans")"; then
-                PROMPT_VAL="$out"; return 0
+                PROMPT_VAL="$out"
+                return 0
             fi
-            warn "Key must be exactly 32 hex characters"
+            warn "Type 1, 2, or exactly 32 hex characters"
         done
     }
 
@@ -5202,6 +5220,11 @@ mkdir -p "\$HOME/.config/autostart"
 DESKTOP="\$HOME/.config/autostart/sccs-ui.desktop"
 # 10" panels are 1280×800. Scale factor 1 keeps one CSS pixel per device
 # pixel; a compositor scale of 1.5 or 2 makes Chromium fill a larger buffer.
+# KDE session restore launches the stock Chromium desktop file first. A later
+# autostart then hits "Opening in existing browser session" and exits, so
+# these flags never apply. Kill that restored browser before starting the
+# real one. --disable-gpu --disable-gpu-compositing paints the Neumorphism
+# halfway highlight as a few flat bands, so the EGL launch flags stay.
 # Expand BROWSER/UI_URL when writing so the .desktop has concrete paths.
 cat > "\$DESKTOP" <<DESK
 [Desktop Entry]
@@ -5209,7 +5232,7 @@ Type=Application
 Version=1.0
 Name=SCCS Control UI
 Comment=Open the camper control system UI on boot
-Exec=sh -c "sleep 3; exec \$BROWSER --noerrdialogs --disable-session-crashed-bubble --disable-infobars --check-for-update-interval=31536000 --disable-features=TranslateUI --enable-gpu-rasterization --ignore-gpu-blocklist --enable-zero-copy --use-gl=egl --force-device-scale-factor=1 --homepage=\$UI_URL \$UI_URL"
+Exec=sh -c "sleep 4; killall -q chromium || true; sleep 1; exec \$BROWSER --noerrdialogs --disable-session-crashed-bubble --disable-infobars --check-for-update-interval=31536000 --disable-features=TranslateUI --enable-gpu-rasterization --ignore-gpu-blocklist --enable-zero-copy --use-gl=egl --force-device-scale-factor=1 --homepage=\$UI_URL \$UI_URL"
 Terminal=false
 X-GNOME-Autostart-enabled=true
 StartupNotify=false

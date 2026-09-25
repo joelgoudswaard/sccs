@@ -407,7 +407,9 @@ def _kscreen_set_cmd(
     if pct <= 0:
         # Do not use ScreenSaver SetActive — on KDE Wayland it cannot be cleared
         # remotely and leaves the panel stuck black after wake.
-        return f"{env}kscreen-doctor --dpms off output.{output}.brightness.0"
+        # Do not set brightness in this same call. kscreen-doctor applies that
+        # as a live output change and leaves DPMS on, so the panel only dims.
+        return f"{env}kscreen-doctor --dpms off"
     parts = [f"{env}kscreen-doctor --dpms on"]
     if control:
         parts.append(_dbus_kde_set_brightness_cmd(control, pct))

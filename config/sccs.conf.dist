@@ -325,7 +325,7 @@ night   = 1,red
 [reed_phases.kitchen_bench]
 day     = 100
 evening = 30
-night   = 1,red
+night   = 10,red
 
 [reed_phases.storage_panel]
 day     = 100
@@ -587,13 +587,14 @@ output_2_gpio = 13
 
 [victron]
 # SmartShunt (or BMV) - provides battery voltage, SoC, current, etc.
-# Fill in MAC addresses + 32-char advertisement keys (VictronConnect → device → gear → Product info).
+# MAC is filled by the installer scan. The keys below are the enrolled
+# Instant Readout keys and are the suggested default for a new install.
 shunt_address =
-shunt_key     =
+shunt_key     =9e120a6e853e45cc0060d32d5a305f9c
 
 # MPPT SmartSolar (or BlueSolar) - provides solar_power (W), yield, charge state
 mppt_address  =
-mppt_key      =
+mppt_key      =80534dc5067a80d39d25f4140908da4e
 
 # Seconds between UI broadcasts even if values haven't changed much
 scan_interval = 2

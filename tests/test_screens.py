@@ -220,7 +220,7 @@ class ScreenControlTests(unittest.TestCase):
         )
         remote = _compose_screen_remote(control, 0, "kscreen:HDMI-A-1")
         self.assertIn("kscreen-doctor --dpms off", remote)
-        self.assertIn("output.HDMI-A-1.brightness.0", remote)
+        self.assertNotIn("brightness.0", remote)
         self.assertNotIn("fb0/blank", remote)
         self.assertNotIn("SetActive", remote)
 

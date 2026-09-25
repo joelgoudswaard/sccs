@@ -67,8 +67,12 @@ class TestUiBundle(unittest.TestCase):
         found = theme_css("neuglass.css")
         self.assertIsNotNone(found)
         text = found[1].decode("utf-8")
-        self.assertIn("--blur-tile: none", text)
-        self.assertIn("--tile-shine:", text)
+        self.assertIn(
+            "linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, transparent 50%)",
+            text,
+        )
+        self.assertNotIn("--blur-tile: none", text)
+        self.assertNotIn("backdrop-filter: none", text)
         minimal = theme_css("minimal.css")[1].decode("utf-8")
         self.assertIn("blur(32px)", minimal)
 
