@@ -17,7 +17,7 @@ The system is made up of a Raspberry Pi and custom PCB, the SCCS Core that is th
 
 The SCCS software configures the Raspberry Pi as a router so that Internet can be distributed from a USB/Wi-Fi hotspot or Starlink through a downstream WAP, enabling a local Wi-Fi network that gives your devices access to the UI and provides ad-filtered Internet access.
 
-Networking services - NAT, DNS, DHCP and ad-filtering are provided by nftables and Pi-Hole, which are automatically configured during installation. Instructions are provided for installing the UniFi OS server for management of UniFi WAP points if desired. Apple HomeKit and Google Home can be configured to enable voice commands of lighting through Siri or Gemini. Cloudflare Tunnels is supported for remote access to the system while away from the caravan/camper.
+Networking services — NAT, DNS, DHCP, and ad-filtering — are provided by nftables and Pi-hole and configured during installation. That same LAN step installs UniFi OS Server so UniFi access points can be adopted locally at `https://10.10.10.1:11443`. Apple HomeKit and Google Home can be configured to enable voice commands of lighting through Siri or Gemini. Cloudflare Tunnels is supported for remote access to the system while away from the caravan/camper.
 
 An interactive demo is available at [demo.singularityautomation.com.au](https://demo.singularityautomation.com.au).
 

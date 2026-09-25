@@ -8,11 +8,11 @@
 # After install (or from a checkout of install.sh alone):
 #   sudo ./install.sh              # interactive menu
 #   sudo ./install.sh --install    # Install SCCS
-#   sudo ./install.sh --update     # git pull + deps + Pi-hole + touchscreen apt
+#   sudo ./install.sh --update     # Update SCCS, UniFi OS Server, and touchscreens
 #   sudo ./install.sh --esp        # ESP32 flash only
 #   sudo ./install.sh --victron    # Victron only
 #   sudo ./install.sh --sensors    # 1-Wire only
-#   sudo ./install.sh --lan        # LAN / DHCP / NAT only
+#   sudo ./install.sh --lan        # LAN / DHCP / NAT / Pi-hole / UniFi OS Server
 #   sudo ./install.sh --usb-tether # Guided phone USB internet
 #   sudo ./install.sh --screens    # Scan LAN, add touchscreen, SSH + desktop login + Chromium UI
 #   sudo ./install.sh --service    # rewrite/restart systemd unit
@@ -41,6 +41,11 @@ fi
 REPO_URL="${REPO_URL:-https://github.com/joelgoudswaard/sccs.git}"
 SERVICE_NAME="${SERVICE_NAME:-sccs}"
 LAN_ADDR="${LAN_ADDR:-10.10.10.1}"
+# Pi-hole admin. UniFi OS Server publishes host TCP 8080 for AP inform, so the
+# admin UI cannot stay there. Port 80 stays with SCCS nginx.
+PIHOLE_WEB_PORT="${PIHOLE_WEB_PORT:-9191}"
+# Release feed for the official UniFi OS Server installer (linux-arm64 / linux-x64).
+UOS_FW_API="${UOS_FW_API:-https://fw-update.ui.com/api/firmware?filter=eq~~product~~unifi-os-server}"
 # Control-Pi UI URL used as Chromium homepage / autostart on touchscreens (nginx :80).
 SCCS_UI_URL="${SCCS_UI_URL:-http://${LAN_ADDR}/}"
 # Board default is Hardware CDC/JTAG (usb_mode=1). USBMode=default is TinyUSB
@@ -3091,9 +3096,9 @@ EOF
             || pihole-FTL --config interface "${LAN_IF}" 2>/dev/null || true
         pihole-FTL --config dns.listeningMode LOCAL 2>/dev/null \
             || pihole-FTL --config dns.listeningMode local 2>/dev/null || true
-        # Keep port 80 free for SCCS nginx — admin on 8080
-        pihole-FTL --config webserver.port "8080o,[::]:8080o" 2>/dev/null \
-            || pihole-FTL --config webserver.port "8080" 2>/dev/null || true
+        # Keep port 80 for SCCS nginx and 8080 for UniFi AP inform.
+        pihole-FTL --config webserver.port "${PIHOLE_WEB_PORT}o,[::]:${PIHOLE_WEB_PORT}o" 2>/dev/null \
+            || pihole-FTL --config webserver.port "${PIHOLE_WEB_PORT}" 2>/dev/null || true
         # Load /etc/dnsmasq.d/*.conf (WAN DHCP block + screen reservations).
         pihole-FTL --config misc.etc_dnsmasq_d true 2>/dev/null || true
 
@@ -3111,8 +3116,8 @@ EOF
         ok "Pi-hole DHCP disabled on WAN: ${WAN_LIST[*]}"
 
         ok "Pi-hole DHCP ${DHCP_RANGE_START}–${DHCP_RANGE_END}, router ${LAN_ADDR}"
-        info "Pi-hole admin UI: http://${LAN_ADDR}:8080/admin (or http://<wlan-ip>:8080/admin)"
-        info "Admin on port 8080 so SCCS nginx can use :80"
+        info "Pi-hole admin UI: http://${LAN_ADDR}:${PIHOLE_WEB_PORT}/admin"
+        info "Admin on port ${PIHOLE_WEB_PORT} so nginx keeps :80 and UniFi keeps :8080"
     fi
 
     # Static DHCP from [screens] only when host+mac are already filled in (often empty on first install)
@@ -5153,14 +5158,16 @@ EOS
 
 # ---------------------------------------------------------------------------
 # Chromium homepage + graphical autostart on a touchscreen panel.
-# Sets homepage to the control Pi UI and launches Chromium when the desktop
-# starts (labwc / Raspberry Pi OS runs lxsession-xdg-autostart).
+# Sets homepage to the control Pi UI, puts Pi-hole on the bookmark toolbar,
+# and launches Chromium when the desktop starts (labwc / Raspberry Pi OS
+# runs lxsession-xdg-autostart).
 # Args: user host [password]
 # Password optional — used only for system Chromium policy install (sudo).
 # ---------------------------------------------------------------------------
 configure_touchscreen_browser() {
     local screen_user="$1" screen_host="$2" screen_pass="${3:-}"
     local ui_url="${SCCS_UI_URL:-http://${LAN_ADDR}/}"
+    local pihole_url="http://${LAN_ADDR}:${PIHOLE_WEB_PORT}/admin"
     # Normalise: ensure scheme + trailing slash for bare IPs
     case "$ui_url" in
         http://*|https://*) ;;
@@ -5175,6 +5182,7 @@ configure_touchscreen_browser() {
         SCREEN_HOST="$screen_host" \
         SCREEN_PASS="${screen_pass:-}" \
         SCCS_UI_URL="$ui_url" \
+        PIHOLE_ADMIN_URL="$pihole_url" \
         <<'EOS'
 set -euo pipefail
 KEY="$HOME/.ssh/sccs_screen"
@@ -5197,6 +5205,7 @@ SSH_BATCH=(
 remote_user=$(cat <<EOF
 set -euo pipefail
 UI_URL=$(printf '%q' "$SCCS_UI_URL")
+PIHOLE_URL=$(printf '%q' "$PIHOLE_ADMIN_URL")
 
 BROWSER=""
 for c in chromium chromium-browser google-chrome; do
@@ -5232,7 +5241,7 @@ Type=Application
 Version=1.0
 Name=SCCS Control UI
 Comment=Open the camper control system UI on boot
-Exec=sh -c "sleep 4; killall -q chromium || true; sleep 1; exec \$BROWSER --noerrdialogs --disable-session-crashed-bubble --disable-infobars --check-for-update-interval=31536000 --disable-features=TranslateUI --enable-gpu-rasterization --ignore-gpu-blocklist --enable-zero-copy --use-gl=egl --force-device-scale-factor=1 --homepage=\$UI_URL \$UI_URL"
+Exec=sh -c "sleep 4; killall -q chromium || true; sleep 1; python3 \$HOME/.config/sccs/ensure-chromium-bookmarks.py \$HOME/.config/chromium/Default \$PIHOLE_URL; exec \$BROWSER --noerrdialogs --disable-session-crashed-bubble --disable-infobars --check-for-update-interval=31536000 --disable-features=TranslateUI --enable-gpu-rasterization --ignore-gpu-blocklist --enable-zero-copy --use-gl=egl --force-device-scale-factor=1 --homepage=\$UI_URL \$UI_URL"
 Terminal=false
 X-GNOME-Autostart-enabled=true
 StartupNotify=false
@@ -5291,6 +5300,167 @@ PY
     fi
 fi
 
+# Bookmark toolbar: Pi-hole admin. Re-applied after killall on each desktop
+# start, because a running Chromium rewrites Bookmarks when it exits.
+mkdir -p "\$HOME/.config/sccs"
+cat > "\$HOME/.config/sccs/ensure-chromium-bookmarks.py" <<'PY'
+import hashlib
+import json
+import os
+import sys
+import uuid
+from datetime import datetime, timezone
+
+BAR_GUID = "0bc5d13f-2cba-5d74-951f-3f233fe6c908"
+OTHER_GUID = "82b081ec-3dd3-529c-8475-ab6c344590dd"
+MOBILE_GUID = "4cf2e351-0e85-532b-bb37-df045d8f8d0f"
+BOOKMARK_NAME = "Pi-hole"
+
+def chrome_now():
+    epoch = datetime(1601, 1, 1, tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
+    return str(int((now - epoch).total_seconds() * 1000000))
+
+def digest(roots, algo):
+    hasher = hashlib.new(algo)
+    def walk(node):
+        hasher.update(str(node.get("id", "")).encode("utf-8"))
+        hasher.update(str(node.get("name", "")).encode("utf-16le"))
+        if node.get("type") == "url":
+            hasher.update(b"url")
+            hasher.update(str(node.get("url", "")).encode("utf-8"))
+        else:
+            hasher.update(b"folder")
+            for child in node.get("children") or []:
+                walk(child)
+    for key in ("bookmark_bar", "other", "synced"):
+        walk(roots[key])
+    return hasher.hexdigest()
+
+def folder(node_id, name, guid):
+    now = chrome_now()
+    return {
+        "children": [],
+        "date_added": now,
+        "date_last_used": "0",
+        "date_modified": now,
+        "guid": guid,
+        "id": str(node_id),
+        "name": name,
+        "type": "folder",
+    }
+
+def fresh():
+    return {
+        "checksum": "",
+        "roots": {
+            "bookmark_bar": folder(1, "Bookmarks bar", BAR_GUID),
+            "other": folder(2, "Other bookmarks", OTHER_GUID),
+            "synced": folder(3, "Mobile bookmarks", MOBILE_GUID),
+        },
+        "version": 1,
+    }
+
+def max_id(node, best):
+    try:
+        best = max(best, int(node.get("id", 0)))
+    except (TypeError, ValueError):
+        pass
+    for child in node.get("children") or []:
+        best = max_id(child, best)
+    return best
+
+def ensure_prefs(pref_dir):
+    path = os.path.join(pref_dir, "Preferences")
+    data = {}
+    if os.path.isfile(path):
+        try:
+            with open(path, encoding="utf-8") as fh:
+                loaded = json.load(fh)
+            if isinstance(loaded, dict):
+                data = loaded
+        except Exception:
+            data = {}
+    bar = data.get("bookmark_bar")
+    if not isinstance(bar, dict):
+        bar = {}
+    bar["show_on_all_tabs"] = True
+    data["bookmark_bar"] = bar
+    tmp = path + ".sccs"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, separators=(",", ":"))
+    os.replace(tmp, path)
+
+def ensure_bookmarks(pref_dir, url):
+    path = os.path.join(pref_dir, "Bookmarks")
+    data = None
+    if os.path.isfile(path):
+        try:
+            with open(path, encoding="utf-8") as fh:
+                loaded = json.load(fh)
+            if isinstance(loaded, dict):
+                data = loaded
+        except Exception:
+            data = None
+    roots = data.get("roots") if isinstance(data, dict) else None
+    needed = ("bookmark_bar", "other", "synced")
+    if not isinstance(roots, dict) or not all(isinstance(roots.get(key), dict) for key in needed):
+        data = fresh()
+        roots = data["roots"]
+    bar = roots["bookmark_bar"]
+    children = bar.get("children")
+    if not isinstance(children, list):
+        children = []
+    found = False
+    for child in children:
+        if not isinstance(child, dict) or child.get("type") != "url":
+            continue
+        if str(child.get("url", "")).rstrip("/") == url.rstrip("/"):
+            child["name"] = BOOKMARK_NAME
+            child["url"] = url
+            found = True
+            break
+    if not found:
+        best = 0
+        for node in roots.values():
+            if isinstance(node, dict):
+                best = max_id(node, best)
+        now = chrome_now()
+        children.append({
+            "date_added": now,
+            "date_last_used": "0",
+            "guid": str(uuid.uuid4()),
+            "id": str(best + 1),
+            "name": BOOKMARK_NAME,
+            "type": "url",
+            "url": url,
+        })
+    bar["children"] = children
+    bar["type"] = "folder"
+    data["roots"] = roots
+    data["version"] = 1
+    data["checksum"] = digest(roots, "md5")
+    data["checksum_sha256"] = digest(roots, "sha256")
+    tmp = path + ".sccs"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, separators=(",", ":"))
+        fh.write("\n")
+    os.replace(tmp, path)
+
+def main():
+    pref_dir, url = sys.argv[1], sys.argv[2]
+    os.makedirs(pref_dir, exist_ok=True)
+    ensure_prefs(pref_dir)
+    ensure_bookmarks(pref_dir, url)
+    print("Pi-hole bookmark on the Chromium toolbar -> " + url)
+
+if __name__ == "__main__":
+    main()
+PY
+chmod 755 "\$HOME/.config/sccs/ensure-chromium-bookmarks.py"
+python3 "\$HOME/.config/sccs/ensure-chromium-bookmarks.py" \
+    "\$HOME/.config/chromium/Default" "\$PIHOLE_URL"
+
 # Verify GPU acceleration is actually active rather than a silent
 # SwiftShader/llvmpipe software fallback (Chromium's GPU allowlist can
 # reject unrecognized Mesa/V3D/Panfrost driver strings without erroring).
@@ -5330,6 +5500,7 @@ for base in /etc/chromium /etc/chromium-browser; do
     install -d -m 755 "\$base/policies/managed"
     cat > "\$base/policies/managed/sccs-touchscreen.json" <<POL
 {
+  "BookmarkBarEnabled": true,
   "HomepageLocation": "\$UI_URL",
   "HomepageIsNewTabPage": false,
   "ShowHomeButton": true,
@@ -5395,6 +5566,7 @@ apply_touchscreen_desktop_session() {
 
     if configure_touchscreen_browser "$screen_user" "$screen_host" "${screen_pass:-}"; then
         ok "Chromium homepage + autostart → ${SCCS_UI_URL}"
+        ok "Pi-hole bookmark on the Chromium toolbar → http://${LAN_ADDR}:${PIHOLE_WEB_PORT}/admin"
         return 0
     fi
     return 1
@@ -5472,11 +5644,296 @@ resolve_lan_if() {
     return 1
 }
 
+# Latest official installer for this CPU, from Ubiquiti's firmware API.
+# Prints: url, version, sha256 — one per line. Non-zero exit when none is found.
+uos_installer_meta() {
+    local plat="$1"
+    python3 - "$plat" "$UOS_FW_API" <<'PY'
+import json, sys, urllib.request
+plat, api = sys.argv[1], sys.argv[2]
+with urllib.request.urlopen(api, timeout=60) as resp:
+    data = json.load(resp)
+best = None
+for item in data.get("_embedded", {}).get("firmware", []):
+    if item.get("platform") != plat or item.get("channel") not in (None, "release"):
+        continue
+    href = (item.get("_links") or {}).get("data", {}).get("href") or ""
+    if not href.startswith("https://fw-download.ubnt.com/data/unifi-os-server/"):
+        continue
+    raw = str(item.get("version") or "v0").lstrip("v")
+    parts = []
+    for piece in raw.split(".")[:3]:
+        digits = "".join(ch for ch in piece if ch.isdigit())
+        parts.append(int(digits or "0"))
+    while len(parts) < 3:
+        parts.append(0)
+    ver = tuple(parts)
+    if best is None or ver > best[0]:
+        best = (ver, href, item.get("version") or raw, item.get("sha256_checksum") or "")
+if best is None:
+    sys.exit(1)
+print(best[1])
+print(best[2])
+print(best[3])
+PY
+}
+
+uos_platform() {
+    case "$(uname -m)" in
+        aarch64|arm64) printf '%s\n' linux-arm64 ;;
+        x86_64)        printf '%s\n' linux-x64 ;;
+        *) return 1 ;;
+    esac
+}
+
+# True when $1 is a strictly newer dotted version than $2. A leading v is ignored.
+uos_version_is_newer() {
+    local next cur
+    next="${1#v}"
+    next="${next#V}"
+    cur="${2#v}"
+    cur="${cur#V}"
+    [[ -n "$next" && -n "$cur" && "$next" != "$cur" ]] || return 1
+    [[ "$(printf '%s\n%s\n' "$cur" "$next" | sort -V | tail -n 1)" == "$next" ]]
+}
+
+# Look up the newest release installer. Sets UOS_URL, UOS_VERSION, UOS_SHA.
+uos_lookup_release() {
+    local plat meta
+    UOS_URL=""
+    UOS_VERSION=""
+    UOS_SHA=""
+    plat="$(uos_platform)" || return 1
+    meta="$(uos_installer_meta "$plat")" || return 1
+    UOS_URL="$(sed -n '1p' <<<"$meta")"
+    UOS_VERSION="$(sed -n '2p' <<<"$meta")"
+    UOS_SHA="$(sed -n '3p' <<<"$meta")"
+    [[ -n "$UOS_URL" && -n "$UOS_SHA" && -n "$UOS_VERSION" ]]
+}
+
+# Download the release named by UOS_URL / UOS_VERSION / UOS_SHA and verify it.
+# Sets UOS_BIN to the executable path. UOS_FETCH_STATUS is ok, download, or checksum.
+uos_download_installer() {
+    local work bin
+    UOS_BIN=""
+    UOS_FETCH_STATUS="download"
+    work="/var/tmp/sccs-unifi-os"
+    bin="${work}/$(basename "$UOS_URL")"
+    mkdir -p "$work" || return 1
+    if [[ -f "$bin" ]] && echo "${UOS_SHA}  ${bin}" | sha256sum -c --status; then
+        info "Using verified installer at ${bin}"
+    else
+        info "Downloading UniFi OS Server ${UOS_VERSION} (about 750 MB)…"
+        rm -f "${bin}.partial"
+        if ! curl -fL --retry 3 --retry-delay 2 -o "${bin}.partial" "$UOS_URL"; then
+            rm -f "${bin}.partial"
+            UOS_FETCH_STATUS="download"
+            return 1
+        fi
+        mv "${bin}.partial" "$bin" || return 1
+        if ! echo "${UOS_SHA}  ${bin}" | sha256sum -c --status; then
+            rm -f "$bin"
+            UOS_FETCH_STATUS="checksum"
+            return 1
+        fi
+        ok "Downloaded UniFi OS Server ${UOS_VERSION}"
+    fi
+    chmod 755 "$bin" || return 1
+    UOS_BIN="$bin"
+    UOS_FETCH_STATUS="ok"
+}
+
+# Pasta DNS inside UniFi OS Server is 203.0.113.113, which is not routed from
+# the container. Rewrite resolv.conf to public resolvers and do it again each
+# time uosserver.service starts (podman regenerates the broken file).
+fix_unifi_container_dns() {
+    install -d -m 755 /usr/local/sbin /etc/systemd/system/uosserver.service.d
+    cat > /usr/local/sbin/sccs-uos-dns <<'EOF'
+#!/bin/bash
+# UniFi's container resolver is 203.0.113.113. Packets to it follow the host
+# default route and never reach Pasta, so account.ui.com lookups time out.
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+command -v podman >/dev/null 2>&1 || exit 0
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+    path="$(podman inspect uosserver --format '{{.ResolvConfPath}}' 2>/dev/null || true)"
+    if [[ -n "$path" && -f "$path" ]]; then
+        if grep -q '203.0.113.113' "$path"; then
+            printf 'nameserver 1.1.1.1\nnameserver 1.0.0.1\n' > "$path"
+            sleep 2
+            podman exec uosserver systemctl restart unifi-core >/dev/null 2>&1 || true
+        fi
+        exit 0
+    fi
+    sleep 1
+done
+exit 0
+EOF
+    chmod 755 /usr/local/sbin/sccs-uos-dns
+    cat > /etc/systemd/system/uosserver.service.d/dns.conf <<'EOF'
+[Service]
+ExecStartPost=-/usr/local/sbin/sccs-uos-dns
+EOF
+    systemctl daemon-reload
+    if [[ "$(id -u)" -eq 0 ]]; then
+        runuser -u uosserver -- /usr/local/sbin/sccs-uos-dns || true
+    else
+        /usr/local/sbin/sccs-uos-dns || true
+    fi
+    ok "UniFi container DNS uses 1.1.1.1"
+}
+
+unifi_os_grant_user() {
+    if ! getent group uosserver >/dev/null 2>&1; then
+        warn "uosserver group is missing — the UniFi installer did not create it"
+        return 0
+    fi
+    if id -nG "$USERNAME" | tr ' ' '\n' | grep -qx uosserver; then
+        info "$USERNAME is in group uosserver"
+        return 0
+    fi
+    usermod -aG uosserver "$USERNAME"
+    ok "Added $USERNAME to group uosserver"
+    warn "Log out and back in before managing UniFi OS Server as $USERNAME"
+}
+
+# Official UniFi OS Server (Podman). Idempotent: a second LAN run leaves an
+# existing uosserver.service in place. Device inform is host TCP 8080, so
+# Pi-hole admin must already be on PIHOLE_WEB_PORT.
+install_unifi_os_server() {
+    local lan_addr="${LAN_ADDR:-10.10.10.1}"
+    if systemctl cat uosserver.service &>/dev/null; then
+        systemctl enable --now uosserver >/dev/null 2>&1 \
+            || warn "Could not start uosserver — journalctl -u uosserver"
+        fix_unifi_container_dns
+        unifi_os_grant_user
+        ok "UniFi OS Server already installed — https://${lan_addr}:11443"
+        return 0
+    fi
+
+    local plat avail_kb
+    if ! plat="$(uos_platform)"; then
+        die "UniFi OS Server has no installer for $(uname -m) (need arm64 or x86_64)"
+    fi
+
+    # Ubiquiti's installer refuses to run without roughly this much free on /.
+    avail_kb="$(df -Pk / | awk 'NR==2 {print $4}')"
+    if [[ -z "$avail_kb" || "$avail_kb" -lt 10485760 ]]; then
+        die "UniFi OS Server needs 10 GB free on / (have $(( ${avail_kb:-0} / 1024 / 1024 )) GB). Free space and re-run LAN setup."
+    fi
+    # Pi-hole was just moved off 8080. FTL can take a moment to drop the socket.
+    local tries=0
+    while ss -lnt | awk '{print $4}' | grep -qE '[:.]8080$'; do
+        tries=$((tries + 1))
+        if (( tries >= 15 )); then
+            ss -lnt | awk 'NR==1 || /[:.]8080$/' | sed 's/^/    /' || true
+            die "TCP 8080 is still in use. UniFi OS Server needs it for AP inform — free it and re-run LAN setup."
+        fi
+        sleep 1
+    done
+
+    info "Installing Podman (UniFi OS Server runtime)…"
+    DEBIAN_FRONTEND=noninteractive apt-get update -y
+    DEBIAN_FRONTEND=noninteractive apt-get install -y podman slirp4netns
+    command -v podman >/dev/null 2>&1 || die "podman did not install"
+    ok "Podman $(podman --version | awk '{print $3}')"
+
+    info "Looking up the current UniFi OS Server ${plat} installer…"
+    if ! uos_lookup_release; then
+        die "Could not find a UniFi OS Server ${plat} release at fw-update.ui.com"
+    fi
+    if ! uos_download_installer; then
+        if [[ "${UOS_FETCH_STATUS:-}" == "checksum" ]]; then
+            die "UniFi installer checksum did not match the published sha256"
+        fi
+        die "UniFi OS Server download failed"
+    fi
+
+    info "Installing UniFi OS Server ${UOS_VERSION} — this takes several minutes…"
+    if ! "$UOS_BIN" --non-interactive; then
+        die "UniFi OS Server installer failed. The download is still at ${UOS_BIN} — re-run LAN setup to retry."
+    fi
+    rm -f "$UOS_BIN"
+    rmdir "$(dirname "$UOS_BIN")" 2>/dev/null || true
+
+    systemctl enable --now uosserver >/dev/null 2>&1 \
+        || warn "uosserver did not stay active — journalctl -u uosserver"
+    # The installer points the container at 203.0.113.113. That address is not
+    # routed (the container inherits the host default route), so DNS times out
+    # and the UniFi UI refuses login with "you must have internet access".
+    fix_unifi_container_dns
+    unifi_os_grant_user
+    ok "UniFi OS Server ${UOS_VERSION} is running at https://${lan_addr}:11443"
+    info "Adopt access points from that page. First visit uses a self-signed certificate."
+}
+
+# Official installer upgrades in place and keeps the Podman volumes. A missing
+# install stays on menu 6. A failed check or download does not stop the rest
+# of the SCCS update.
+update_unifi_os_server() {
+    local current avail_kb next
+    if ! systemctl cat uosserver.service &>/dev/null; then
+        info "UniFi OS Server not installed — skip (install via menu 6 / --lan when needed)"
+        return 0
+    fi
+    if ! uos_platform >/dev/null; then
+        warn "UniFi OS Server has no installer for $(uname -m) — skip"
+        return 0
+    fi
+
+    current="$(uosserver version 2>/dev/null | tr -d '[:space:]' || true)"
+    if [[ -z "$current" ]]; then
+        warn "Could not read the installed UniFi OS Server version — skip"
+        return 0
+    fi
+
+    info "Checking UniFi OS Server ${current} for updates…"
+    if ! uos_lookup_release; then
+        warn "Could not look up UniFi OS Server releases — skip (check network)"
+        return 0
+    fi
+    next="${UOS_VERSION#v}"
+    next="${next#V}"
+    if ! uos_version_is_newer "$UOS_VERSION" "$current"; then
+        ok "UniFi OS Server ${current} is up to date"
+        return 0
+    fi
+
+    avail_kb="$(df -Pk / | awk 'NR==2 {print $4}')"
+    if [[ -z "$avail_kb" || "$avail_kb" -lt 10485760 ]]; then
+        warn "UniFi OS Server ${next} needs 10 GB free on / (have $(( ${avail_kb:-0} / 1024 / 1024 )) GB) — skip"
+        return 0
+    fi
+
+    if ! uos_download_installer; then
+        if [[ "${UOS_FETCH_STATUS:-}" == "checksum" ]]; then
+            warn "UniFi installer checksum did not match the published sha256 — skip"
+        else
+            warn "UniFi OS Server download failed — skip"
+        fi
+        return 0
+    fi
+
+    info "Updating UniFi OS Server ${current} → ${next} — this takes several minutes…"
+    if ! "$UOS_BIN" --non-interactive; then
+        warn "UniFi OS Server update failed. The installer is still at ${UOS_BIN} — re-run Update to retry."
+        return 0
+    fi
+    rm -f "$UOS_BIN"
+    rmdir "$(dirname "$UOS_BIN")" 2>/dev/null || true
+
+    systemctl enable --now uosserver >/dev/null 2>&1 \
+        || warn "uosserver did not stay active — journalctl -u uosserver"
+    # The installer rewrites container DNS back to 203.0.113.113.
+    fix_unifi_container_dns
+    unifi_os_grant_user
+    ok "UniFi OS Server ${next} is running at https://${LAN_ADDR:-10.10.10.1}:11443"
+}
+
 # mode: optional | required
 step_lan() {
     local mode="${1:-optional}"
     local lan_if
-    step_begin "LAN gateway · Pi-hole DHCP/DNS · NAT"
+    step_begin "LAN gateway · Pi-hole DHCP/DNS · NAT · UniFi OS Server"
     require_checkout
     if ! lan_if="$(resolve_lan_if)"; then
         skip_note "LAN skipped — no ethernet interface found"
@@ -5488,8 +5945,8 @@ step_lan() {
     fi
 
     if [[ "$mode" == "optional" ]]; then
-        ask_yn "Configure ${lan_if}=${LAN_ADDR}, NAT via ${WAN_IF:-wlan0}, and Pi-hole (DNS + DHCP)?" y
-        [[ "$REPLY" == "y" ]] || { skip_note "LAN gateway / Pi-hole skipped"; return 0; }
+        ask_yn "Configure ${lan_if}=${LAN_ADDR}, NAT via ${WAN_IF:-wlan0}, Pi-hole, and UniFi OS Server?" y
+        [[ "$REPLY" == "y" ]] || { skip_note "LAN gateway / Pi-hole / UniFi skipped"; return 0; }
     fi
 
     LAN_IF="$lan_if" \
@@ -5499,6 +5956,7 @@ step_lan() {
     SCCS_CONF="$CONF" \
     WAN_IF="${WAN_IF:-wlan0}" \
         apply_lan_nat_dhcp
+    install_unifi_os_server
     ok "Network gateway configured"
 }
 
@@ -7288,6 +7746,8 @@ EOF
 step_checklist() {
     step_begin "Notes"
     info "Touchscreens: menu 8 / --screens (LAN scan → config → SSH, desktop login, Chromium UI)"
+    info "UniFi access points: https://${LAN_ADDR}:11443 (installed with LAN setup / menu 6)"
+    info "Pi-hole admin: http://${LAN_ADDR}:${PIHOLE_WEB_PORT}/admin"
     info "HomeKit or Google Home: menu 10 / --voice (then pair from the Settings tab)"
     info "Hardware you skipped: finish later from this menu"
     ok "Done"
@@ -7560,7 +8020,7 @@ upgrade_configured_touchscreens() {
 }
 
 step_update() {
-    step_begin "Update from repository"
+    step_begin "Update software on the SCCS, UniFi OS, and touchscreens"
     require_checkout
     [[ -d "$SCCS_HOME/.git" ]] || die "Not a git checkout — cannot update"
 
@@ -7647,6 +8107,8 @@ step_update() {
     else
         info "Pi-hole not installed — skip (install via menu 6 / --lan when needed)"
     fi
+
+    update_unifi_os_server
 
     upgrade_configured_touchscreens
 
@@ -7793,7 +8255,7 @@ run_install() {
     do_esp="$REPLY"
     ask_yn "Configure Victron SmartShunt / MPPT now?" y
     do_victron="$REPLY"
-    ask_yn "Configure LAN gateway + Pi-hole (DNS/DHCP) now?" y
+    ask_yn "Configure LAN gateway, Pi-hole (DNS/DHCP), and UniFi OS Server now?" y
     do_lan="$REPLY"
     ask_yn "Set up phone USB tethering as internet uplink now?" y
     do_tether="$REPLY"
@@ -7812,8 +8274,8 @@ run_install() {
         "ESP32 flash skipped — re-run when the Pi is on the SCCS Core" step_esp
     run_optional_step "$do_victron" "Victron Equipment" \
         "Victron skipped — use menu item when you have MAC+keys" step_victron
-    run_optional_step "$do_lan" "LAN gateway · Pi-hole DHCP/DNS · NAT" \
-        "LAN gateway / Pi-hole skipped" step_lan
+    run_optional_step "$do_lan" "LAN gateway · Pi-hole DHCP/DNS · NAT · UniFi OS Server" \
+        "LAN gateway / Pi-hole / UniFi skipped" step_lan
     run_optional_step "$do_tether" "Configure iPhone USB Hotspot" \
         "USB tether skipped — use menu later when a phone is available" step_usb_tether
     run_optional_step "$do_screens" "Touchscreens (scan LAN · config · SSH · desktop login · Chromium UI)" \
@@ -7855,11 +8317,11 @@ ${C_BOLD}SCCS setup${C_RESET}
 
   sudo $0                 Interactive menu
   sudo $0 --install       Install SCCS
-  sudo $0 --update        Pull latest code + deps + Pi-hole + touchscreen apt
+  sudo $0 --update        Update software on the SCCS, UniFi OS, and touchscreens
   sudo $0 --sensors       1-Wire temperature sensors
   sudo $0 --esp           Flash ESP32 firmware
   sudo $0 --victron       Victron Equipment
-  sudo $0 --lan           LAN gateway + Pi-hole DHCP/DNS
+  sudo $0 --lan           LAN gateway + Pi-hole DHCP/DNS + UniFi OS Server
   sudo $0 --usb-tether    Configure iPhone USB Hotspot
   sudo $0 --screens       Scan LAN · add touchscreen · SSH + desktop login + Chromium UI
   sudo $0 --service       Install / restart systemd service
@@ -7882,7 +8344,7 @@ show_menu() {
         echo "  ${C_BOLD}Main menu${C_RESET}"
         hr
         echo "  ${C_CYAN}1${C_RESET}  Install SCCS"
-        echo "  ${C_CYAN}2${C_RESET}  Update from repository"
+        echo "  ${C_CYAN}2${C_RESET}  Update software on the SCCS, UniFi OS, and touchscreens"
         echo "  ${C_CYAN}3${C_RESET}  Configure 1-Wire temperature sensors"
         echo "  ${C_CYAN}4${C_RESET}  Configure ESP32 firmware"
         echo "  ${C_CYAN}5${C_RESET}  Configure Victron Equipment"
@@ -7903,7 +8365,7 @@ show_menu() {
                 pause_enter
                 ;;
             2)
-                run_partial "Update from repository" step_update || true
+                run_partial "Update software on the SCCS, UniFi OS, and touchscreens" step_update || true
                 pause_enter
                 ;;
             3)
@@ -8017,7 +8479,7 @@ esac
 case "$RUN_MODE" in
     menu)    show_menu ;;
     install) logo; show_context; run_install ;;
-    update)  logo; show_context; run_partial "Update from repository" step_update ;;
+    update)  logo; show_context; run_partial "Update software on the SCCS, UniFi OS, and touchscreens" step_update ;;
     sensors) logo; show_context; run_partial "1-Wire temperature sensors" step_sensors required ;;
     esp)     logo; show_context; run_partial "ESP32 firmware" step_esp required ;;
     victron) logo; show_context; run_partial "Victron Equipment" step_victron required ;;
