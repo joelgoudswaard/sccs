@@ -9,6 +9,8 @@ All notable changes to SCCS are documented in this file.
 - Touchscreen setup turns off idle display power saving on Raspberry Pi OS and Armbian. The panel no longer blanks, dims, or sleeps after a period with no input. Brightness from the reed and the time of day is unchanged. Armbian KDE Plasma is included. Menu 8 applies desktop login, the Chromium homepage, and idle-power off to every touchscreen already in the config.
 
 ### Fixed
+- Kitchen bench night is 1% red, the same level as the kitchen panel. It was off.
+- After a reboot the van LAN address could sit on the iPhone USB tether instead of the touchscreen port. Pi-hole then had nothing to lease from, so the panel came up with no address. The LAN profile is now pinned to that port’s name and MAC, and a phone tether is never treated as the van LAN.
 - Victron setup shows the saved SmartShunt and MPPT Instant Readout keys as the default for each device. Press Enter to keep that key.
 - Touchscreen setup saves the panel account password in ~/.sccs/screen_credentials (mode 600). Later setup and package updates reuse it. The password is not written into sccs.conf. SSH itself still uses the key.
 - Setup reads GPIO26, the SCCS Core presence pull-up (header pin 37, R5 to 3.3V). When that pin is high it skips the “is this Pi on the SCCS Core?” question and asks to proceed.

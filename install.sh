@@ -2733,6 +2733,87 @@ step_voice_assistants() {
     fi
 }
 
+# iPhone / Android USB tethering. A USB Ethernet dongle (r8152, asix, ax88179)
+# is not in this list and can still be the van LAN.
+is_phone_uplink_if() {
+    local dev="$1" driver=""
+    [[ -n "$dev" ]] || return 1
+    driver="$(basename "$(readlink -f "/sys/class/net/${dev}/device/driver" 2>/dev/null)" 2>/dev/null || true)"
+    case "$driver" in
+        ipheth|rndis_host|cdc_ncm|cdc_mbim|cdc_subset|qmi_wwan|huawei_cdc_ncm)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+# Bind the van LAN address to one NIC and keep it there across reboot.
+#
+# Raspberry Pi OS writes NetworkManager profiles back through netplan. Changing
+# the generated "netplan-eth0" profile drops connection.interface-name, so the
+# profile matches every ethernet device. The iPhone (ipheth, usually eth1) gets
+# link before the onboard port and takes 10.10.10.1. The touchscreen port then
+# has no address, and Pi-hole will not hand out a lease on it.
+# A dedicated keyfile pinned to the NIC name and permanent MAC stays bound
+# (same storage as the USB tether profile).
+pin_lan_nm_connection() {
+    local lan_if="$1" lan_addr="$2" cidr="$3"
+    local mac="" con="sccs-lan" id="" ifn="" macset="" addrs=""
+
+    mac="$(tr '[:upper:]' '[:lower:]' < "/sys/class/net/${lan_if}/address" 2>/dev/null || true)"
+
+    if nmcli -t -f NAME connection show | grep -Fxq "$con"; then
+        info "Updating NM connection ${con} for ${lan_if}"
+        nmcli connection modify "$con" \
+            connection.interface-name "$lan_if" \
+            connection.autoconnect yes \
+            connection.autoconnect-priority 100 \
+            ipv4.method manual \
+            ipv4.addresses "${lan_addr}/${cidr}" \
+            ipv4.gateway "" \
+            ipv4.dns "${lan_addr}" \
+            ipv4.never-default yes \
+            ipv6.method link-local \
+            ipv6.never-default yes
+    else
+        info "Creating NM connection ${con} for ${lan_if}"
+        nmcli connection add type ethernet ifname "$lan_if" con-name "$con" \
+            connection.autoconnect yes \
+            connection.autoconnect-priority 100 \
+            ipv4.method manual \
+            ipv4.addresses "${lan_addr}/${cidr}" \
+            ipv4.gateway "" \
+            ipv4.dns "${lan_addr}" \
+            ipv4.never-default yes \
+            ipv6.method link-local \
+            ipv6.never-default yes
+    fi
+    if [[ -n "$mac" && "$mac" != "00:00:00:00:00:00" ]]; then
+        nmcli connection modify "$con" 802-3-ethernet.mac-address "$mac"
+    fi
+
+    # Anything else that is unpinned, or that is tied to this port, will race
+    # the phone at boot and can win. sccs-lan is the only profile for this NIC.
+    while IFS= read -r id; do
+        [[ -n "$id" && "$id" != "$con" ]] || continue
+        [[ "$(nmcli -g connection.type connection show "$id" 2>/dev/null || true)" == "802-3-ethernet" ]] || continue
+        ifn="$(nmcli -g connection.interface-name connection show "$id" 2>/dev/null || true)"
+        macset="$(nmcli -g 802-3-ethernet.mac-address connection show "$id" 2>/dev/null || true)"
+        addrs="$(nmcli -g ipv4.addresses connection show "$id" 2>/dev/null || true)"
+        [[ "$ifn" == "--" ]] && ifn=""
+        [[ "$macset" == "--" ]] && macset=""
+        if [[ "$ifn" == "$lan_if" ]] || { [[ -z "$ifn" && -z "$macset" ]]; } || [[ "$addrs" == *"${lan_addr}/"* ]]; then
+            info "Removing ethernet profile '${id}' so it cannot take ${lan_addr} off ${lan_if}"
+            nmcli connection down "$id" 2>/dev/null || true
+            nmcli connection delete "$id" 2>/dev/null \
+                || nmcli connection modify "$id" connection.autoconnect no \
+                || true
+        fi
+    done < <(nmcli -t -f NAME connection show)
+
+    nmcli connection up "$con" || warn "Could not activate ${con} on ${lan_if}"
+}
+
 # ---------------------------------------------------------------------------
 # Integrated: LAN IP + NAT + Pi-hole (DNS + DHCP)
 # Env: LAN_IF WAN_IF EXTRA_WAN_IF WAN_IFS LAN_ADDR LAN_CIDR DHCP_* SCCS_CONF
@@ -2756,6 +2837,9 @@ apply_lan_nat_dhcp() {
 
     [[ -f "$SCCS_CONF" ]] || die "Missing config: $SCCS_CONF"
     ip link show "$LAN_IF" &>/dev/null || die "LAN interface not found: $LAN_IF"
+    if is_phone_uplink_if "$LAN_IF"; then
+        die "Refusing to use ${LAN_IF} as the van LAN — that interface is a phone USB tether"
+    fi
 
     local WAN_LIST=() WAN_CLEAN=() w rest name ip mac
     if [[ -n "${WAN_IFS:-}" ]]; then
@@ -2849,33 +2933,7 @@ PY
     info "LAN $LAN_IF = ${LAN_ADDR}/${LAN_CIDR} · WAN: ${WAN_LIST[*]}"
     command -v nmcli >/dev/null 2>&1 || die "nmcli not found — install NetworkManager"
 
-    local LAN_CON
-    LAN_CON="$(nmcli -t -f NAME,DEVICE connection show | awk -F: -v d="$LAN_IF" '$2==d {print $1; exit}')"
-    if [[ -z "${LAN_CON:-}" ]]; then
-        LAN_CON="$(nmcli -t -f NAME,TYPE,DEVICE connection show | awk -F: -v d="$LAN_IF" '
-            $2=="802-3-ethernet" && ($3=="" || $3==d) {print $1; exit}')"
-    fi
-    if [[ -z "${LAN_CON:-}" ]]; then
-        LAN_CON="sccs-lan"
-        info "Creating NM connection $LAN_CON for $LAN_IF"
-        nmcli connection add type ethernet ifname "$LAN_IF" con-name "$LAN_CON" \
-            ipv4.method manual ipv4.addresses "${LAN_ADDR}/${LAN_CIDR}" \
-            ipv4.gateway "" ipv4.dns "${LAN_ADDR}" \
-            ipv6.method link-local ipv6.never-default yes \
-            connection.autoconnect yes
-    else
-        info "Configuring NM connection '$LAN_CON' for $LAN_IF"
-        nmcli connection modify "$LAN_CON" \
-            connection.interface-name "$LAN_IF" \
-            ipv4.method manual \
-            ipv4.addresses "${LAN_ADDR}/${LAN_CIDR}" \
-            ipv4.gateway "" \
-            ipv4.never-default yes \
-            ipv6.method link-local \
-            ipv6.never-default yes \
-            connection.autoconnect yes
-    fi
-    nmcli connection up "$LAN_CON" || true
+    pin_lan_nm_connection "$LAN_IF" "$LAN_ADDR" "$LAN_CIDR"
     ip -4 addr show dev "$LAN_IF" | sed -n 's/^/    /p'
 
     echo "net.ipv4.ip_forward=1" >"$SYSCTL_DROPIN"
@@ -2939,13 +2997,23 @@ EOF
             dhcp_newly_active=1
         fi
     fi
-    # Prefer the iface that already holds LAN_ADDR (USB-ETH may enumerate as eth1).
+    # A USB Ethernet dongle may enumerate as eth1 and already hold LAN_ADDR.
+    # Do not follow the address onto a phone tether: that is how eth0 lost
+    # 10.10.10.1 and the touchscreen stopped getting a lease.
     local lan_if_resolved=""
-    lan_if_resolved="$(ip -4 -o addr show 2>/dev/null \
+    lan_if_resolved="$(ip -4 -o addr show dev "$LAN_IF" 2>/dev/null \
         | awk -v a="${LAN_ADDR}/" '$0 ~ a {print $2; exit}')"
-    if [[ -n "$lan_if_resolved" && "$lan_if_resolved" != "$LAN_IF" ]]; then
-        warn "LAN address ${LAN_ADDR} is on ${lan_if_resolved}, not ${LAN_IF} — using ${lan_if_resolved} for Pi-hole"
-        LAN_IF="$lan_if_resolved"
+    if [[ -z "$lan_if_resolved" ]]; then
+        lan_if_resolved="$(ip -4 -o addr show 2>/dev/null \
+            | awk -v a="${LAN_ADDR}/" '$0 ~ a {print $2; exit}')"
+        if [[ -n "$lan_if_resolved" && "$lan_if_resolved" != "$LAN_IF" ]]; then
+            if is_phone_uplink_if "$lan_if_resolved"; then
+                warn "LAN address ${LAN_ADDR} is on phone uplink ${lan_if_resolved} — Pi-hole stays on ${LAN_IF}"
+            else
+                warn "LAN address ${LAN_ADDR} is on ${lan_if_resolved}, not ${LAN_IF} — using ${lan_if_resolved} for Pi-hole"
+                LAN_IF="$lan_if_resolved"
+            fi
+        fi
     fi
 
     if ! command -v pihole >/dev/null 2>&1; then
@@ -5359,22 +5427,21 @@ apply_all_configured_touchscreen_desktop() {
 
 # Resolve which ethernet iface should be the van LAN (default eth0).
 # If LAN_ADDR is already assigned, prefer that device (USB adapters often show as eth1).
+# Never choose a phone USB tether, even when it currently holds LAN_ADDR.
 resolve_lan_if() {
-    local preferred="${LAN_IF:-eth0}" found=""
+    local preferred="${LAN_IF:-eth0}" found="" dev
     found="$(ip -4 -o addr show 2>/dev/null \
         | awk -v a="${LAN_ADDR:-10.10.10.1}/" '$0 ~ a {print $2; exit}')"
-    if [[ -n "$found" ]]; then
+    if [[ -n "$found" ]] && ! is_phone_uplink_if "$found"; then
         printf '%s' "$found"
         return 0
     fi
-    if ip link show "$preferred" &>/dev/null; then
+    if ip link show "$preferred" &>/dev/null && ! is_phone_uplink_if "$preferred"; then
         printf '%s' "$preferred"
         return 0
     fi
-    # Fall back to first non-wlan ethernet that exists
-    local dev
     for dev in eth0 eth1 enx0 enp1s0; do
-        if ip link show "$dev" &>/dev/null; then
+        if ip link show "$dev" &>/dev/null && ! is_phone_uplink_if "$dev"; then
             printf '%s' "$dev"
             return 0
         fi

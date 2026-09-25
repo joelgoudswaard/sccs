@@ -325,7 +325,7 @@ night   = 1,red
 [reed_phases.kitchen_bench]
 day     = 100
 evening = 30
-night   = 0
+night   = 1,red
 
 [reed_phases.storage_panel]
 day     = 100
