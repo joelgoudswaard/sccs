@@ -5,6 +5,8 @@ All notable changes to SCCS are documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- Victron setup shows the saved SmartShunt and MPPT Instant Readout keys as the default for each device. Press Enter to keep that key.
+- Touchscreen setup saves the panel account password in ~/.sccs/screen_credentials (mode 600). Later setup and package updates reuse it. The password is not written into sccs.conf. SSH itself still uses the key.
 - Setup reads GPIO26, the SCCS Core presence pull-up (header pin 37, R5 to 3.3V). When that pin is high it skips the “is this Pi on the SCCS Core?” question and asks to proceed.
 - Date & Time sunrise and sunset icons are half the height of the label and time together, and stay centered on those two lines.
 - The home Lighting tile lists dimmable lights that are on, then a horizontal line, then relays that are on.

@@ -2245,7 +2245,7 @@ step_victron() {
     info "  · gear → Product info → Instant readout → Show  (32-character key)"
     echo
     info "The Pi listens for the devices and fills in the Bluetooth addresses."
-    info "The key is not in the broadcast — paste it from that screen. It is not the sticker PIN."
+    info "The key is not in the broadcast. Press Enter to keep the saved key, or paste a new one from that screen. It is not the sticker PIN."
     info "Each device is checked live. A mismatch or a missed advertisement can be retyped."
     echo
 
@@ -2255,9 +2255,9 @@ step_victron() {
     cur_ma="$(conf_get victron mppt_address)"
     cur_mk="$(conf_get victron mppt_key)"
     if [[ -n "$cur_sa$cur_ma$cur_sk$cur_mk" ]]; then
-        info "Current (keys hidden):"
-        info "  shunt MAC=${cur_sa:-∅}  key=$([ -n "$cur_sk" ] && echo set || echo empty)"
-        info "  mppt  MAC=${cur_ma:-∅}  key=$([ -n "$cur_mk" ] && echo set || echo empty)"
+        info "Current:"
+        info "  shunt MAC=${cur_sa:-∅}  key=${cur_sk:-empty}"
+        info "  mppt  MAC=${cur_ma:-∅}  key=${cur_mk:-empty}"
     fi
 
     if [[ "$mode" == "optional" ]]; then
@@ -2293,13 +2293,18 @@ step_victron() {
         done
     }
     prompt_key() {
-        local label="$1" current="$2" out hint
+        local label="$1" current="$2" out shown=""
+        if [[ -n "$current" ]]; then
+            shown="$(normalize_victron_key "$current" 2>/dev/null || true)"
+        fi
         while true; do
-            hint="empty / s to skip"
-            [[ -n "$current" ]] && hint="Enter keeps existing / s skips"
-            read -r -p "  ${label} Instant Readout key (32 hex) [${hint}]: " ans || true
+            if [[ -n "$shown" ]]; then
+                read -r -p "  ${label} Instant Readout key (32 hex) [${shown}]: " ans || true
+            else
+                read -r -p "  ${label} Instant Readout key (32 hex) [empty / s to skip]: " ans || true
+            fi
             if [[ -z "$ans" ]]; then
-                if [[ -n "$current" ]]; then PROMPT_VAL="$current"; return 0; fi
+                if [[ -n "$shown" ]]; then PROMPT_VAL="$shown"; return 0; fi
                 PROMPT_VAL=""; return 1
             fi
             if [[ "${ans,,}" == "s" || "${ans,,}" == "skip" ]]; then
@@ -3222,13 +3227,16 @@ prompt_secret() {
     read_secret_tty "$@" || true
 }
 
-# Sets REPLY_USER and REPLY_PASS (password not echoed; not stored in conf).
+# Sets REPLY_USER and REPLY_PASS (password not echoed).
+# The password is not written into sccs.conf. Callers keep it with
+# save_screen_credentials so later setup and package updates can reuse it.
 prompt_panel_ssh_credentials() {
     local def_user="${1:-$USERNAME}" host_hint="${2:-panel}"
     local user pass
     echo
     info "SSH login for ${C_BOLD}${host_hint}${C_RESET}"
-    info "Password is used once to install the SCCS key + sudo rules, then discarded."
+    info "The password is saved for this panel and reused for sudo (package updates and re-setup)."
+    info "It is not written into sccs.conf."
     read -r -p "  SSH username [${def_user}]: " user || true
     user="${user:-$def_user}"
     [[ -n "$user" ]] || die "SSH username required"
@@ -3242,6 +3250,104 @@ prompt_panel_ssh_credentials() {
     done
     REPLY_USER="$user"
     REPLY_PASS="$pass"
+}
+
+# Panel account passwords live in the install user's ~/.sccs, mode 600.
+# sccs.conf is on the Samba share and is read by the UI, so the password stays out of it.
+screen_credentials_path() {
+    printf '%s\n' "${USER_HOME}/.sccs/screen_credentials"
+}
+
+_screen_credentials_b64() {
+    printf '%s' "$1" | base64 -w 0 2>/dev/null || printf '%s' "$1" | base64 | tr -d '\n'
+}
+
+# Args: name host user password. Replaces any record for this screen name or host.
+save_screen_credentials() {
+    local name="$1" host="$2" user="$3" pass="$4"
+    local path dir tmp b64 line n h rest
+    [[ -n "${USER_HOME:-}" && -n "${USERNAME:-}" ]] || return 1
+    [[ -n "$name" && -n "$host" && -n "$user" && -n "$pass" ]] || return 0
+    [[ "$name" =~ ^[a-z][a-z0-9_]*$ ]] || return 1
+    [[ "$host" =~ ^[A-Za-z0-9][-A-Za-z0-9._]*$ ]] || return 1
+    [[ "$user" =~ ^[A-Za-z_][-A-Za-z0-9_]*$ ]] || return 1
+    path="$(screen_credentials_path)"
+    dir="$(dirname "$path")"
+    mkdir -p "$dir"
+    chown "$USERNAME":"$USERNAME" "$dir" 2>/dev/null || true
+    chmod 700 "$dir"
+    b64="$(_screen_credentials_b64 "$pass")"
+    [[ -n "$b64" ]] || return 1
+    tmp="$(mktemp)"
+    if [[ -f "$path" ]]; then
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            [[ -z "$line" || "$line" == \#* ]] && continue
+            read -r n h rest <<<"$line"
+            [[ "$n" == "$name" || "$h" == "$host" ]] && continue
+            printf '%s\n' "$line" >>"$tmp"
+        done <"$path"
+    fi
+    printf '%s %s %s %s\n' "$name" "$host" "$user" "$b64" >>"$tmp"
+    chown "$USERNAME":"$USERNAME" "$tmp" 2>/dev/null || true
+    chmod 600 "$tmp"
+    mv -f "$tmp" "$path"
+    chown "$USERNAME":"$USERNAME" "$path" 2>/dev/null || true
+    chmod 600 "$path"
+}
+
+# Args: name. Drops the stored password for that screen.
+forget_screen_credentials() {
+    local name="$1"
+    local path tmp line n rest
+    [[ -n "${USER_HOME:-}" && -n "${USERNAME:-}" ]] || return 0
+    [[ "$name" =~ ^[a-z][a-z0-9_]*$ ]] || return 0
+    path="$(screen_credentials_path)"
+    [[ -f "$path" ]] || return 0
+    tmp="$(mktemp)"
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ -z "$line" || "$line" == \#* ]] && continue
+        read -r n rest <<<"$line"
+        [[ "$n" == "$name" ]] && continue
+        printf '%s\n' "$line" >>"$tmp"
+    done <"$path"
+    chown "$USERNAME":"$USERNAME" "$tmp" 2>/dev/null || true
+    chmod 600 "$tmp"
+    mv -f "$tmp" "$path"
+    chown "$USERNAME":"$USERNAME" "$path" 2>/dev/null || true
+    chmod 600 "$path"
+}
+
+# Args: name host user. Prefer the screen name, then host+user.
+# Sets REPLY_PASS and REPLY_CRED_USER. Returns 0 when a password is stored.
+load_screen_password() {
+    local name="$1" host="$2" user="$3"
+    local path line n h u b64 decoded by_host="" by_user=""
+    REPLY_PASS=""
+    REPLY_CRED_USER=""
+    path="$(screen_credentials_path)"
+    [[ -f "$path" ]] || return 1
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ -z "$line" || "$line" == \#* ]] && continue
+        read -r n h u b64 <<<"$line"
+        [[ -n "${b64:-}" ]] || continue
+        decoded="$(printf '%s' "$b64" | base64 -d 2>/dev/null || true)"
+        [[ -n "$decoded" ]] || continue
+        if [[ -n "$name" && "$n" == "$name" ]]; then
+            REPLY_PASS="$decoded"
+            REPLY_CRED_USER="$u"
+            return 0
+        fi
+        if [[ -n "$host" && "$h" == "$host" && ( -z "$user" || "$u" == "$user" ) ]]; then
+            by_host="$decoded"
+            by_user="$u"
+        fi
+    done <"$path"
+    if [[ -n "$by_host" ]]; then
+        REPLY_PASS="$by_host"
+        REPLY_CRED_USER="$by_user"
+        return 0
+    fi
+    return 1
 }
 
 # One SSH login attempt (publickey, else password). Does not prompt.
@@ -3677,7 +3783,9 @@ print(bright + "\t" + blank + "\t" + method + "\t" + "; ".join(detail))
 # host          = address that answers now (live lease or already-moved reserved)
 # reserved_ip   = desired/static IP written to conf + Pi-hole (may equal host)
 # Password optional if key auth already works; otherwise prompted.
-# Key material + ssh run as USERNAME (not root). Password is never written to disk.
+# Key material + ssh run as USERNAME (not root).
+# The panel account password is stored in ~/.sccs/screen_credentials (mode 600),
+# not in sccs.conf. Optional arg 8 is the [screens] key used for that file.
 # On success, also sets Chromium homepage to the control Pi and autostarts it.
 # When reserved_ip differs from the live lease, the panel is told to drop that
 # lease. Later steps (Chromium) run only after the reserved address answers.
@@ -3685,8 +3793,17 @@ print(bright + "\t" + blank + "\t" + method + "\t" + "; ".join(detail))
 configure_touchscreen_panel() {
     local screen_user="$1" screen_host="$2" screen_alias="$3"
     local blank_path="${4:-/sys/class/graphics/fb0/blank}" skip_blank="${5:-0}"
-    local screen_pass="${6:-}" reserved_ip="${7:-}"
+    local screen_pass="${6:-}" reserved_ip="${7:-}" screen_name="${8:-}"
     local rc=0 live_host
+
+    if [[ -z "$screen_pass" && -n "$screen_name" ]]; then
+        if load_screen_password "$screen_name" "${reserved_ip:-$screen_host}" "$screen_user"; then
+            screen_pass="$REPLY_PASS"
+            [[ -n "${REPLY_CRED_USER:-}" ]] && screen_user="$REPLY_CRED_USER"
+            info "Using the saved panel password for ${screen_name}"
+        fi
+        REPLY_PASS=""
+    fi
 
     # Live connection target for key/sudoers install (may still be old lease).
     live_host="$screen_host"
@@ -3728,6 +3845,10 @@ EOCHECK
             screen_user="$REPLY_USER"
             screen_pass="$REPLY_PASS"
         fi
+    fi
+    if [[ -n "$screen_name" && -n "$screen_pass" ]]; then
+        save_screen_credentials "$screen_name" "${reserved_ip:-$screen_host}" \
+            "$screen_user" "$screen_pass" || true
     fi
 
     # Note: do NOT invert with `!` — failure must yield non-zero rc (was a bug that always ✓'d).
@@ -3971,6 +4092,10 @@ EOS
         prompt_panel_ssh_credentials "$screen_user" "${screen_host}"
         screen_user="$REPLY_USER"
         screen_pass="$REPLY_PASS"
+        if [[ -n "$screen_name" && -n "$screen_pass" ]]; then
+            save_screen_credentials "$screen_name" "${reserved_ip:-$screen_host}" \
+                "$screen_user" "$screen_pass" || true
+        fi
         if run_user_bash env \
             SCREEN_USER="$screen_user" \
             SCREEN_HOST="$screen_host" \
@@ -4073,8 +4198,10 @@ EOS2
         # panel password (if any) is still available.
         if touchscreen_apt "$screen_user" "$screen_host" "${screen_pass:-}" install; then
             ok "Passwordless apt upgrade is available on ${screen_host}"
+        elif [[ -n "${screen_pass:-}" ]]; then
+            info "Package update will use the saved panel password on ${screen_host}"
         else
-            info "Update will ask for the panel password before apt upgrade on ${screen_host}"
+            info "Update will ask once for the panel password, then save it, before apt upgrade on ${screen_host}"
         fi
 
         if configure_touchscreen_browser "$screen_user" "$screen_host" "${screen_pass:-}"; then
@@ -5388,16 +5515,37 @@ PY
     fi
 
     if [[ "$setup_ssh" -eq 1 ]]; then
-        prompt_panel_ssh_credentials "$USERNAME" "${ssh_target}"
-        user="$REPLY_USER"
-        pass="$REPLY_PASS"
-        # Retry password / abort — never continue with bad creds
-        if ! verify_panel_ssh "$user" "$ssh_target" "$pass"; then
-            unset pass REPLY_PASS 2>/dev/null || true
-            return 1
+        pass=""
+        if load_screen_password "$name" "$ssh_target" ""; then
+            pass="$REPLY_PASS"
+        elif [[ "$ip" != "$ssh_target" ]] && load_screen_password "$name" "$ip" ""; then
+            pass="$REPLY_PASS"
         fi
-        user="$REPLY_USER"
-        pass="$REPLY_PASS"
+        REPLY_PASS=""
+        if [[ -n "$pass" ]]; then
+            info "Using the saved panel password for ${name}"
+            [[ -n "${REPLY_CRED_USER:-}" ]] && user="$REPLY_CRED_USER"
+            if ! verify_panel_ssh "${user:-$USERNAME}" "$ssh_target" "$pass"; then
+                warn "Saved panel password was not accepted for ${name}"
+                forget_screen_credentials "$name"
+                pass=""
+            fi
+        fi
+        if [[ -z "$pass" ]]; then
+            prompt_panel_ssh_credentials "${user:-$USERNAME}" "${ssh_target}"
+            user="$REPLY_USER"
+            pass="$REPLY_PASS"
+            # Retry password / abort — never continue with bad creds
+            if ! verify_panel_ssh "$user" "$ssh_target" "$pass"; then
+                unset pass REPLY_PASS 2>/dev/null || true
+                return 1
+            fi
+            user="$REPLY_USER"
+            pass="$REPLY_PASS"
+        else
+            user="${user:-$USERNAME}"
+        fi
+        save_screen_credentials "$name" "$ip" "$user" "$pass" || true
     else
         read -r -p "  SSH username to store in config [${USERNAME}]: " user || true
         user="${user:-$USERNAME}"
@@ -5483,7 +5631,7 @@ PY
     # Provision against the address that answers now; pass reserved IP so post-renew
     # steps (Chromium) can follow the panel when it moves to the desired address.
     info "Logging into ${user}@${ssh_target} and provisioning the panel…"
-    if configure_touchscreen_panel "$user" "$ssh_target" "$alias" "$blank_path" "$skip_blank" "$pass" "$ip"; then
+    if configure_touchscreen_panel "$user" "$ssh_target" "$alias" "$blank_path" "$skip_blank" "$pass" "$ip" "$name"; then
         # SCCS SSHs to the reserved IP in conf — ensure ~/.ssh/config maps it to sccs_screen.
         ensure_screen_ssh_config "$user" "$ip" "$alias" || true
         if [[ "$ip" != "$ssh_target" ]]; then
@@ -5623,16 +5771,34 @@ setup_existing_screens_ssh_one() {
         info "SSH target for this session: ${ssh_target} (no :22 open yet — will retry at login)"
     fi
 
-    prompt_panel_ssh_credentials "$user" "${ssh_target}"
-    user="$REPLY_USER"
-    pass="$REPLY_PASS"
-    if ! verify_panel_ssh "$user" "$ssh_target" "$pass"; then
-        fail "Screen ${name} aborted — SSH login cancelled or failed"
-        unset pass REPLY_PASS 2>/dev/null || true
-        return 1
+    pass=""
+    if load_screen_password "$name" "$ssh_target" "$user"; then
+        pass="$REPLY_PASS"
+    elif [[ "$host" != "$ssh_target" ]] && load_screen_password "$name" "$host" "$user"; then
+        pass="$REPLY_PASS"
     fi
-    user="$REPLY_USER"
-    pass="$REPLY_PASS"
+    REPLY_PASS=""
+    if [[ -n "$pass" ]]; then
+        info "Using the saved panel password for ${name}"
+        [[ -n "${REPLY_CRED_USER:-}" ]] && user="$REPLY_CRED_USER"
+        if ! verify_panel_ssh "$user" "$ssh_target" "$pass"; then
+            warn "Saved panel password was not accepted for ${name}"
+            forget_screen_credentials "$name"
+            pass=""
+        fi
+    fi
+    if [[ -z "$pass" ]]; then
+        prompt_panel_ssh_credentials "$user" "${ssh_target}"
+        user="$REPLY_USER"
+        pass="$REPLY_PASS"
+        if ! verify_panel_ssh "$user" "$ssh_target" "$pass"; then
+            fail "Screen ${name} aborted — SSH login cancelled or failed"
+            unset pass REPLY_PASS 2>/dev/null || true
+            return 1
+        fi
+        user="$REPLY_USER"
+        pass="$REPLY_PASS"
+    fi
 
     bright="/sys/class/graphics/fb0/blank"
     blank="/sys/class/graphics/fb0/blank"
@@ -5745,8 +5911,13 @@ PY
         info "blank_path is not sysfs (${blank:-unset}) — SSH + shutdown sudoers only"
     fi
 
+    if [[ "$name" != "$old_name" ]]; then
+        forget_screen_credentials "$old_name"
+    fi
+    save_screen_credentials "$name" "$host" "$user" "$pass" || true
+
     info "Provisioning passwordless SSH + sudo + DHCP renew on ${user}@${ssh_target}…"
-    if configure_touchscreen_panel "$user" "$ssh_target" "$alias" "$blank_path" "$skip_blank" "$pass" "$host"; then
+    if configure_touchscreen_panel "$user" "$ssh_target" "$alias" "$blank_path" "$skip_blank" "$pass" "$host" "$name"; then
         # Always ensure SSH config covers the reserved IP (SCCS connects to conf host)
         ensure_screen_ssh_config "$user" "$host" "$alias" || true
         if [[ "$ssh_target" != "$host" ]]; then
@@ -6263,10 +6434,12 @@ EOS
 }
 
 # apt update + upgrade on every [screens] panel that accepts the SCCS SSH key.
-# Unreachable panels are skipped. A panel without passwordless apt asks once.
+# Unreachable panels are skipped. A panel without passwordless apt uses the
+# password saved at setup. It asks only when nothing is saved, or the saved
+# password is refused, and then stores the password that sudo accepted.
 upgrade_configured_touchscreens() {
     local listing="" line name host user _blank _mac friendly label
-    local rc=0 cached="" tried_cached=0 pass=""
+    local rc=0 cached="" pass="" stored="" from_store=0
     local -a rows=()
 
     if [[ ! -f "$CONF" ]]; then
@@ -6307,26 +6480,37 @@ upgrade_configured_touchscreens() {
         fi
 
         info "apt update + upgrade on ${label} (${user}@${host})…"
+        stored=""
+        from_store=0
+        if load_screen_password "$name" "$host" "$user"; then
+            stored="$REPLY_PASS"
+            from_store=1
+        fi
+        REPLY_PASS=""
         rc=0
-        tried_cached=0
-        if [[ -n "$cached" ]]; then
-            tried_cached=1
+        if [[ -n "$stored" ]]; then
+            info "Using the saved panel password for ${label}"
+            touchscreen_apt "$user" "$host" "$stored" upgrade || rc=$?
+        elif [[ -n "$cached" ]]; then
             touchscreen_apt "$user" "$host" "$cached" upgrade || rc=$?
         else
             touchscreen_apt "$user" "$host" "" upgrade || rc=$?
         fi
 
         if [[ "$rc" -eq 2 ]]; then
-            if [[ "$tried_cached" -eq 1 ]]; then
+            if [[ "$from_store" -eq 1 ]]; then
                 warn "Saved panel password was not accepted for ${label}"
+                forget_screen_credentials "$name"
+            elif [[ -n "$cached" ]]; then
+                warn "Panel account password was not accepted for ${label}"
             fi
-            ask_yn "Upgrade packages on ${label} (${user}@${host})? The panel password is required once." y
+            ask_yn "Upgrade packages on ${label} (${user}@${host})? SSH is already using the key. The panel account password is required once, for sudo, to install passwordless package upgrades." y
             if [[ "$REPLY" != "y" ]]; then
                 skip_note "${label} package update skipped"
                 continue
             fi
             pass=""
-            prompt_secret "SSH password for ${user}@${host}: " pass
+            prompt_secret "Panel account password for ${user}@${host} (sudo, once): " pass
             if [[ -z "$pass" ]]; then
                 skip_note "${label} package update skipped — no password"
                 continue
@@ -6334,8 +6518,10 @@ upgrade_configured_touchscreens() {
             rc=0
             touchscreen_apt "$user" "$host" "$pass" upgrade || rc=$?
             # Exit 2 is a rejected password. Any other result means sudo
-            # accepted it, so the next panel can try the same password.
+            # accepted it, so this panel and the next one can reuse it.
             if [[ "$rc" -ne 2 ]]; then
+                save_screen_credentials "$name" "$host" "$user" "$pass" || true
+                info "Saved the panel password for ${label}"
                 cached="$pass"
             fi
             pass=""
@@ -6356,7 +6542,9 @@ upgrade_configured_touchscreens() {
     done
 
     cached=""
-    unset cached
+    stored=""
+    pass=""
+    unset cached stored pass
     return 0
 }
 
