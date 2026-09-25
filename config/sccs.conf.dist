@@ -144,9 +144,9 @@ rgb_mode_switch_ramp_ms = 250
 kitchen_panel     = Kitchen Panel     | rgb_bug | 1-4 | 1-5 | 1-6 | fa-utensils     | 1
 kitchen_bench     = Kitchen Bench     | rgb_bug | 1-7 | 1-8 | 1-9 | fa-mug-hot       | 2
 storage_panel     = Storage Panel     | pwm     | 2-4        | fa-boxes-stacked | 3
-rear_drawer       = Rear Drawer       | pwm     | 2-5        | fa-archive       | 4
+rear_drawer       = Rear Drawer       | pwm     | 1-11       | fa-archive       | 4
 accent            = Accent Lights     | pwm     | 1-10       | fa-lightbulb     | 5
-rooftop_tent      = Rooftop Tent      | pwm     | 1-11       | fa-tent          | 6
+rooftop_tent      = Rooftop Tent      | pwm     | 2-5        | fa-tent          | 6
 awning            = Awning Lights     | rgb_bug | 2-6 | 2-7 | 2-8 | fa-umbrella      | 7
 ensuite           = Ensuite           | pwm     | 2-9        | fa-bath          | 8
 
