@@ -16,7 +16,7 @@
 #   sudo ./install.sh --usb-tether # Guided phone USB internet
 #   sudo ./install.sh --screens    # Scan LAN, add touchscreen, SSH + Chromium UI
 #   sudo ./install.sh --service    # rewrite/restart systemd unit
-#   sudo ./install.sh --voice      # HomeKit / Google Home
+#   sudo ./install.sh --voice      # HomeKit / Siri, Google Home / Gemini, or both
 #   sudo ./install.sh --help
 #
 # Install location is always ~/sccs for the invoking user (override with SCCS_HOME).
@@ -47,6 +47,11 @@ SCCS_UI_URL="${SCCS_UI_URL:-http://${LAN_ADDR}/}"
 # OTG and can hang setup() on these modules, which have no USB.
 ESP_FQBN="${ESP_FQBN:-esp32:esp32:esp32s3}"
 W1_GPIO="${W1_GPIO:-3}"
+# Header pin 37. R5 pulls GPIO26 up to 3.3V when the Pi is on the SCCS Core
+# (schematic note: "SCCS core hardware / Presence detection"). The sheet value
+# is 4.7k; either that or 10k beats the Pi's ~50k internal pulldown, so the
+# pin reads high only with the Core fitted.
+SCCS_DETECT_GPIO="${SCCS_DETECT_GPIO:-26}"
 
 # ---------------------------------------------------------------------------
 # Colours (subtle; disabled when not a TTY)
@@ -82,6 +87,9 @@ INSTALL_RESUME_SCRIPT="/var/lib/sccs/install-resume.sh"
 INSTALL_RESUME_PROFILE="/etc/profile.d/sccs-install-resume.sh"
 INSTALL_RESUME_SUDOERS="/etc/sudoers.d/sccs-install-resume"
 INSTALL_RESUME_LOCK="/var/lib/sccs/install-resume.lock"
+# Set when Pi-hole DHCP is turned on. The next touchscreen scan asks for a
+# panel restart first — already-powered screens have no lease from this server.
+DHCP_PANEL_RESTART_FLAG="/var/lib/sccs/dhcp-panels-need-restart"
 RUN_MODE="menu"   # menu | install | sensors | esp | victron | lan | screens | service
 
 # ---------------------------------------------------------------------------
@@ -182,6 +190,77 @@ ask_yn() {
             n|no)  REPLY=n; return 0 ;;
             *) echo "  Please answer y or n." ;;
         esac
+    done
+}
+
+# Current [homekit] / [matter] flags → homekit | google | both | empty.
+voice_product_default() {
+    local hk gh
+    hk="$(conf_get homekit enabled)"
+    gh="$(conf_get matter enabled)"
+    hk="${hk,,}"
+    gh="${gh,,}"
+    if [[ "$hk" == "true" && "$gh" == "true" ]]; then
+        printf '%s' both
+    elif [[ "$hk" == "true" ]]; then
+        printf '%s' homekit
+    elif [[ "$gh" == "true" ]]; then
+        printf '%s' google
+    fi
+}
+
+# Sets REPLY to homekit | google | both | neither.
+# $1 default (homekit|google|both|neither or empty). $2 "y" to offer Neither.
+ask_voice_product() {
+    local def="${1:-}" allow_off="${2:-}" hint ans prompt
+    echo
+    echo "  ${C_BOLD}Which voice control?${C_RESET}"
+    echo "  ${C_CYAN}1${C_RESET}  Apple HomeKit / Siri"
+    echo "  ${C_CYAN}2${C_RESET}  Google Home / Gemini"
+    echo "  ${C_CYAN}3${C_RESET}  Both"
+    if [[ "$allow_off" == "y" ]]; then
+        echo "  ${C_CYAN}4${C_RESET}  Neither"
+    fi
+    echo
+    case "$def" in
+        homekit) hint=1 ;;
+        google) hint=2 ;;
+        both) hint=3 ;;
+        neither) hint=4 ;;
+        *) hint="" ;;
+    esac
+    if [[ -n "$hint" ]]; then
+        prompt="  ${C_BOLD}Select${C_RESET} [${hint}]: "
+    elif [[ "$allow_off" == "y" ]]; then
+        prompt="  ${C_BOLD}Select${C_RESET} [1-4]: "
+    else
+        prompt="  ${C_BOLD}Select${C_RESET} [1-3]: "
+    fi
+    while true; do
+        if ! read_input "$prompt"; then
+            die "No interactive terminal available for prompts"
+        fi
+        if [[ -n "$hint" ]]; then
+            ans="${REPLY_LINE:-$hint}"
+        else
+            ans="${REPLY_LINE}"
+        fi
+        case "${ans,,}" in
+            1|homekit|siri) REPLY=homekit; return 0 ;;
+            2|google|gemini) REPLY=google; return 0 ;;
+            3|both) REPLY=both; return 0 ;;
+            4|neither|off|none)
+                if [[ "$allow_off" == "y" ]]; then
+                    REPLY=neither
+                    return 0
+                fi
+                ;;
+        esac
+        if [[ "$allow_off" == "y" ]]; then
+            echo "  Enter 1, 2, 3, or 4."
+        else
+            echo "  Enter 1, 2, or 3."
+        fi
     done
 }
 
@@ -401,6 +480,79 @@ uart_of_name() {
     path="/sys/class/tty/${dev#/dev/}/device/of_node"
     [[ -e "$path" ]] || return 1
     basename "$(readlink -f "$path")"
+}
+
+# Prints 1 when GPIO26 is high against an internal pulldown, else 0.
+# Returns 1 when the pin cannot be read.
+sccs_detect_level() {
+    local gpio="${SCCS_DETECT_GPIO:-26}" level=""
+    if command -v pinctrl >/dev/null 2>&1; then
+        if pinctrl set "$gpio" ip pd >/dev/null 2>&1; then
+            sleep 0.02
+            level="$(pinctrl lev "$gpio" 2>/dev/null | tr -cd '0-9' || true)"
+            # Release the pad. Pulldown matches an unused header pin.
+            pinctrl set "$gpio" no pd >/dev/null 2>&1 || true
+            case "$level" in
+                0|1) printf '%s' "$level"; return 0 ;;
+            esac
+        fi
+    fi
+    if ! python3 -c 'import lgpio' >/dev/null 2>&1; then
+        return 1
+    fi
+    python3 - "$gpio" <<'PY'
+import sys, time
+import lgpio
+gpio = int(sys.argv[1])
+for chip in (0, 4):
+    try:
+        handle = lgpio.gpiochip_open(chip)
+    except Exception:
+        continue
+    try:
+        if lgpio.gpio_claim_input(handle, gpio, lgpio.SET_PULL_DOWN) < 0:
+            continue
+        time.sleep(0.02)
+        level = lgpio.gpio_read(handle, gpio)
+        if level < 0:
+            continue
+        sys.stdout.write(str(int(level)))
+        sys.exit(0)
+    finally:
+        try:
+            lgpio.gpio_free(handle, gpio)
+        except Exception:
+            pass
+        lgpio.gpiochip_close(handle)
+sys.exit(1)
+PY
+}
+
+# Cached for this run: 1 = Core present, 0 = not present or unreadable.
+sccs_core_detected() {
+    if [[ -n "${SCCS_CORE_DETECT:-}" ]]; then
+        [[ "$SCCS_CORE_DETECT" == "1" ]]
+        return
+    fi
+    SCCS_CORE_DETECT=0
+    is_raspberry_pi || return 1
+    local level=""
+    level="$(sccs_detect_level 2>/dev/null)" || return 1
+    [[ "$level" == "1" ]] || return 1
+    SCCS_CORE_DETECT=1
+    return 0
+}
+
+# When the Core pull-up is present, confirm and continue. Otherwise ask $1.
+# $2 is the default (y/n) for the question used when the Core is not detected.
+ask_sccs_core_flash() {
+    local unknown_prompt="$1" unknown_def="${2:-n}"
+    if sccs_core_detected; then
+        info "GPIO${SCCS_DETECT_GPIO} is high — the SCCS Core presence pull-up is there."
+        ask_yn "SCCS Core detected. Proceed?" y
+        return 0
+    fi
+    ask_yn "$unknown_prompt" "$unknown_def"
 }
 
 # True when /dev/ttyAMA2 and /dev/ttyAMA3 are the SCCS ESP UARTs, not just
@@ -847,10 +999,7 @@ step_packages() {
         python3-venv python3-lgpio \
         git network-manager nftables \
         usbmuxd libimobiledevice-utils ipheth-utils \
-        bluez curl \
-        avahi-daemon libavahi-compat-libdnssd1 avahi-utils \
-        nodejs
-    systemctl enable --now avahi-daemon >/dev/null 2>&1 || true
+        bluez curl
     ok "Packages installed"
 }
 
@@ -1102,11 +1251,6 @@ step_venv() {
     run_as_user "$SCCS_HOME/venv/bin/pip" install --upgrade pip
     run_as_user "$SCCS_HOME/venv/bin/pip" install --upgrade --upgrade-strategy eager -r "$SCCS_HOME/requirements.txt"
     ok "Python packages installed"
-    if [[ -f "$SCCS_HOME/matter-bridge/package.json" ]] && command -v npm >/dev/null 2>&1; then
-        info "npm install matter-bridge (Google Home / Matter)…"
-        run_as_user bash -c "cd \"$SCCS_HOME/matter-bridge\" && npm install --omit=dev"
-        ok "matter-bridge npm packages installed"
-    fi
 }
 
 step_config() {
@@ -1777,8 +1921,10 @@ step_esp() {
 
     if [[ "$mode" == "optional" ]]; then
         echo
-        info "If this Pi is ${C_BOLD}not${C_RESET} connected to the SCCS Core, skip this step."
-        ask_yn "Is this Pi connected to the SCCS Core (flash both ESP32s now)?" n
+        if ! sccs_core_detected; then
+            info "If this Pi is ${C_BOLD}not${C_RESET} connected to the SCCS Core, skip this step."
+        fi
+        ask_sccs_core_flash "Is this Pi connected to the SCCS Core (flash both ESP32s now)?" y
         if [[ "$REPLY" != "y" ]]; then
             skip_note "ESP32 flash skipped — re-run when the Pi is on the SCCS Core"
             return 0
@@ -2115,7 +2261,7 @@ step_victron() {
     fi
 
     if [[ "$mode" == "optional" ]]; then
-        ask_yn "Configure Victron SmartShunt / MPPT now?" n
+        ask_yn "Configure Victron SmartShunt / MPPT now?" y
         if [[ "$REPLY" != "y" ]]; then
             skip_note "Victron skipped — use menu item when you have MAC+keys"
             return 0
@@ -2423,85 +2569,163 @@ PY
     chown "$USERNAME":www-data "$CONF" 2>/dev/null || true
 }
 
+# Avahi is shared by HomeKit and Google Home. One install per step.
+VOICE_AVAHI_READY=0
+ensure_voice_avahi() {
+    if [[ "${VOICE_AVAHI_READY:-0}" == "1" ]]; then
+        return 0
+    fi
+    if ! command -v avahi-daemon >/dev/null 2>&1; then
+        info "Installing Avahi for phone discovery on the van LAN…"
+        DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            avahi-daemon libavahi-compat-libdnssd1 avahi-utils
+    fi
+    systemctl enable --now avahi-daemon >/dev/null 2>&1 || true
+    if systemctl is-active --quiet avahi-daemon; then
+        ok "Avahi is running"
+    else
+        warn "Avahi did not start — phone discovery needs it"
+    fi
+    VOICE_AVAHI_READY=1
+}
+
+install_homekit_packages() {
+    info "Installing Apple HomeKit / Siri…"
+    ensure_voice_avahi
+    if [[ -x "$SCCS_HOME/venv/bin/pip" ]]; then
+        run_as_user "$SCCS_HOME/venv/bin/pip" install --upgrade 'HAP-python[QRCode]'
+        ok "Apple HomeKit / Siri installed"
+    else
+        warn "Python venv missing — run Install SCCS, then menu 10"
+    fi
+}
+
+install_google_packages() {
+    if [[ "${1:-}" == "refresh" ]]; then
+        info "Refreshing Google Home / Gemini…"
+    else
+        info "Installing Google Home / Gemini…"
+    fi
+    ensure_voice_avahi
+    info "Google Home needs Node.js and IPv6 on the van LAN."
+    if ! command -v node >/dev/null 2>&1; then
+        DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+    fi
+    if ! command -v npm >/dev/null 2>&1; then
+        DEBIAN_FRONTEND=noninteractive apt-get install -y npm || true
+    fi
+    if [[ -f "$SCCS_HOME/matter-bridge/package.json" ]] && command -v npm >/dev/null 2>&1; then
+        run_as_user bash -c "cd \"$SCCS_HOME/matter-bridge\" && npm install --omit=dev"
+        ok "Google Home / Gemini installed"
+    elif ! command -v npm >/dev/null 2>&1; then
+        warn "npm is not installed — Google Home will not start until: apt install npm && cd $SCCS_HOME/matter-bridge && npm install"
+    fi
+    if ! ip -6 -o addr show scope link 2>/dev/null | grep -q .; then
+        warn "No IPv6 link-local address on this Pi — re-run menu 6 (Networking) so the LAN gets IPv6"
+    else
+        ok "IPv6 link-local is present"
+    fi
+}
+
 # mode: optional | required
+# $2: homekit | google | both | neither, when the caller already asked.
 step_voice_assistants() {
     local mode="${1:-optional}"
-    step_begin "HomeKit / Google Home"
+    local choice="${2:-}"
+    step_begin "HomeKit or Google Home"
     require_conf
     ensure_voice_sections
-
-    echo
-    info "Phone/voice control. Pairing is done in the SCCS Settings tab after this."
-    info "Both can be on at once. The phone must be on van Wi‑Fi."
-    echo
+    VOICE_AVAHI_READY=0
 
     local cur_hk cur_gh
     cur_hk="$(conf_get homekit enabled)"
     cur_gh="$(conf_get matter enabled)"
-    info "Current: HomeKit=${cur_hk:-false}  Google Home=${cur_gh:-false}"
 
-    if [[ "$mode" == "optional" ]]; then
-        ask_yn "Configure HomeKit / Google Home now?" n
-        if [[ "$REPLY" != "y" ]]; then
-            skip_note "HomeKit / Google Home skipped — use menu 10 later"
-            return 0
+    if [[ -z "$choice" ]]; then
+        echo
+        info "Phone and voice control. Pair from the Settings tab. The phone must be on van Wi‑Fi."
+        info "Current: HomeKit=${cur_hk:-false}  Google Home=${cur_gh:-false}"
+        if [[ "$mode" == "optional" ]]; then
+            ask_yn "Install Apple HomeKit / Siri or Google Home / Gemini?" y
+            if [[ "$REPLY" != "y" ]]; then
+                skip_note "HomeKit or Google Home skipped — use menu 10 later"
+                return 0
+            fi
+            ask_voice_product "$(voice_product_default)"
+            choice="$REPLY"
+        else
+            ask_voice_product "$(voice_product_default)" y
+            choice="$REPLY"
         fi
+    else
+        echo
+        info "Current: HomeKit=${cur_hk:-false}  Google Home=${cur_gh:-false}"
+        case "$choice" in
+            homekit) info "Selected: Apple HomeKit / Siri" ;;
+            google) info "Selected: Google Home / Gemini" ;;
+            both) info "Selected: Apple HomeKit / Siri and Google Home / Gemini" ;;
+            neither) info "Selected: neither" ;;
+        esac
     fi
 
     local want_hk=n want_gh=n
-    local hk_default=n gh_default=n
-    [[ "${cur_hk,,}" == "true" ]] && hk_default=y
-    [[ "${cur_gh,,}" == "true" ]] && gh_default=y
-    ask_yn "Enable Apple HomeKit / Siri?" "$hk_default"
-    want_hk="$REPLY"
-    ask_yn "Enable Google Home / Gemini?" "$gh_default"
-    want_gh="$REPLY"
+    case "$choice" in
+        homekit) want_hk=y ;;
+        google) want_gh=y ;;
+        both) want_hk=y; want_gh=y ;;
+        neither) ;;
+        *) die "Unknown voice choice: $choice" ;;
+    esac
 
-    local bind
-    bind="$(conf_get homekit bind_address)"
-    bind="${bind:-$(conf_get matter bind_address)}"
-    bind="${bind:-${LAN_ADDR:-10.10.10.1}}"
-    echo
-    read -r -p "  LAN address to advertise on [${bind}]: " ans || true
-    [[ -n "${ans:-}" ]] && bind="$ans"
+    local bind=""
+    if [[ "$want_hk" == "y" || "$want_gh" == "y" ]]; then
+        bind="$(conf_get homekit bind_address)"
+        bind="${bind:-$(conf_get matter bind_address)}"
+        bind="${bind:-${LAN_ADDR:-10.10.10.1}}"
+        echo
+        if ! read_input "  LAN address to advertise on [${bind}]: "; then
+            die "No interactive terminal available for prompts"
+        fi
+        [[ -n "${REPLY_LINE:-}" ]] && bind="$REPLY_LINE"
+    fi
+
+    if [[ "$want_hk" == "y" ]]; then
+        install_homekit_packages
+    fi
+    if [[ "$want_gh" == "y" ]]; then
+        install_google_packages
+    fi
 
     if [[ "$want_hk" == "y" || "$want_gh" == "y" ]]; then
-        info "Ensuring Avahi (LAN discovery) is running…"
-        if ! command -v avahi-daemon >/dev/null 2>&1; then
-            DEBIAN_FRONTEND=noninteractive apt-get install -y \
-                avahi-daemon libavahi-compat-libdnssd1 avahi-utils
-        fi
-        systemctl enable --now avahi-daemon >/dev/null 2>&1 || true
-        ok "Avahi enabled"
+        conf_set homekit enabled "$([ "$want_hk" == "y" ] && echo true || echo false)" bind_address "$bind"
+        conf_set matter enabled "$([ "$want_gh" == "y" ] && echo true || echo false)" bind_address "$bind"
+    else
+        conf_set homekit enabled false
+        conf_set matter enabled false
     fi
-
+    if [[ "$want_hk" == "y" ]]; then
+        ok "Apple HomeKit / Siri enabled"
+    else
+        ok "Apple HomeKit / Siri off"
+    fi
     if [[ "$want_gh" == "y" ]]; then
-        info "Google Home needs Node.js and IPv6 on the van LAN."
-        if ! command -v node >/dev/null 2>&1; then
-            DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
-        fi
-        if ! command -v npm >/dev/null 2>&1; then
-            DEBIAN_FRONTEND=noninteractive apt-get install -y npm || true
-        fi
-        if [[ -f "$SCCS_HOME/matter-bridge/package.json" ]] && command -v npm >/dev/null 2>&1; then
-            run_as_user bash -c "cd \"$SCCS_HOME/matter-bridge\" && npm install --omit=dev"
-            ok "matter-bridge packages installed"
-        elif ! command -v npm >/dev/null 2>&1; then
-            warn "npm is not installed — Google Home will not start until: apt install npm && cd $SCCS_HOME/matter-bridge && npm install"
-        fi
-        if ! ip -6 -o addr show scope link 2>/dev/null | grep -q .; then
-            warn "No IPv6 link-local address on this Pi — re-run menu 6 (Networking) so the LAN gets IPv6"
-        else
-            ok "IPv6 link-local is present"
-        fi
+        ok "Google Home / Gemini enabled"
+    else
+        ok "Google Home / Gemini off"
     fi
 
-    conf_set homekit enabled "$([ "$want_hk" == "y" ] && echo true || echo false)" bind_address "$bind"
-    conf_set matter enabled "$([ "$want_gh" == "y" ] && echo true || echo false)" bind_address "$bind"
-    ok "Updated [homekit] and [matter]"
-
-    restart_sccs_service_if_active "to load HomeKit / Google Home"
-    info "Open Settings → HomeKit / Google Home on the UI to pair."
+    local load_what="voice control"
+    if [[ "$want_hk" == "y" && "$want_gh" == "y" ]]; then
+        load_what="HomeKit and Google Home"
+    elif [[ "$want_hk" == "y" ]]; then
+        load_what="HomeKit"
+    elif [[ "$want_gh" == "y" ]]; then
+        load_what="Google Home"
+    fi
+    restart_sccs_service_if_active "to load ${load_what}"
+    if [[ "$want_hk" == "y" || "$want_gh" == "y" ]]; then
+        info "Open Settings on the UI to pair."
+    fi
 }
 
 # ---------------------------------------------------------------------------
@@ -2697,6 +2921,19 @@ EOF
     rm -f /etc/dnsmasq.d/sccs-lan.conf /etc/dnsmasq.d/50-sccs-screens.conf
 
     # --- Pi-hole (DNS + DHCP) ---
+    # First time this server hands out addresses. Panels already powered on
+    # keep their old address until someone restarts them.
+    local dhcp_newly_active=0 dhcp_state=""
+    if ! command -v pihole >/dev/null 2>&1; then
+        dhcp_newly_active=1
+    elif command -v pihole-FTL >/dev/null 2>&1; then
+        dhcp_state="$(pihole-FTL --config dhcp.active 2>/dev/null || true)"
+        dhcp_state="${dhcp_state,,}"
+        dhcp_state="${dhcp_state//[$' \t\r\n\"']/}"
+        if [[ -n "$dhcp_state" && "$dhcp_state" != "true" ]]; then
+            dhcp_newly_active=1
+        fi
+    fi
     # Prefer the iface that already holds LAN_ADDR (USB-ETH may enumerate as eth1).
     local lan_if_resolved=""
     lan_if_resolved="$(ip -4 -o addr show 2>/dev/null \
@@ -2816,6 +3053,10 @@ EOF
         systemctl restart pihole-FTL 2>/dev/null || true
     fi
     ok "Pi-hole DNS + DHCP active on ${LAN_IF}"
+    if [[ "$dhcp_newly_active" -eq 1 ]]; then
+        mkdir -p "$INSTALL_RESUME_DIR"
+        : >"$DHCP_PANEL_RESTART_FLAG"
+    fi
 }
 
 # Write Pi-hole static DHCP from [screens] host+mac (safe if none configured yet).
@@ -4156,7 +4397,7 @@ step_usb_tether() {
     step_begin "Configure iPhone USB Hotspot"
     require_checkout
     if [[ "$mode" == "optional" ]]; then
-        ask_yn "Set up phone USB tethering as internet uplink now?" n
+        ask_yn "Set up phone USB tethering as internet uplink now?" y
         if [[ "$REPLY" != "y" ]]; then
             skip_note "USB tether skipped — use menu later when a phone is available"
             return 0
@@ -5593,7 +5834,7 @@ step_screens() {
     trap 'trap - RETURN; restart_sccs_if_screen_config_changed' RETURN
 
     if [[ "$mode" == "optional" ]]; then
-        ask_yn "Configure touchscreen panel(s) now?" n
+        ask_yn "Configure touchscreen panel(s) now?" y
         if [[ "$REPLY" != "y" ]]; then
             skip_note "Touchscreen setup skipped — menu item later when panels are online"
             return 0
@@ -5654,6 +5895,20 @@ step_screens() {
     fi
     if ! ip -4 addr show dev "$lan_if" 2>/dev/null | grep -q "inet "; then
         die "No IPv4 on ${lan_if} — run menu 6 (LAN / Pi-hole) first"
+    fi
+
+    # First scan after DHCP came up. A panel that was already on never asked
+    # this server for an address, so the sweep will not see it.
+    if [[ -f "$DHCP_PANEL_RESTART_FLAG" ]]; then
+        echo
+        info "Pi-hole DHCP just started handing out addresses on the van LAN."
+        info "Restart every touchscreen (power off, then on) and wait until each one has finished booting."
+        ask_yn "Touchscreens restarted. Start detection?" y
+        if [[ "$REPLY" != "y" ]]; then
+            skip_note "Touchscreen detection skipped — restart the panels, then run menu 8"
+            return 0
+        fi
+        rm -f "$DHCP_PANEL_RESTART_FLAG"
     fi
 
     while true; do
@@ -5843,7 +6098,7 @@ EOF
 step_checklist() {
     step_begin "Notes"
     info "Touchscreens: menu 8 / --screens (LAN scan → config → SSH + Chromium UI autostart)"
-    info "HomeKit / Google Home: menu 10 / --voice (then pair from the Settings tab)"
+    info "HomeKit or Google Home: menu 10 / --voice (then pair from the Settings tab)"
     info "Hardware you skipped: finish later from this menu"
     ok "Done"
 }
@@ -5894,7 +6149,7 @@ step_update() {
             echo
             warn "New ESP32 firmware pulled from repository:"
             echo "$esp_changed" | sed 's/^/    /'
-            ask_yn "Flash updated ESP32 firmware now (Pi must be on the SCCS Core)?" y
+            ask_sccs_core_flash "Flash updated ESP32 firmware now (Pi must be on the SCCS Core)?" y
             if [[ "$REPLY" == "y" ]]; then
                 step_esp required
             else
@@ -5911,10 +6166,11 @@ step_update() {
     else
         warn "No venv — skip pip (run Install SCCS first)"
     fi
-    if [[ -f "$SCCS_HOME/matter-bridge/package.json" ]] && command -v npm >/dev/null 2>&1; then
-        info "Refreshing matter-bridge npm packages…"
-        run_as_user bash -c "cd \"$SCCS_HOME/matter-bridge\" && npm install --omit=dev"
-        ok "matter-bridge npm packages installed"
+    local matter_on
+    matter_on="$(conf_get matter enabled)"
+    if [[ "${matter_on,,}" == "true" ]]; then
+        VOICE_AVAHI_READY=0
+        install_google_packages refresh
     fi
 
     # Pi-hole (if installed via LAN setup) — Core / Web / FTL
@@ -6073,19 +6329,24 @@ run_install() {
     section_title "Optional hardware setup"
     info "Answer once for each — anything skipped can be finished later from the main menu."
     echo
-    local do_esp do_victron do_lan do_tether do_screens do_voice
-    ask_yn "Is this Pi connected to the SCCS Core (flash both ESP32s now)?" n
+    local do_esp do_victron do_lan do_tether do_screens do_voice voice_choice
+    ask_sccs_core_flash "Is this Pi connected to the SCCS Core (flash both ESP32s now)?" y
     do_esp="$REPLY"
-    ask_yn "Configure Victron SmartShunt / MPPT now?" n
+    ask_yn "Configure Victron SmartShunt / MPPT now?" y
     do_victron="$REPLY"
     ask_yn "Configure LAN gateway + Pi-hole (DNS/DHCP) now?" y
     do_lan="$REPLY"
-    ask_yn "Set up phone USB tethering as internet uplink now?" n
+    ask_yn "Set up phone USB tethering as internet uplink now?" y
     do_tether="$REPLY"
-    ask_yn "Configure touchscreen panel(s) now?" n
+    ask_yn "Configure touchscreen panel(s) now?" y
     do_screens="$REPLY"
-    ask_yn "Configure HomeKit / Google Home now?" n
+    ask_yn "Install Apple HomeKit / Siri or Google Home / Gemini?" y
     do_voice="$REPLY"
+    voice_choice=""
+    if [[ "$do_voice" == "y" ]]; then
+        ask_voice_product "$(voice_product_default)"
+        voice_choice="$REPLY"
+    fi
     echo
 
     run_optional_step "$do_esp" "ESP32 firmware" \
@@ -6098,8 +6359,12 @@ run_install() {
         "USB tether skipped — use menu later when a phone is available" step_usb_tether
     run_optional_step "$do_screens" "Touchscreens (scan LAN · config · SSH · Chromium UI)" \
         "Touchscreen setup skipped — menu item later when panels are online" step_screens
-    run_optional_step "$do_voice" "HomeKit / Google Home" \
-        "HomeKit / Google Home skipped — use menu 10 later" step_voice_assistants
+    if [[ "$do_voice" == "y" ]]; then
+        step_voice_assistants required "$voice_choice"
+    else
+        step_begin "HomeKit or Google Home"
+        skip_note "HomeKit or Google Home skipped — use menu 10 later"
+    fi
 
     step_service
     step_checklist
@@ -6139,7 +6404,7 @@ ${C_BOLD}SCCS setup${C_RESET}
   sudo $0 --usb-tether    Configure iPhone USB Hotspot
   sudo $0 --screens       Scan LAN · add touchscreen · SSH + Chromium UI
   sudo $0 --service       Install / restart systemd service
-  sudo $0 --voice         HomeKit / Google Home
+  sudo $0 --voice         HomeKit / Siri, Google Home / Gemini, or both
   sudo $0 --help          This help
 
 Environment: USERNAME  SCCS_HOME  LAN_ADDR  REPO_URL
@@ -6166,7 +6431,7 @@ show_menu() {
         echo "  ${C_CYAN}7${C_RESET}  Configure iPhone USB Hotspot"
         echo "  ${C_CYAN}8${C_RESET}  Configure Touchscreens"
         echo "  ${C_CYAN}9${C_RESET}  Restart ${SERVICE_NAME} service"
-        echo "  ${C_CYAN}10${C_RESET} Configure HomeKit / Google Home"
+        echo "  ${C_CYAN}10${C_RESET} Configure HomeKit or Google Home"
         echo "  ${C_CYAN}q${C_RESET}  Quit"
         echo
         if ! read_input "  ${C_BOLD}Select${C_RESET} [1-10 / q]: "; then
@@ -6212,7 +6477,7 @@ show_menu() {
                 pause_enter
                 ;;
             10)
-                run_partial "Configure HomeKit / Google Home" step_voice_assistants required || true
+                run_partial "Configure HomeKit or Google Home" step_voice_assistants required || true
                 pause_enter
                 ;;
             # Empty Enter re-prompts — do not treat as quit (that kicked users out).
@@ -6301,5 +6566,5 @@ case "$RUN_MODE" in
     usb_tether) logo; show_context; run_partial "Configure iPhone USB Hotspot" step_usb_tether required ;;
     screens) logo; show_context; run_partial "Touchscreens" step_screens required ;;
     service) logo; show_context; run_partial "Service" step_service ;;
-    voice)   logo; show_context; run_partial "HomeKit / Google Home" step_voice_assistants required ;;
+    voice)   logo; show_context; run_partial "HomeKit or Google Home" step_voice_assistants required ;;
 esac

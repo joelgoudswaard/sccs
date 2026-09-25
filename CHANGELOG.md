@@ -5,6 +5,10 @@ All notable changes to SCCS are documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- Setup reads GPIO26, the SCCS Core presence pull-up (header pin 37, R5 to 3.3V). When that pin is high it skips the “is this Pi on the SCCS Core?” question and asks to proceed.
+- The first touchscreen scan after Pi-hole DHCP is installed asks for every panel to be restarted, then waits for confirmation before detection. Panels that were already on have no address from the new server until they boot again.
+- Install questions for the SCCS Core, Victron, phone USB tethering, touchscreens, and HomeKit or Google Home default to yes.
+- Voice setup asks whether to install Apple HomeKit / Siri or Google Home / Gemini, then which one: HomeKit, Google, or both. HomeKit installs on its own. Node.js and the Matter bridge install when Google Home is chosen.
 - HomeKit and Google Home pairing copy now says to use your iPhone or Android instead of the van Wi‑Fi.
 - Date & Time sunrise and sunset labels now start in line with the time, and the sun and moon icons span that label and the time.
 - Configuring temperature sensors or touchscreens left the running service on the old `sccs.conf` until something else restarted it. Those steps now restart `sccs.service` when it is already running, after the config for that step is saved.
