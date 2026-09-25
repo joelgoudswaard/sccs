@@ -14,7 +14,7 @@
 #   sudo ./install.sh --sensors    # 1-Wire only
 #   sudo ./install.sh --lan        # LAN / DHCP / NAT only
 #   sudo ./install.sh --usb-tether # Guided phone USB internet
-#   sudo ./install.sh --screens    # Scan LAN, add touchscreen, SSH + Chromium UI
+#   sudo ./install.sh --screens    # Scan LAN, add touchscreen, SSH + desktop login + Chromium UI
 #   sudo ./install.sh --service    # rewrite/restart systemd unit
 #   sudo ./install.sh --voice      # HomeKit / Siri, Google Home / Gemini, or both
 #   sudo ./install.sh --help
@@ -3778,7 +3778,7 @@ print(bright + "\t" + blank + "\t" + method + "\t" + "; ".join(detail))
 
 
 # ---------------------------------------------------------------------------
-# Integrated: one touchscreen (SSH key + blank/shutdown sudoers + Chromium UI)
+# Integrated: one touchscreen (SSH key + blank/shutdown sudoers + desktop autologin + Chromium UI)
 # Args: user host alias blank_path skip_blank(0|1) [password] [reserved_ip]
 # host          = address that answers now (live lease or already-moved reserved)
 # reserved_ip   = desired/static IP written to conf + Pi-hole (may equal host)
@@ -3786,7 +3786,9 @@ print(bright + "\t" + blank + "\t" + method + "\t" + "; ".join(detail))
 # Key material + ssh run as USERNAME (not root).
 # The panel account password is stored in ~/.sccs/screen_credentials (mode 600),
 # not in sccs.conf. Optional arg 8 is the [screens] key used for that file.
-# On success, also sets Chromium homepage to the control Pi and autostarts it.
+# On success, enables passwordless desktop login on Raspberry Pi OS and Armbian,
+# turns off idle display blanking and sleep, sets the Chromium homepage to the
+# control Pi, and autostarts it.
 # When reserved_ip differs from the live lease, the panel is told to drop that
 # lease. Later steps (Chromium) run only after the reserved address answers.
 # ---------------------------------------------------------------------------
@@ -4204,28 +4206,861 @@ EOS2
             info "Update will ask once for the panel password, then save it, before apt upgrade on ${screen_host}"
         fi
 
-        if configure_touchscreen_browser "$screen_user" "$screen_host" "${screen_pass:-}"; then
-            ok "Chromium homepage + autostart → ${SCCS_UI_URL}"
-        else
-            # If we configured via live host and reserved is different, retry once
-            # on reserved in case the panel moved mid-browser-setup.
+        if ! apply_touchscreen_desktop_session "$screen_user" "$screen_host" "${screen_pass:-}"; then
+            # Browser setup can miss a panel that moved to its reserved address
+            # during SSH setup. Login and idle-power were already attempted above.
             if [[ -n "$reserved_ip" && "$reserved_ip" != "$screen_host" ]] \
-                && wait_panel_ssh "$reserved_ip" 15; then
-                if configure_touchscreen_browser "$screen_user" "$reserved_ip" "${screen_pass:-}"; then
-                    ok "Chromium homepage + autostart → ${SCCS_UI_URL} (via reserved ${reserved_ip})"
-                    screen_host="$reserved_ip"
-                else
-                    warn "SSH control OK, but Chromium UI autostart was not fully configured"
-                    info "On the panel: install chromium, or re-run menu 8 after the browser is available."
-                fi
+                && wait_panel_ssh "$reserved_ip" 15 \
+                && configure_touchscreen_browser "$screen_user" "$reserved_ip" "${screen_pass:-}"; then
+                ok "Chromium homepage + autostart → ${SCCS_UI_URL} (via reserved ${reserved_ip})"
+                screen_host="$reserved_ip"
             else
-                warn "SSH control OK, but Chromium UI autostart was not fully configured on ${screen_host}"
+                warn "Chromium homepage was not fully configured on ${screen_host}"
                 info "On the panel: install chromium, or re-run menu 8 after the browser is available."
             fi
         fi
     fi
 
     unset screen_pass REPLY_PASS 2>/dev/null || true
+    return "$rc"
+}
+
+
+# ---------------------------------------------------------------------------
+# Passwordless desktop login for the panel account.
+# Raspberry Pi OS: raspi-config desktop autologin (LightDM) and tty1.
+# Armbian: the display manager already in use (LightDM, SDDM, GDM, or greetd).
+# The account password is left as it is. Login without it starts on the next boot.
+# Args: user host [password]
+# Exit 4 when the panel is not Raspberry Pi OS or Armbian.
+# ---------------------------------------------------------------------------
+configure_touchscreen_autologin() {
+    local screen_user="$1" screen_host="$2" screen_pass="${3:-}"
+
+    info "Enabling passwordless desktop login on ${screen_user}@${screen_host}…"
+
+    local rc=0
+    if run_user_bash env \
+        SCREEN_USER="$screen_user" \
+        SCREEN_HOST="$screen_host" \
+        SCREEN_PASS="${screen_pass:-}" \
+        <<'EOS'
+set -euo pipefail
+KEY="$HOME/.ssh/sccs_screen"
+KNOWN_HOSTS="$HOME/.sccs/screen_known_hosts"
+SSH_BATCH=(
+    -o BatchMode=yes
+    -o PreferredAuthentications=publickey
+    -o IdentitiesOnly=yes
+    -o UserKnownHostsFile="${KNOWN_HOSTS}"
+    -o StrictHostKeyChecking=accept-new
+    -o ConnectTimeout=15
+    -i "${KEY}"
+)
+[[ -f "$KEY" ]] || { echo "Missing $KEY" >&2; exit 1; }
+
+remote_cmd=$(cat <<'REMOTE'
+set -euo pipefail
+USER_NAME=${1:-}
+if [[ -z "$USER_NAME" ]]; then
+    echo "No panel account name for desktop autologin" >&2
+    exit 1
+fi
+case "$USER_NAME" in
+    *[!a-zA-Z0-9._-]*)
+        echo "Refusing desktop autologin for unusual account name: ${USER_NAME}" >&2
+        exit 1
+        ;;
+esac
+if ! id "$USER_NAME" >/dev/null 2>&1; then
+    echo "Panel account ${USER_NAME} does not exist" >&2
+    exit 1
+fi
+
+family=""
+if [[ -f /etc/armbian-release || -f /etc/armbian-image-release ]]; then
+    family=armbian
+fi
+if [[ -r /etc/os-release ]]; then
+    os_id=$(. /etc/os-release && printf '%s' "${ID:-}" || true)
+    os_like=$(. /etc/os-release && printf '%s' "${ID_LIKE:-}" || true)
+    pretty=$(. /etc/os-release && printf '%s' "${PRETTY_NAME:-} ${NAME:-}" || true)
+    case "$os_id" in
+        armbian) family=armbian ;;
+        raspbian|raspberrypi)
+            [[ "$family" == armbian ]] || family=rpi
+            ;;
+    esac
+    case " ${os_like} " in
+        *" armbian "*) family=armbian ;;
+    esac
+    if [[ "$family" != armbian && "$pretty" == *[Rr]aspberry[[:space:]][Pp]i* ]]; then
+        family=rpi
+    fi
+fi
+if [[ -z "$family" && -f /etc/rpi-issue ]]; then
+    family=rpi
+fi
+if [[ -z "$family" && -x /usr/bin/raspi-config && ! -f /etc/armbian-release && ! -f /etc/armbian-image-release ]]; then
+    family=rpi
+fi
+if [[ -z "$family" ]]; then
+    echo "Desktop autologin is only set up for Raspberry Pi OS and Armbian." >&2
+    exit 4
+fi
+echo "Panel OS: ${family}"
+
+session_file_exists() {
+    local name="$1"
+    [[ -f "/usr/share/wayland-sessions/${name}.desktop" || -f "/usr/share/xsessions/${name}.desktop" ]]
+}
+
+pick_session() {
+    local state="/var/lib/sddm/state.conf" last="" f
+    if [[ -r "$state" ]]; then
+        last=$(awk -F= '/^[[:space:]]*Session=/{print substr($0, index($0,"=")+1); exit}' "$state")
+        last=${last#"${last%%[![:space:]]*}"}
+        last=${last%"${last##*[![:space:]]}"}
+        last=${last#\"}
+        last=${last%\"}
+        last=$(basename "$last" .desktop)
+        if [[ -n "$last" ]] && session_file_exists "$last"; then
+            printf '%s\n' "$last"
+            return 0
+        fi
+    fi
+    local files=(
+        /usr/share/wayland-sessions/plasmawayland.desktop
+        /usr/share/wayland-sessions/plasma.desktop
+        /usr/share/xsessions/plasmax11.desktop
+        /usr/share/xsessions/plasma.desktop
+        /usr/share/wayland-sessions/xfce.desktop
+        /usr/share/xsessions/xfce.desktop
+        /usr/share/xsessions/xfce4.desktop
+        /usr/share/wayland-sessions/rpd-labwc.desktop
+        /usr/share/wayland-sessions/LXDE-pi-labwc.desktop
+        /usr/share/xsessions/LXDE-pi.desktop
+        /usr/share/xsessions/LXDE-pi-x.desktop
+        /usr/share/wayland-sessions/LXDE-pi-wayfire.desktop
+    )
+    for f in "${files[@]}"; do
+        if [[ -f "$f" ]]; then
+            basename "$f" .desktop
+            return 0
+        fi
+    done
+    local any=()
+    shopt -s nullglob
+    any=(/usr/share/wayland-sessions/*.desktop /usr/share/xsessions/*.desktop)
+    shopt -u nullglob
+    if [[ ${#any[@]} -gt 0 ]]; then
+        basename "${any[0]}" .desktop
+        return 0
+    fi
+    return 1
+}
+
+pick_session_exec() {
+    local f exec_line
+    local files=(
+        /usr/share/wayland-sessions/rpd-labwc.desktop
+        /usr/share/wayland-sessions/LXDE-pi-labwc.desktop
+        /usr/share/wayland-sessions/labwc.desktop
+        /usr/share/wayland-sessions/plasmawayland.desktop
+        /usr/share/wayland-sessions/plasma.desktop
+        /usr/share/xsessions/plasmax11.desktop
+        /usr/share/xsessions/plasma.desktop
+        /usr/share/xsessions/xfce.desktop
+    )
+    for f in "${files[@]}"; do
+        [[ -f "$f" ]] || continue
+        exec_line=$(awk -F= '/^Exec=/{print substr($0, index($0,"=")+1); exit}' "$f")
+        if [[ -n "$exec_line" ]]; then
+            printf '%s\n' "$exec_line"
+            return 0
+        fi
+    done
+    return 1
+}
+
+detect_dm() {
+    local target="" base="" unit="" dmfile=""
+    if [[ -L /etc/systemd/system/display-manager.service ]]; then
+        target=$(readlink -f /etc/systemd/system/display-manager.service || true)
+        base=$(basename "$target")
+        case "$base" in
+            sddm.service) printf '%s\n' sddm; return 0 ;;
+            lightdm.service) printf '%s\n' lightdm; return 0 ;;
+            gdm.service|gdm3.service) printf '%s\n' gdm; return 0 ;;
+            greetd.service) printf '%s\n' greetd; return 0 ;;
+        esac
+    fi
+    if [[ -r /etc/X11/default-display-manager ]]; then
+        dmfile=$(tr -d '[:space:]' < /etc/X11/default-display-manager)
+        base=$(basename "$dmfile")
+        case "$base" in
+            sddm|lightdm|greetd) printf '%s\n' "$base"; return 0 ;;
+            gdm|gdm3) printf '%s\n' gdm; return 0 ;;
+        esac
+    fi
+    for unit in sddm lightdm gdm3 gdm greetd; do
+        if systemctl is-enabled "${unit}.service" >/dev/null 2>&1; then
+            case "$unit" in
+                gdm3) printf '%s\n' gdm ;;
+                *) printf '%s\n' "$unit" ;;
+            esac
+            return 0
+        fi
+    done
+    if [[ -x /usr/bin/sddm || -x /usr/sbin/sddm || -f /etc/sddm.conf ]]; then
+        printf '%s\n' sddm
+        return 0
+    fi
+    if [[ -x /usr/sbin/lightdm || -x /usr/bin/lightdm || -f /etc/lightdm/lightdm.conf ]]; then
+        printf '%s\n' lightdm
+        return 0
+    fi
+    if [[ -f /etc/gdm3/custom.conf || -f /etc/gdm3/daemon.conf || -f /etc/gdm/custom.conf ]]; then
+        printf '%s\n' gdm
+        return 0
+    fi
+    if [[ -x /usr/sbin/greetd || -f /etc/greetd/config.toml ]]; then
+        printf '%s\n' greetd
+        return 0
+    fi
+    return 1
+}
+
+ensure_autologin_group() {
+    if [[ -f /etc/pam.d/lightdm-autologin ]] && grep -q 'ingroup autologin' /etc/pam.d/lightdm-autologin; then
+        getent group autologin >/dev/null 2>&1 || groupadd --system autologin
+    fi
+    if getent group autologin >/dev/null 2>&1; then
+        usermod -aG autologin "$USER_NAME"
+        echo "Account ${USER_NAME} is in group autologin"
+    fi
+    if getent group nopasswdlogin >/dev/null 2>&1; then
+        usermod -aG nopasswdlogin "$USER_NAME"
+    fi
+}
+
+enable_lightdm() {
+    local conf="/etc/lightdm/lightdm.conf"
+    install -d -m 755 /etc/lightdm/lightdm.conf.d
+    if [[ -f "$conf" ]]; then
+        if grep -qE '^[[:space:]]*#?[[:space:]]*autologin-user=' "$conf"; then
+            sed -i -E "s/^[[:space:]]*#?[[:space:]]*autologin-user=.*/autologin-user=${USER_NAME}/" "$conf"
+        fi
+        if grep -qE '^[[:space:]]*#?[[:space:]]*autologin-user-timeout=' "$conf"; then
+            sed -i -E "s/^[[:space:]]*#?[[:space:]]*autologin-user-timeout=.*/autologin-user-timeout=0/" "$conf"
+        fi
+    fi
+    cat > /etc/lightdm/lightdm.conf.d/zz-sccs-autologin.conf <<EOF
+[Seat:*]
+autologin-user=${USER_NAME}
+autologin-user-timeout=0
+EOF
+    chmod 644 /etc/lightdm/lightdm.conf.d/zz-sccs-autologin.conf
+    ensure_autologin_group
+    systemctl enable lightdm.service >/dev/null 2>&1 || true
+    systemctl set-default graphical.target
+    grep -q "^autologin-user=${USER_NAME}$" /etc/lightdm/lightdm.conf.d/zz-sccs-autologin.conf
+    echo "LightDM autologin enabled for ${USER_NAME}"
+}
+
+enable_rpi_console_autologin() {
+    [[ "$family" == rpi ]] || return 0
+    install -d -m 755 /etc/systemd/system/getty@tty1.service.d
+    cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf <<EOF
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin ${USER_NAME} --noclear %I \$TERM
+EOF
+    chmod 644 /etc/systemd/system/getty@tty1.service.d/autologin.conf
+    systemctl daemon-reload || true
+    echo "Console autologin enabled for ${USER_NAME} on tty1"
+}
+
+enable_sddm() {
+    local session=""
+    session=$(pick_session || true)
+    install -d -m 755 /etc/sddm.conf.d
+    {
+        echo "[Autologin]"
+        echo "User=${USER_NAME}"
+        if [[ -n "$session" ]]; then
+            echo "Session=${session}"
+        fi
+        echo "Relogin=false"
+    } > /etc/sddm.conf.d/zz-sccs-autologin.conf
+    chmod 644 /etc/sddm.conf.d/zz-sccs-autologin.conf
+    systemctl enable sddm.service >/dev/null 2>&1 || true
+    systemctl set-default graphical.target
+    grep -q "^User=${USER_NAME}$" /etc/sddm.conf.d/zz-sccs-autologin.conf
+    if [[ -n "$session" ]]; then
+        echo "SDDM autologin enabled for ${USER_NAME} (session ${session})"
+    else
+        echo "SDDM autologin enabled for ${USER_NAME} (default session)"
+    fi
+}
+
+enable_gdm() {
+    local conf="" cand
+    for cand in /etc/gdm3/custom.conf /etc/gdm3/daemon.conf /etc/gdm/custom.conf; do
+        if [[ -f "$cand" ]]; then
+            conf=$cand
+            break
+        fi
+    done
+    if [[ -z "$conf" ]]; then
+        install -d -m 755 /etc/gdm3
+        conf=/etc/gdm3/custom.conf
+        printf '%s\n' '[daemon]' > "$conf"
+    fi
+    if grep -qE '^[[:space:]]*#?[[:space:]]*AutomaticLoginEnable[[:space:]]*=' "$conf"; then
+        sed -i -E 's/^[[:space:]]*#?[[:space:]]*AutomaticLoginEnable[[:space:]]*=.*/AutomaticLoginEnable=true/' "$conf"
+    elif grep -q '^\[daemon\]' "$conf"; then
+        sed -i '/^\[daemon\]/a AutomaticLoginEnable=true' "$conf"
+    else
+        printf '\n[daemon]\nAutomaticLoginEnable=true\n' >> "$conf"
+    fi
+    if grep -qE '^[[:space:]]*#?[[:space:]]*AutomaticLogin[[:space:]]*=' "$conf"; then
+        sed -i -E "s/^[[:space:]]*#?[[:space:]]*AutomaticLogin[[:space:]]*=.*/AutomaticLogin=${USER_NAME}/" "$conf"
+    elif grep -q '^\[daemon\]' "$conf"; then
+        sed -i "/^\[daemon\]/a AutomaticLogin=${USER_NAME}" "$conf"
+    else
+        printf 'AutomaticLogin=%s\n' "$USER_NAME" >> "$conf"
+    fi
+    systemctl enable gdm3.service >/dev/null 2>&1 || systemctl enable gdm.service >/dev/null 2>&1 || true
+    systemctl set-default graphical.target
+    grep -q "^AutomaticLogin=${USER_NAME}$" "$conf"
+    echo "GDM autologin enabled for ${USER_NAME}"
+}
+
+enable_greetd() {
+    local cfg="/etc/greetd/config.toml" session_cmd="" tmp esc
+    [[ -f "$cfg" ]] || { echo "greetd config ${cfg} is missing" >&2; return 1; }
+    session_cmd=$(pick_session_exec || true)
+    [[ -n "$session_cmd" ]] || session_cmd="labwc"
+    esc=$(printf '%s' "$session_cmd" | sed 's/\\/\\\\/g; s/"/\\"/g')
+    tmp=$(mktemp)
+    awk '
+        /^\[initial_session\][[:space:]]*$/ { skip=1; next }
+        /^\[/ { skip=0 }
+        skip { next }
+        { print }
+    ' "$cfg" > "$tmp"
+    printf '\n[initial_session]\ncommand = "%s"\nuser = "%s"\n' "$esc" "$USER_NAME" >> "$tmp"
+    cat "$tmp" > "$cfg"
+    rm -f "$tmp"
+    chmod 644 "$cfg"
+    systemctl enable greetd.service >/dev/null 2>&1 || true
+    systemctl set-default graphical.target
+    grep -q "^user = \"${USER_NAME}\"$" "$cfg"
+    echo "greetd autologin enabled for ${USER_NAME}"
+}
+
+if [[ "$family" == rpi ]] && command -v raspi-config >/dev/null 2>&1 \
+    && { [[ -e /etc/init.d/lightdm ]] || [[ -x /usr/sbin/lightdm ]] || [[ -f /etc/lightdm/lightdm.conf ]]; }; then
+    echo "Raspberry Pi OS: raspi-config desktop autologin"
+    if command -v timeout >/dev/null 2>&1; then
+        timeout 30 raspi-config nonint do_boot_behaviour B4 \
+            || echo "raspi-config did not apply desktop autologin; writing the display-manager config directly"
+    else
+        raspi-config nonint do_boot_behaviour B4 \
+            || echo "raspi-config did not apply desktop autologin; writing the display-manager config directly"
+    fi
+fi
+
+dm=$(detect_dm || true)
+echo "Display manager: ${dm:-none}"
+case "$dm" in
+    lightdm)
+        enable_lightdm
+        enable_rpi_console_autologin
+        ;;
+    sddm) enable_sddm ;;
+    gdm) enable_gdm ;;
+    greetd) enable_greetd ;;
+    *)
+        echo "No LightDM, SDDM, GDM, or greetd on this ${family} panel." >&2
+        exit 1
+        ;;
+esac
+echo "Passwordless desktop login takes effect on the next boot."
+REMOTE
+)
+
+rc=0
+if [[ -n "${SCREEN_PASS:-}" ]]; then
+    printf '%s\n' "$SCREEN_PASS" | ssh "${SSH_BATCH[@]}" "${SCREEN_USER}@${SCREEN_HOST}" \
+        "sudo -S -p '' bash -c $(printf '%q' "$remote_cmd") -- $(printf '%q' "$SCREEN_USER")" || rc=$?
+else
+    ssh "${SSH_BATCH[@]}" "${SCREEN_USER}@${SCREEN_HOST}" \
+        "sudo -n bash -c $(printf '%q' "$remote_cmd") -- $(printf '%q' "$SCREEN_USER")" || rc=$?
+fi
+if [[ "$rc" -eq 0 ]]; then
+    exit 0
+fi
+if [[ "$rc" -eq 4 ]]; then
+    exit 4
+fi
+echo "Desktop autologin failed (exit ${rc})." >&2
+exit 1
+EOS
+    then
+        rc=0
+    else
+        rc=$?
+    fi
+    return "$rc"
+}
+
+
+# ---------------------------------------------------------------------------
+# Stop the panel OS from blanking, dimming, or sleeping the display when idle.
+# Raspberry Pi OS: raspi-config screen blanking off, and the labwc swayidle line.
+# Armbian: the desktop's own power settings (KDE, XFCE, GNOME, labwc, X11).
+# SCCS reed and phase brightness is unchanged.
+# Args: user host [password]
+# Exit 4 when the panel is not Raspberry Pi OS or Armbian.
+# ---------------------------------------------------------------------------
+configure_touchscreen_power() {
+    local screen_user="$1" screen_host="$2" screen_pass="${3:-}"
+    local rc=0
+
+    info "Disabling idle screen power-off on ${screen_user}@${screen_host}…"
+
+    if run_user_bash env \
+        SCREEN_USER="$screen_user" \
+        SCREEN_HOST="$screen_host" \
+        SCREEN_PASS="${screen_pass:-}" \
+        <<'EOS'
+set -euo pipefail
+KEY="$HOME/.ssh/sccs_screen"
+KNOWN_HOSTS="$HOME/.sccs/screen_known_hosts"
+SSH_BATCH=(
+    -o BatchMode=yes
+    -o PreferredAuthentications=publickey
+    -o IdentitiesOnly=yes
+    -o UserKnownHostsFile="${KNOWN_HOSTS}"
+    -o StrictHostKeyChecking=accept-new
+    -o ConnectTimeout=15
+    -i "${KEY}"
+)
+[[ -f "$KEY" ]] || { echo "Missing $KEY" >&2; exit 1; }
+
+remote_cmd=$(cat <<'REMOTE'
+set -euo pipefail
+USER_NAME=${1:-}
+if [[ -z "$USER_NAME" ]]; then
+    echo "No panel account name for power settings" >&2
+    exit 1
+fi
+case "$USER_NAME" in
+    *[!a-zA-Z0-9._-]*)
+        echo "Refusing power settings for unusual account name: ${USER_NAME}" >&2
+        exit 1
+        ;;
+esac
+user_home=$(getent passwd "$USER_NAME" | cut -d: -f6)
+if [[ -z "$user_home" || ! -d "$user_home" ]]; then
+    echo "Panel account ${USER_NAME} does not exist" >&2
+    exit 1
+fi
+user_group=$(id -gn "$USER_NAME")
+
+family=""
+if [[ -f /etc/armbian-release || -f /etc/armbian-image-release ]]; then
+    family=armbian
+fi
+if [[ -r /etc/os-release ]]; then
+    os_id=$(. /etc/os-release && printf '%s' "${ID:-}" || true)
+    os_like=$(. /etc/os-release && printf '%s' "${ID_LIKE:-}" || true)
+    pretty=$(. /etc/os-release && printf '%s' "${PRETTY_NAME:-} ${NAME:-}" || true)
+    case "$os_id" in
+        armbian) family=armbian ;;
+        raspbian|raspberrypi)
+            [[ "$family" == armbian ]] || family=rpi
+            ;;
+    esac
+    case " ${os_like} " in
+        *" armbian "*) family=armbian ;;
+    esac
+    if [[ "$family" != armbian && "$pretty" == *[Rr]aspberry[[:space:]][Pp]i* ]]; then
+        family=rpi
+    fi
+fi
+if [[ -z "$family" && -f /etc/rpi-issue ]]; then
+    family=rpi
+fi
+if [[ -z "$family" && -x /usr/bin/raspi-config && ! -f /etc/armbian-release && ! -f /etc/armbian-image-release ]]; then
+    family=rpi
+fi
+if [[ -z "$family" ]]; then
+    echo "Idle screen power-off is only changed on Raspberry Pi OS and Armbian." >&2
+    exit 4
+fi
+echo "Panel OS: ${family}"
+
+own_user() {
+    local path="$1"
+    chown "$USER_NAME:$user_group" "$path" 2>/dev/null || chown "$USER_NAME" "$path"
+}
+
+kconfig_set() {
+    local file="$1" section="$2" key="$3" value="$4"
+    install -d -o "$USER_NAME" -g "$user_group" "$(dirname "$file")"
+    python3 - "$file" "$section" "$key" "$value" <<'PY'
+import os, sys
+path, section, key, value = sys.argv[1:5]
+lines = []
+if os.path.isfile(path):
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        lines = fh.read().splitlines()
+header = section if section.startswith("[") else "[" + section + "]"
+out = []
+in_section = False
+found_section = False
+found_key = False
+for line in lines:
+    stripped = line.strip()
+    if stripped.startswith("[") and stripped.endswith("]") and stripped.count("[") >= 1:
+        if in_section and not found_key:
+            out.append("%s=%s" % (key, value))
+            found_key = True
+        in_section = stripped == header
+        if in_section:
+            found_section = True
+            found_key = False
+        out.append(line)
+        continue
+    if in_section and "=" in stripped and not stripped.startswith("#"):
+        name = stripped.split("=", 1)[0].strip()
+        if name == key:
+            if not found_key:
+                out.append("%s=%s" % (key, value))
+                found_key = True
+            continue
+    out.append(line)
+if in_section and not found_key:
+    out.append("%s=%s" % (key, value))
+if not found_section:
+    if out and out[-1] != "":
+        out.append("")
+    out.append(header)
+    out.append("%s=%s" % (key, value))
+text = "\n".join(out)
+if not text.endswith("\n"):
+    text += "\n"
+with open(path, "w", encoding="utf-8") as fh:
+    fh.write(text)
+PY
+    own_user "$file"
+}
+
+strip_idle_blank() {
+    local file="$1" drop_if_empty="${2:-0}" tmp
+    [[ -f "$file" ]] || return 0
+    tmp=$(mktemp)
+    grep -v -E 'swayidle.*(wlopm|dpms|swaylock|loginctl|suspend)' "$file" > "$tmp" || true
+    if [[ "$drop_if_empty" == 1 ]] && ! grep -q '[^[:space:]#]' "$tmp"; then
+        rm -f "$file" "$tmp"
+        echo "Removed ${file} after dropping idle blanking, so the system desktop autostart still runs"
+        return 0
+    fi
+    if cmp -s "$tmp" "$file"; then
+        rm -f "$tmp"
+        return 0
+    fi
+    cat "$tmp" > "$file"
+    rm -f "$tmp"
+    echo "Removed idle screen-blank lines from ${file}"
+}
+
+append_consoleblank() {
+    local file="$1" real edited="" 
+    [[ -f "$file" ]] || return 0
+    real=$(readlink -f "$file")
+    case " ${CONSOLEBLANK_DONE:-} " in
+        *" ${real} "*) return 0 ;;
+    esac
+    CONSOLEBLANK_DONE="${CONSOLEBLANK_DONE:-} ${real}"
+    if grep -q 'consoleblank=' "$file"; then
+        sed -i -E 's/consoleblank=[0-9]+/consoleblank=0/g' "$file"
+    elif [[ -s "$file" ]]; then
+        sed -i 's/[[:space:]]*$/ consoleblank=0/' "$file"
+    fi
+    echo "Console blanking off in ${file}"
+}
+
+if [[ "$family" == rpi ]] && command -v raspi-config >/dev/null 2>&1; then
+    echo "Raspberry Pi OS: disable screen blanking"
+    if command -v timeout >/dev/null 2>&1; then
+        SUDO_USER="$USER_NAME" timeout 30 raspi-config nonint do_blanking 1 \
+            || echo "raspi-config did not disable screen blanking; continuing with direct settings"
+    else
+        SUDO_USER="$USER_NAME" raspi-config nonint do_blanking 1 \
+            || echo "raspi-config did not disable screen blanking; continuing with direct settings"
+    fi
+fi
+
+strip_idle_blank "$user_home/.config/labwc/autostart" 1
+strip_idle_blank /etc/xdg/labwc/autostart 0
+
+if [[ -f "$user_home/.config/wayfire.ini" ]]; then
+    kconfig_set "$user_home/.config/wayfire.ini" idle dpms_timeout 0
+    kconfig_set "$user_home/.config/wayfire.ini" idle screensaver_timeout 0
+    echo "Wayfire idle blanking disabled"
+fi
+
+install -d -m 755 /etc/X11/xorg.conf.d
+cat > /etc/X11/xorg.conf.d/10-sccs-no-blank.conf <<'XORG'
+Section "ServerFlags"
+    Option "BlankTime" "0"
+    Option "StandbyTime" "0"
+    Option "SuspendTime" "0"
+    Option "OffTime" "0"
+EndSection
+Section "Extensions"
+    Option "DPMS" "Disable"
+EndSection
+XORG
+chmod 644 /etc/X11/xorg.conf.d/10-sccs-no-blank.conf
+echo "X11 DPMS and blank timers disabled"
+
+lx_file=""
+for lx_file in \
+    /etc/xdg/lxsession/LXDE-pi/autostart \
+    /etc/xdg/lxsession/LXDE/autostart \
+    "$user_home/.config/lxsession/LXDE-pi/autostart" \
+    "$user_home/.config/lxsession/LXDE/autostart"
+do
+    [[ -f "$lx_file" ]] || continue
+    for lx_line in "@xset s off" "@xset s noblank" "@xset -dpms"; do
+        grep -qxF "$lx_line" "$lx_file" || printf '%s\n' "$lx_line" >> "$lx_file"
+    done
+    echo "X11 blanking disabled in ${lx_file}"
+done
+
+install -d -o "$USER_NAME" -g "$user_group" "$user_home/.config/autostart"
+cat > "$user_home/.config/autostart/sccs-no-dpms.desktop" <<'DESK'
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=SCCS keep display on
+Comment=Stop the X server from blanking the panel
+Exec=sh -c "xset s off; xset s noblank; xset -dpms"
+Terminal=false
+OnlyShowIn=XFCE;LXDE;X-Cinnamon;MATE;
+X-GNOME-Autostart-enabled=true
+StartupNotify=false
+DESK
+own_user "$user_home/.config/autostart/sccs-no-dpms.desktop"
+
+if [[ -f /etc/xdg/autostart/xscreensaver.desktop || -x /usr/bin/xscreensaver ]]; then
+    cat > "$user_home/.config/autostart/xscreensaver.desktop" <<'DESK'
+[Desktop Entry]
+Type=Application
+Name=XScreenSaver
+Hidden=true
+DESK
+    own_user "$user_home/.config/autostart/xscreensaver.desktop"
+    echo "xscreensaver autostart hidden"
+fi
+
+# Armbian KDE often has the session desktop file even when a non-interactive
+# SSH PATH does not include plasmashell. Match the install, not the PATH.
+if [[ -x /usr/bin/plasmashell || -x /usr/bin/startplasma-wayland || -x /usr/bin/startplasma-x11 \
+    || -x /usr/bin/kwriteconfig6 || -x /usr/bin/kwriteconfig5 \
+    || -x /usr/bin/kded6 || -x /usr/bin/kded5 \
+    || -f /usr/share/wayland-sessions/plasma.desktop \
+    || -f /usr/share/wayland-sessions/plasmawayland.desktop \
+    || -f /usr/share/xsessions/plasma.desktop \
+    || -f /usr/share/xsessions/plasmax11.desktop \
+    || -d /usr/share/plasma \
+    || -f "$user_home/.config/powerdevilrc" \
+    || -f "$user_home/.config/powermanagementprofilesrc" ]]; then
+    profile=""
+    for profile in AC Battery LowBattery; do
+        kconfig_set "$user_home/.config/powerdevilrc" "[${profile}][Display]" DimDisplayWhenIdle false
+        kconfig_set "$user_home/.config/powerdevilrc" "[${profile}][Display]" DimDisplayIdleTimeoutSec -1
+        kconfig_set "$user_home/.config/powerdevilrc" "[${profile}][Display]" TurnOffDisplayWhenIdle false
+        kconfig_set "$user_home/.config/powerdevilrc" "[${profile}][Display]" TurnOffDisplayIdleTimeoutSec -1
+        kconfig_set "$user_home/.config/powerdevilrc" "[${profile}][Display]" TurnOffDisplayIdleTimeoutWhenLockedSec -1
+        kconfig_set "$user_home/.config/powerdevilrc" "[${profile}][Display]" LockBeforeTurnOffDisplay false
+        kconfig_set "$user_home/.config/powerdevilrc" "[${profile}][SuspendAndShutdown]" AutoSuspendAction 0
+        kconfig_set "$user_home/.config/powerdevilrc" "[${profile}][SuspendAndShutdown]" AutoSuspendIdleTimeoutSec -1
+        kconfig_set "$user_home/.config/powermanagementprofilesrc" "[${profile}][DPMSControl]" idleTime 0
+        kconfig_set "$user_home/.config/powermanagementprofilesrc" "[${profile}][DimDisplay]" idleTime 0
+        kconfig_set "$user_home/.config/powermanagementprofilesrc" "[${profile}][SuspendSession]" idleTime 0
+    done
+    kconfig_set "$user_home/.config/kscreenlockerrc" "[Daemon]" Autolock false
+    kconfig_set "$user_home/.config/kscreenlockerrc" "[Daemon]" LockOnResume false
+    echo "KDE idle dim, screen-off, sleep, and autolock disabled"
+fi
+
+if command -v xfce4-power-manager >/dev/null 2>&1 \
+    || command -v xfce4-session >/dev/null 2>&1 \
+    || [[ -d "$user_home/.config/xfce4" ]]; then
+    install -d -o "$USER_NAME" -g "$user_group" \
+        "$user_home/.config/xfce4/xfconf/xfce-perchannel-xml"
+    python3 - "$user_home" <<'PY'
+import os, sys
+import xml.etree.ElementTree as ET
+home = sys.argv[1]
+base = os.path.join(home, ".config/xfce4/xfconf/xfce-perchannel-xml")
+
+def update(path, channel, props):
+    if os.path.isfile(path):
+        tree = ET.parse(path)
+        root = tree.getroot()
+    else:
+        root = ET.Element("channel", {"name": channel, "version": "1.0"})
+        tree = ET.ElementTree(root)
+    for name, typ, value in props:
+        el = None
+        for child in list(root):
+            if child.tag == "property" and child.get("name") == name:
+                el = child
+                break
+        if el is None:
+            el = ET.SubElement(root, "property")
+        el.set("name", name)
+        el.set("type", typ)
+        el.set("value", value)
+    tree.write(path, encoding="utf-8", xml_declaration=True)
+
+update(os.path.join(base, "xfce4-power-manager.xml"), "xfce4-power-manager", [
+    ("blank-on-ac", "int", "0"),
+    ("blank-on-battery", "int", "0"),
+    ("dpms-enabled", "bool", "false"),
+    ("dpms-on-ac-off", "int", "0"),
+    ("dpms-on-ac-sleep", "int", "0"),
+    ("dpms-on-battery-off", "int", "0"),
+    ("dpms-on-battery-sleep", "int", "0"),
+    ("inactivity-on-ac", "int", "0"),
+    ("inactivity-on-battery", "int", "0"),
+    ("lock-screen-suspend-hibernate", "bool", "false"),
+    ("presentation-mode", "bool", "false"),
+])
+saver_path = os.path.join(base, "xfce4-screensaver.xml")
+if os.path.isfile(saver_path):
+    tree = ET.parse(saver_path)
+    root = tree.getroot()
+else:
+    root = ET.Element("channel", {"name": "xfce4-screensaver", "version": "1.0"})
+    tree = ET.ElementTree(root)
+for child in list(root):
+    if child.tag == "property" and child.get("name") in ("saver", "lock", "enabled", "lock/enabled"):
+        root.remove(child)
+saver = ET.SubElement(root, "property", {"name": "saver", "type": "empty"})
+ET.SubElement(saver, "property", {"name": "enabled", "type": "bool", "value": "false"})
+lock = ET.SubElement(root, "property", {"name": "lock", "type": "empty"})
+ET.SubElement(lock, "property", {"name": "enabled", "type": "bool", "value": "false"})
+tree.write(saver_path, encoding="utf-8", xml_declaration=True)
+PY
+    own_user "$user_home/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-power-manager.xml"
+    own_user "$user_home/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-screensaver.xml"
+    echo "XFCE blanking, sleep, and screensaver disabled"
+fi
+
+if command -v lxqt-powermanagement >/dev/null 2>&1 || [[ -d "$user_home/.config/lxqt" ]]; then
+    kconfig_set "$user_home/.config/lxqt/lxqt-powermanagement.conf" "[General]" enableIdlenessWatcher false
+    kconfig_set "$user_home/.config/lxqt/lxqt-powermanagement.conf" "[General]" enableBatteryWatcher false
+    echo "LXQt idle power actions disabled"
+fi
+
+if command -v gsettings >/dev/null 2>&1 && command -v dbus-run-session >/dev/null 2>&1 \
+    && command -v runuser >/dev/null 2>&1; then
+    schemas=$(runuser -u "$USER_NAME" -- dbus-run-session -- gsettings list-schemas 2>/dev/null || true)
+    gset() {
+        local schema="$1" key="$2" value="$3"
+        printf '%s\n' "$schemas" | grep -qx "$schema" || return 0
+        runuser -u "$USER_NAME" -- dbus-run-session -- gsettings set "$schema" "$key" "$value" \
+            || echo "Could not set ${schema} ${key}"
+    }
+    gset org.gnome.desktop.session idle-delay 0
+    gset org.gnome.desktop.screensaver lock-enabled false
+    gset org.gnome.desktop.screensaver idle-activation-enabled false
+    gset org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type "'nothing'"
+    gset org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 0
+    gset org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type "'nothing'"
+    gset org.gnome.settings-daemon.plugins.power sleep-inactive-battery-timeout 0
+    gset org.gnome.settings-daemon.plugins.power idle-dim false
+    gset org.cinnamon.desktop.session idle-delay 0
+    gset org.cinnamon.desktop.screensaver lock-enabled false
+    gset org.cinnamon.settings-daemon.plugins.power sleep-inactive-ac-type "'nothing'"
+    gset org.cinnamon.settings-daemon.plugins.power sleep-inactive-ac-timeout 0
+    gset org.mate.power-manager sleep-display-ac 0
+    gset org.mate.power-manager sleep-display-battery 0
+    gset org.mate.power-manager idle-dim-ac false
+    gset org.mate.screensaver idle-activation-enabled false
+    gset org.mate.screensaver lock-enabled false
+    echo "GNOME, Cinnamon, and MATE idle settings updated where those schemas exist"
+fi
+
+install -d -m 755 /etc/systemd/logind.conf.d
+cat > /etc/systemd/logind.conf.d/sccs-no-idle.conf <<'LOGIN'
+[Login]
+IdleAction=ignore
+LOGIN
+chmod 644 /etc/systemd/logind.conf.d/sccs-no-idle.conf
+echo "logind will not sleep the panel when it is idle"
+
+CONSOLEBLANK_DONE=""
+append_consoleblank /boot/firmware/cmdline.txt
+append_consoleblank /boot/cmdline.txt
+if [[ -f /boot/armbianEnv.txt ]]; then
+    if grep -q 'consoleblank=' /boot/armbianEnv.txt; then
+        sed -i -E 's/consoleblank=[0-9]+/consoleblank=0/g' /boot/armbianEnv.txt
+    elif grep -q '^extraargs=' /boot/armbianEnv.txt; then
+        sed -i 's/^extraargs=/extraargs=consoleblank=0 /' /boot/armbianEnv.txt
+    else
+        printf '\nextraargs=consoleblank=0\n' >> /boot/armbianEnv.txt
+    fi
+    echo "Console blanking off in /boot/armbianEnv.txt"
+fi
+if [[ -f /etc/kbd/config ]]; then
+    if grep -q '^BLANK_TIME=' /etc/kbd/config; then
+        sed -i -E 's/^BLANK_TIME=.*/BLANK_TIME=0/' /etc/kbd/config
+    else
+        printf '\nBLANK_TIME=0\n' >> /etc/kbd/config
+    fi
+    if grep -q '^POWERDOWN_TIME=' /etc/kbd/config; then
+        sed -i -E 's/^POWERDOWN_TIME=.*/POWERDOWN_TIME=0/' /etc/kbd/config
+    else
+        printf '\nPOWERDOWN_TIME=0\n' >> /etc/kbd/config
+    fi
+    echo "Console blank timers cleared in /etc/kbd/config"
+fi
+
+echo "Idle screen power-off is disabled. It takes effect on the next boot."
+REMOTE
+)
+
+rc=0
+if [[ -n "${SCREEN_PASS:-}" ]]; then
+    printf '%s\n' "$SCREEN_PASS" | ssh "${SSH_BATCH[@]}" "${SCREEN_USER}@${SCREEN_HOST}" \
+        "sudo -S -p '' bash -c $(printf '%q' "$remote_cmd") -- $(printf '%q' "$SCREEN_USER")" || rc=$?
+else
+    ssh "${SSH_BATCH[@]}" "${SCREEN_USER}@${SCREEN_HOST}" \
+        "sudo -n bash -c $(printf '%q' "$remote_cmd") -- $(printf '%q' "$SCREEN_USER")" || rc=$?
+fi
+if [[ "$rc" -eq 0 ]]; then
+    exit 0
+fi
+if [[ "$rc" -eq 4 ]]; then
+    exit 4
+fi
+echo "Idle screen power-off setup failed (exit ${rc})." >&2
+exit 1
+EOS
+    then
+        rc=0
+    else
+        rc=$?
+    fi
     return "$rc"
 }
 
@@ -4438,6 +5273,87 @@ EOS
     else
         return 1
     fi
+}
+
+
+# Desktop login, idle-power off, and Chromium homepage for one panel.
+# Returns 1 only when Chromium setup fails. Login and power print their own result.
+# Args: user host [password]
+apply_touchscreen_desktop_session() {
+    local screen_user="$1" screen_host="$2" screen_pass="${3:-}"
+    local auto_rc=0 power_rc=0
+
+    configure_touchscreen_autologin "$screen_user" "$screen_host" "${screen_pass:-}" || auto_rc=$?
+    if [[ "$auto_rc" -eq 0 ]]; then
+        ok "Passwordless desktop login for ${screen_user} on ${screen_host} (next boot)"
+    elif [[ "$auto_rc" -eq 4 ]]; then
+        info "Desktop autologin skipped on ${screen_host} — not Raspberry Pi OS or Armbian"
+    else
+        warn "Passwordless desktop login was not enabled on ${screen_host}"
+        info "On the panel, turn on automatic desktop login for ${screen_user}. It applies on the next boot."
+    fi
+
+    configure_touchscreen_power "$screen_user" "$screen_host" "${screen_pass:-}" || power_rc=$?
+    if [[ "$power_rc" -eq 0 ]]; then
+        ok "Idle screen power-off disabled on ${screen_host} (next boot)"
+    elif [[ "$power_rc" -eq 4 ]]; then
+        info "Idle screen power-off left unchanged on ${screen_host} — not Raspberry Pi OS or Armbian"
+    else
+        warn "Idle screen power-off was not disabled on ${screen_host}"
+    fi
+
+    if configure_touchscreen_browser "$screen_user" "$screen_host" "${screen_pass:-}"; then
+        ok "Chromium homepage + autostart → ${SCCS_UI_URL}"
+        return 0
+    fi
+    return 1
+}
+
+
+# Apply desktop login, Chromium, and idle-power settings to every [screens] panel.
+# Unreachable panels are skipped. Uses the password saved at setup when sudo needs it.
+apply_all_configured_touchscreen_desktop() {
+    local listing="" line name host user _blank _mac friendly label pass=""
+    local -a rows=()
+
+    [[ -f "${CONF:-}" ]] || return 0
+    listing="$(list_configured_screens 2>/dev/null || true)"
+    [[ -n "$listing" ]] || return 0
+    mapfile -t rows < <(printf '%s\n' "$listing")
+    [[ ${#rows[@]} -gt 0 ]] || return 0
+
+    if [[ ${#rows[@]} -eq 1 ]]; then
+        info "Applying desktop login, Chromium, and idle-power settings on 1 configured touchscreen…"
+    else
+        info "Applying desktop login, Chromium, and idle-power settings on ${#rows[@]} configured touchscreens…"
+    fi
+
+    for line in "${rows[@]}"; do
+        [[ -n "$line" ]] || continue
+        IFS=$'\t' read -r name host user _blank _mac friendly <<<"$line"
+        label="${friendly:-$name}"
+        [[ -n "$label" ]] || label="$host"
+        if [[ ! "$user" =~ ^[A-Za-z_][-A-Za-z0-9_]*$ ]] \
+            || [[ ! "$host" =~ ^[A-Za-z0-9][-A-Za-z0-9._]*$ ]]; then
+            warn "${label}: skipped desktop settings — unexpected host or username in [screens]"
+            continue
+        fi
+        if ! panel_ssh_port_open "$host" 3; then
+            warn "${label} (${host}) is not reachable — skipped desktop settings"
+            continue
+        fi
+        echo
+        section_title "${label}"
+        pass=""
+        if load_screen_password "$name" "$host" "$user"; then
+            pass="$REPLY_PASS"
+            info "Using the saved panel password for ${label}"
+        fi
+        REPLY_PASS=""
+        apply_touchscreen_desktop_session "$user" "$host" "$pass" || true
+        pass=""
+    done
+    unset pass REPLY_PASS 2>/dev/null || true
 }
 
 
@@ -4703,7 +5619,7 @@ step_usb_tether() {
 }
 
 # ---------------------------------------------------------------------------
-# Touchscreens: LAN scan → pick client → write [screens] → SSH + Chromium UI
+# Touchscreens: LAN scan → pick client → write [screens] → SSH + desktop login + Chromium UI
 # ---------------------------------------------------------------------------
 
 # Print existing [screens] rows as TSV: name host user blank mac friendly
@@ -5597,7 +6513,7 @@ PY
     info "Writing [screens] ${name} (edit sccs.conf later to tweak paths / brightness %)"
     echo "  ${C_DIM}${name} = ${value_line}${C_RESET}"
     if [[ "$setup_ssh" -eq 1 ]]; then
-        info "Provisioning passwordless SSH on ${user}@${ssh_target} (reserved IP ${ip})…"
+        info "Provisioning passwordless SSH and desktop login on ${user}@${ssh_target} (reserved IP ${ip})…"
     else
         info "SSH setup skipped — reservation + config only."
     fi
@@ -5916,7 +6832,7 @@ PY
     fi
     save_screen_credentials "$name" "$host" "$user" "$pass" || true
 
-    info "Provisioning passwordless SSH + sudo + DHCP renew on ${user}@${ssh_target}…"
+    info "Provisioning passwordless SSH, sudo, desktop login, and DHCP renew on ${user}@${ssh_target}…"
     if configure_touchscreen_panel "$user" "$ssh_target" "$alias" "$blank_path" "$skip_blank" "$pass" "$host" "$name"; then
         # Always ensure SSH config covers the reserved IP (SCCS connects to conf host)
         ensure_screen_ssh_config "$user" "$host" "$alias" || true
@@ -5999,14 +6915,14 @@ setup_existing_screens_ssh() {
 }
 
 # mode: optional | required
-# Scan wired LAN, add a panel to [screens], install passwordless SSH (+ optional existing setup).
+# Scan wired LAN, add a panel to [screens], install passwordless SSH and desktop login.
 step_screens() {
     local mode="${1:-optional}"
     local lan_if
     local -a CLIENTS=() SCREEN_ROWS=()
     local i row ip mac host src choice ans already
 
-    step_begin "Touchscreens (scan LAN · config · SSH · Chromium UI)"
+    step_begin "Touchscreens (scan LAN · config · SSH · desktop login · Chromium UI)"
     require_conf
     # One restart after the last panel in this step, including early returns.
     SCREEN_CONFIG_CHANGED=0
@@ -6019,6 +6935,11 @@ step_screens() {
             return 0
         fi
     fi
+
+    # Every panel already in [screens], including Armbian KDE Plasma, gets
+    # desktop login, the Chromium homepage, and idle-power off. Adding or
+    # re-running one screen below does the same again for that panel.
+    apply_all_configured_touchscreen_desktop
 
     mapfile -t SCREEN_ROWS < <(list_configured_screens)
     if [[ ${#SCREEN_ROWS[@]} -gt 0 ]]; then
@@ -6276,7 +7197,7 @@ EOF
 
 step_checklist() {
     step_begin "Notes"
-    info "Touchscreens: menu 8 / --screens (LAN scan → config → SSH + Chromium UI autostart)"
+    info "Touchscreens: menu 8 / --screens (LAN scan → config → SSH, desktop login, Chromium UI)"
     info "HomeKit or Google Home: menu 10 / --voice (then pair from the Settings tab)"
     info "Hardware you skipped: finish later from this menu"
     ok "Done"
@@ -6805,7 +7726,7 @@ run_install() {
         "LAN gateway / Pi-hole skipped" step_lan
     run_optional_step "$do_tether" "Configure iPhone USB Hotspot" \
         "USB tether skipped — use menu later when a phone is available" step_usb_tether
-    run_optional_step "$do_screens" "Touchscreens (scan LAN · config · SSH · Chromium UI)" \
+    run_optional_step "$do_screens" "Touchscreens (scan LAN · config · SSH · desktop login · Chromium UI)" \
         "Touchscreen setup skipped — menu item later when panels are online" step_screens
     if [[ "$do_voice" == "y" ]]; then
         step_voice_assistants required "$voice_choice"
@@ -6850,7 +7771,7 @@ ${C_BOLD}SCCS setup${C_RESET}
   sudo $0 --victron       Victron Equipment
   sudo $0 --lan           LAN gateway + Pi-hole DHCP/DNS
   sudo $0 --usb-tether    Configure iPhone USB Hotspot
-  sudo $0 --screens       Scan LAN · add touchscreen · SSH + Chromium UI
+  sudo $0 --screens       Scan LAN · add touchscreen · SSH + desktop login + Chromium UI
   sudo $0 --service       Install / restart systemd service
   sudo $0 --voice         HomeKit / Siri, Google Home / Gemini, or both
   sudo $0 --help          This help

@@ -239,7 +239,9 @@ kitchen_bench = kitchen_panel
 #
 # Installer menu 8 (or --screens) scans the wired LAN for Linux/Armbian panels,
 # SSHs in (username/password once), probes brightness/blank paths, writes this
-# section, installs passwordless SSH + sudoers, and refreshes Pi-hole DHCP.
+# section, installs passwordless SSH + sudoers, enables desktop autologin
+# on Raspberry Pi OS and Armbian, turns off idle display blanking and sleep,
+# and refreshes Pi-hole DHCP.
 # The panel account password is saved in ~/.sccs/screen_credentials (mode 600)
 # and reused for later setup and package updates. It is not stored in this file.
 # UI dark/light mode also sets each panel's desktop theme to match
