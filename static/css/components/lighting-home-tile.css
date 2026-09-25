@@ -82,6 +82,14 @@
     align-self: stretch;
 }
 
+.lighting-home-tile__divider {
+    height: 0;
+    margin: 0.28rem 0.15rem;
+    border: 0;
+    border-top: 1px solid var(--color-border);
+    pointer-events: none;
+}
+
 .lighting-home-tile__item {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;

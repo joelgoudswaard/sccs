@@ -170,6 +170,8 @@
     --sun-line: 1.2em;
     --sun-row-gap: 0.15em;
     --sun-block: calc(var(--sun-line) * 2 + var(--sun-row-gap));
+    /* Half the stacked label + time, centered on that pair. */
+    --sun-icon: calc(var(--sun-block) / 2);
     display: grid;
     grid-template-columns: auto auto minmax(0, 1fr) auto auto;
     grid-template-rows: auto auto;
@@ -221,13 +223,14 @@
 .datetime-tile__sun-icon,
 .datetime-tile__moon-icon {
     grid-row: 1 / span 2;
-    align-self: stretch;
+    align-self: center;
     justify-self: center;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: var(--sun-block);
-    min-width: var(--sun-block);
+    width: var(--sun-icon);
+    height: var(--sun-icon);
+    min-width: var(--sun-icon);
     min-height: 0;
     line-height: 1;
 }
@@ -242,15 +245,14 @@
     color: var(--color-text-label);
 }
 
-/* Glyph ink is a fraction of the em square. Scale it so the drawn icon
-   matches the label line, the gap, and the time line together. */
+/* Glyph ink is a fraction of the em square. Scale it to the half-height icon. */
 .datetime-tile__sun-icon::before {
-    font-size: calc(var(--sun-block) * 512 / 516);
+    font-size: calc(var(--sun-icon) * 512 / 516);
     line-height: 1;
 }
 
 .datetime-tile__moon-icon::before {
-    font-size: calc(var(--sun-block) * 512 / 448);
+    font-size: calc(var(--sun-icon) * 512 / 448);
     line-height: 1;
 }
 

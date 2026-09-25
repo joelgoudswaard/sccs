@@ -79,3 +79,7 @@ html.home-tile-fit-1280 #home .tile-grid:not(.tile-grid--module-reflow) .lightin
 html.home-tile-fit-1280 #home .tile-grid:not(.tile-grid--module-reflow) .lighting-home-tile__item:not(.is-active):not(.is-fading-out) {
     display: none;
 }
+
+html.home-tile-fit-1280 #home .tile-grid:not(.tile-grid--module-reflow) .lighting-home-tile__divider {
+    grid-column: 1 / -1;
+}

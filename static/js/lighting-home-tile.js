@@ -11,11 +11,53 @@
     const placeholderEl = document.getElementById('lighting-home-placeholder');
     if (!listEl) return;
 
+    function itemEl(name) {
+        return document.getElementById(`lighting-home-${name}`);
+    }
+
+    function groupOf(light) {
+        return light.type === 'relay' ? 'relay' : 'dimmer';
+    }
+
+    function orderedGroup(kind) {
+        return state.lights.filter((light) => groupOf(light) === kind);
+    }
+
+    function ensureDivider() {
+        let el = document.getElementById('lighting-home-divider');
+        if (el) return el;
+        el = document.createElement('li');
+        el.id = 'lighting-home-divider';
+        el.className = 'lighting-home-tile__divider';
+        el.setAttribute('role', 'separator');
+        el.setAttribute('aria-hidden', 'true');
+        return el;
+    }
+
+    function syncDivider() {
+        const hasDimmer = listEl.querySelector('.lighting-home-tile__item[data-kind="dimmer"]');
+        const hasRelay = listEl.querySelector('.lighting-home-tile__item[data-kind="relay"]');
+        const existing = document.getElementById('lighting-home-divider');
+        if (!hasDimmer || !hasRelay) {
+            existing?.remove();
+            return;
+        }
+        const divider = ensureDivider();
+        const firstRelay = listEl.querySelector('.lighting-home-tile__item[data-kind="relay"]');
+        if (firstRelay) listEl.insertBefore(divider, firstRelay);
+        else listEl.appendChild(divider);
+    }
+
     function reorderList() {
-        state.lights.forEach((light) => {
-            const el = document.getElementById(`lighting-home-${light.name}`);
+        orderedGroup('dimmer').forEach((light) => {
+            const el = itemEl(light.name);
             if (el?.parentElement === listEl) listEl.appendChild(el);
         });
+        orderedGroup('relay').forEach((light) => {
+            const el = itemEl(light.name);
+            if (el?.parentElement === listEl) listEl.appendChild(el);
+        });
+        syncDivider();
     }
 
     const state = {
@@ -70,7 +112,9 @@
     }
 
     function updateEmpty() {
-        setOverlayVisible(emptyEl, listEl.children.length === 0);
+        const count = listEl.querySelectorAll('.lighting-home-tile__item').length;
+        setOverlayVisible(emptyEl, count === 0);
+        syncDivider();
     }
 
     function fadeIn(el) {
@@ -84,16 +128,31 @@
     }
 
     function insertInOrder(el, light) {
-        const idx = state.lights.findIndex((item) => item.name === light.name);
-        const nextLight = state.lights[idx + 1];
-        const nextEl = nextLight
-            ? document.getElementById(`lighting-home-${nextLight.name}`)
-            : null;
-        if (nextEl) {
-            listEl.insertBefore(el, nextEl);
-        } else {
-            listEl.appendChild(el);
+        const kind = groupOf(light);
+        el.dataset.kind = kind;
+        const group = orderedGroup(kind);
+        const idx = group.findIndex((item) => item.name === light.name);
+        let next = null;
+        for (let i = idx + 1; i < group.length; i += 1) {
+            const candidate = itemEl(group[i].name);
+            if (candidate?.parentElement === listEl) {
+                next = candidate;
+                break;
+            }
         }
+        if (next) {
+            listEl.insertBefore(el, next);
+            return;
+        }
+        if (kind === 'dimmer') {
+            const divider = document.getElementById('lighting-home-divider');
+            const firstRelay = listEl.querySelector('.lighting-home-tile__item[data-kind="relay"]');
+            const before = divider || firstRelay;
+            if (before) listEl.insertBefore(el, before);
+            else listEl.appendChild(el);
+            return;
+        }
+        listEl.appendChild(el);
     }
 
     function ensureItem(light) {
@@ -104,6 +163,7 @@
         el.id = `lighting-home-${light.name}`;
         el.className = 'lighting-home-tile__item';
         el.dataset.lightName = light.name;
+        el.dataset.kind = groupOf(light);
         el.innerHTML = `
             <span class="lighting-home-tile__icon" aria-hidden="true">
                 <i class="${iconClass(light.icon)}"></i>
@@ -142,6 +202,7 @@
         state.pendingRemoval.delete(light.name);
 
         const el = ensureItem(light);
+        el.dataset.kind = groupOf(light);
         const wasActive = el.classList.contains('is-active') && !el.classList.contains('is-fading-out');
         if (wasActive) {
             el.classList.remove('is-fading-out', 'is-fading-in');
