@@ -203,13 +203,16 @@ def resolve_light(light: str, world: WorldState, cfg: CompiledConfig) -> Resolve
 
 
 def resolve_screen(screen: dict, world: WorldState, cfg: CompiledConfig) -> int:
-    """Brightness percent (0–100) when the linked reed is open; 0 when closed.
+    """0 when the linked reed is closed.
 
-    Manual UI wake/sleep is one-shot hardware only — no sticky intents.
+    With follow_phases, an open reed uses the day/evening/night percent.
+    Otherwise an open reed is fully on. Manual wake/sleep does not stick.
     """
     linked_reed = screen.get("linked_reed", "")
     if linked_reed and effective_reed_closed(world, linked_reed, cfg):
         return 0
+    if not screen.get("follow_phases"):
+        return 100
     phase = _phase_key(world)
     if phase is None:
         return 100  # no phase yet — allow awake rather than forced sleep

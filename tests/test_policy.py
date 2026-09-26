@@ -586,20 +586,15 @@ class PolicyTests(unittest.TestCase):
 
     # ── Screens ───────────────────────────────────────────────────────────
 
-    def test_screen_day_brightness_when_panel_open(self):
-        world = WorldState(reeds=_default_reeds(open_names=["kitchen_panel"]), phase="day")
+    def test_on_off_screen_is_full_on_while_panel_open(self):
         screen = minimal_cfg().screens["kitchen"]
-        self.assertEqual(resolve_screen(screen, world, minimal_cfg()), 100)
-
-    def test_screen_evening_brightness_when_panel_open(self):
-        world = WorldState(reeds=_default_reeds(open_names=["kitchen_panel"]), phase="evening")
-        screen = minimal_cfg().screens["kitchen"]
-        self.assertEqual(resolve_screen(screen, world, minimal_cfg()), 30)
-
-    def test_screen_night_brightness_when_panel_open(self):
-        world = WorldState(reeds=_default_reeds(open_names=["kitchen_panel"]), phase="night")
-        screen = minimal_cfg().screens["kitchen"]
-        self.assertEqual(resolve_screen(screen, world, minimal_cfg()), 5)
+        cfg = minimal_cfg()
+        for phase in ("day", "evening", "night"):
+            world = WorldState(
+                reeds=_default_reeds(open_names=["kitchen_panel"]),
+                phase=phase,
+            )
+            self.assertEqual(resolve_screen(screen, world, cfg), 100)
 
     def test_screen_off_when_panel_closed(self):
         world = WorldState(reeds=_default_reeds(closed_names=["kitchen_panel"]), phase="day")
@@ -613,7 +608,73 @@ class PolicyTests(unittest.TestCase):
             phase="evening",
         )
         out = desired_outputs(world, minimal_cfg())
-        self.assertEqual(out.screens["kitchen"], 30)
+        self.assertEqual(out.screens["kitchen"], 100)
+
+    def test_follow_phases_uses_phase_level_while_panel_open(self):
+        cfg = minimal_cfg()
+        screen = dict(cfg.screens["kitchen"])
+        screen["follow_phases"] = True
+        evening = WorldState(
+            reeds=_default_reeds(open_names=["kitchen_panel"]),
+            phase="evening",
+        )
+        night = WorldState(
+            reeds=_default_reeds(open_names=["kitchen_panel"]),
+            phase="night",
+        )
+        closed = WorldState(
+            reeds=_default_reeds(closed_names=["kitchen_panel"]),
+            phase="day",
+        )
+        self.assertEqual(resolve_screen(screen, evening, cfg), 30)
+        self.assertEqual(resolve_screen(screen, night, cfg), 5)
+        self.assertEqual(resolve_screen(screen, closed, cfg), 0)
+
+    def test_dimmable_screen_follows_phase_while_panel_open(self):
+        cfg = minimal_cfg()
+        screen = dict(cfg.screens["kitchen"])
+        screen["follow_phases"] = True
+        screen["brightness_path"] = (
+            "dbus:org.kde.ScreenBrightness:/org/kde/ScreenBrightness/display0"
+        )
+        cfg.screens["kitchen"] = screen
+        evening = WorldState(
+            reeds=_default_reeds(open_names=["kitchen_panel"]),
+            phase="evening",
+        )
+        night = WorldState(
+            reeds=_default_reeds(open_names=["kitchen_panel"]),
+            phase="night",
+        )
+        closed = WorldState(
+            reeds=_default_reeds(closed_names=["kitchen_panel"]),
+            phase="day",
+        )
+        self.assertEqual(resolve_screen(screen, evening, cfg), 30)
+        self.assertEqual(resolve_screen(screen, night, cfg), 5)
+        self.assertEqual(resolve_screen(screen, closed, cfg), 0)
+
+    def test_real_config_kitchen_screen_is_reed_on_off(self):
+        from engine.screen_path import brightness_is_adjustable
+
+        cfg = real_cfg()
+        screen = cfg.screens["kitchen"]
+        self.assertEqual(screen["brightness_path"], "kscreen:HDMI-A-1")
+        self.assertFalse(screen.get("follow_phases"))
+        self.assertEqual(screen["phase_brightness"]["evening"], 30)
+        self.assertEqual(screen["phase_brightness"]["night"], 5)
+        self.assertFalse(brightness_is_adjustable(screen["brightness_path"]))
+        open_evening = WorldState(
+            reeds={name: True for name in cfg.reed_names},
+            phase="evening",
+        )
+        open_evening.reeds["kitchen_panel"] = False
+        closed = WorldState(
+            reeds={name: True for name in cfg.reed_names},
+            phase="night",
+        )
+        self.assertEqual(desired_outputs(open_evening, cfg).screens["kitchen"], 100)
+        self.assertEqual(desired_outputs(closed, cfg).screens["kitchen"], 0)
 
     # ── Intent lifecycle ──────────────────────────────────────────────────
 

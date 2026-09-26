@@ -88,8 +88,11 @@ class TestUiBundle(unittest.TestCase):
         self.assertNotIn("--enable-zero-copy", launch)
         self.assertNotIn("--disable-gpu-compositing", launch)
         self.assertNotRegex(launch, r"--disable-gpu(?!-)")
-        self.assertIn('"restore_on_startup": 5', install)
-        self.assertNotIn("RestoreOnStartupURLs", install)
+        self.assertIn('"restore_on_startup": 4', install)
+        self.assertIn("RestoreOnStartupURLs", install)
+        self.assertIn('"HomepageIsNewTabPage": false', install)
+        self.assertIn("NewTabPageLocation", install)
+        self.assertNotIn('+ " " + shlex.quote(ui)', launch)
 
     def test_gzip_roundtrip_and_skips(self):
         payload = b"x" * 2000

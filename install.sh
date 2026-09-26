@@ -3593,6 +3593,8 @@ verify_panel_ssh() {
 # Sets: REPLY_BRIGHT REPLY_BLANK REPLY_METHOD REPLY_PROBE_NOTES
 # Uses publickey if available, otherwise password via SSH_ASKPASS.
 # Args: user host [password]
+# An on/off target (kscreen DPMS, wlr, framebuffer blank) wins over KDE
+# ScreenBrightness. That dbus path only dims an HDMI panel.
 # ---------------------------------------------------------------------------
 probe_panel_display_controls() {
     local screen_user="$1" screen_host="$2" screen_pass="${3:-}"
@@ -3635,6 +3637,9 @@ fi
 for w in wayland-0 wayland-1; do
     if [[ -S "${XDG_RUNTIME_DIR}/${w}" ]]; then
         export WAYLAND_DISPLAY="$w"
+        # Without this, kscreen-doctor tries the xcb plugin over SSH and
+        # prints nothing, so the probe misses the HDMI output.
+        export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-wayland}"
         break
     fi
 done
@@ -3773,84 +3778,28 @@ EOS
     }
 
     local pick
-    pick="$(printf '%s\n' "$out" | python3 -c '
+    pick="$(
+        PROBE_OUT="$out" python3 - "${SCCS_HOME}/engine/screen_path.py" <<'PY'
+import importlib.util
+import os
 import sys
-lines = sys.stdin.read().splitlines()
-kde, kscreen, wlr, backlight, fb = [], [], [], [], []
-desktop = host = ""
-for line in lines:
-    line = line.strip()
-    if not line or "=" not in line:
-        continue
-    k, v = line.split("=", 1)
-    if k == "KDE_OBJ":
-        kde.append(v)
-    elif k == "KSCREEN_OUT":
-        if v not in kscreen:
-            kscreen.append(v)
-    elif k == "WLR_OUT":
-        if v not in wlr:
-            wlr.append(v)
-    elif k == "BACKLIGHT":
-        backlight.append(v.split("|", 1)[0])
-    elif k == "FB_BLANK":
-        fb.append(v)
-    elif k == "DESKTOP":
-        desktop = v
-    elif k == "HOSTNAME":
-        host = v
-    elif k == "PROBE_FAIL":
-        print("FAIL\t\t\tprobe failed")
-        raise SystemExit(0)
 
-detail = []
-if host:
-    detail.append("host=" + host)
-if desktop:
-    detail.append("desktop=" + desktop)
-
-# Prefer KDE, then wlr-randr (labwc / Pi OS Wayland HDMI panels), then backlight/fb
-if kde:
-    bright = "dbus:org.kde.ScreenBrightness:" + kde[0]
-    if kscreen:
-        blank = "kscreen:" + kscreen[0]
-        method = "kde+kscreen"
-        detail.append("kscreen outs: " + ", ".join(kscreen))
-    elif wlr:
-        blank = "wlr:" + wlr[0]
-        method = "kde+wlr"
-        detail.append("wlr outs: " + ", ".join(wlr))
-    elif fb:
-        blank = fb[0]
-        method = "kde+fb"
-    else:
-        blank = "none"
-        method = "kde"
-    detail.append("kde objs: " + ", ".join(kde))
-elif wlr:
-    # Binary on/off via wlr-randr (WaveShare HDMI under labwc, etc.)
-    bright = "wlr:" + wlr[0]
-    blank = "wlr:" + wlr[0]
-    method = "wlr-randr"
-    detail.append("wlr outs: " + ", ".join(wlr))
-elif backlight:
-    bright = backlight[0]
-    blank = fb[0] if fb else "none"
-    method = "sysfs-backlight"
-    if len(backlight) > 1:
-        detail.append("backlights: " + ", ".join(backlight))
-elif fb:
-    bright = fb[0]
-    blank = fb[0]
-    method = "sysfs-fb-blank"
+path = sys.argv[1]
+spec = importlib.util.spec_from_file_location("sccs_screen_path", path)
+if spec is None or spec.loader is None:
+    print("FAIL\t\t\tmissing screen_path")
+    raise SystemExit(0)
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+bright, blank, method, notes = mod.pick_display_control(
+    os.environ.get("PROBE_OUT", "").splitlines()
+)
+if method == "probe-failed":
+    print("FAIL\t\t\t" + notes)
 else:
-    bright = "/sys/class/graphics/fb0/blank"
-    blank = "/sys/class/graphics/fb0/blank"
-    method = "fallback-fb"
-    detail.append("no display controls found")
-
-print(bright + "\t" + blank + "\t" + method + "\t" + "; ".join(detail))
-')"
+    print("\t".join((bright, blank, method, notes)))
+PY
+    )"
 
     if [[ -z "$pick" || "$pick" == FAIL* ]]; then
         warn "Display probe returned nothing useful"
@@ -5263,12 +5212,13 @@ script = "\n".join([
     "rm -f " + session_files,
     "python3 " + shlex.quote(os.path.join(home, ".config", "sccs", "ensure-chromium-bookmarks.py"))
     + " " + shlex.quote(profile) + " " + shlex.quote(pihole) + " || true",
+    # No URL argument. Startup pages come from the homepage policy, so this
+    # launch does not open a second copy of the UI.
     "exec " + shlex.quote(browser)
     + " --noerrdialogs --disable-session-crashed-bubble --disable-infobars"
     + " --check-for-update-interval=31536000 --disable-features=TranslateUI"
     + " --disable-gpu-rasterization --ignore-gpu-blocklist --use-gl=egl"
-    + " --force-device-scale-factor=1 --homepage=" + shlex.quote(ui)
-    + " " + shlex.quote(ui),
+    + " --force-device-scale-factor=1 --homepage=" + shlex.quote(ui),
     "",
 ])
 with open(dest, "w", encoding="utf-8") as handle:
@@ -5300,7 +5250,8 @@ if [[ ! -f "\$PREF_DIR/Preferences" ]]; then
 {
   "browser": {
     "custom_chrome_frame": false,
-    "has_seen_welcome_page": true
+    "has_seen_welcome_page": true,
+    "show_home_button": true
   },
   "distribution": {
     "import_bookmarks": false,
@@ -5308,9 +5259,10 @@ if [[ ! -f "\$PREF_DIR/Preferences" ]]; then
     "skip_first_run_ui": true
   },
   "homepage": "\$UI_URL",
-  "homepage_is_newtabpage": true,
+  "homepage_is_newtabpage": false,
   "session": {
-    "restore_on_startup": 5
+    "restore_on_startup": 4,
+    "startup_urls": ["\$UI_URL"]
   }
 }
 PREF
@@ -5326,14 +5278,15 @@ try:
 except Exception:
     sys.exit(0)
 data["homepage"] = url
-data["homepage_is_newtabpage"] = True
+data["homepage_is_newtabpage"] = False
 sess = data.setdefault("session", {})
-# 5 = new tab page. The launcher opens the UI once. A startup URL list
-# plus that launch argument is how Chromium was opening two UI tabs.
-sess["restore_on_startup"] = 5
-sess.pop("startup_urls", None)
+# 4 = open startup_urls. The launcher does not also pass the URL, so
+# closing Chromium and opening it again still shows this page once.
+sess["restore_on_startup"] = 4
+sess["startup_urls"] = [url]
 browser = data.setdefault("browser", {})
 browser["has_seen_welcome_page"] = True
+browser["show_home_button"] = True
 with open(path, "w", encoding="utf-8") as f:
     json.dump(data, f, separators=(",", ":"))
 print("Patched existing Chromium Preferences")
@@ -5544,9 +5497,11 @@ for base in /etc/chromium /etc/chromium-browser; do
 {
   "BookmarkBarEnabled": true,
   "HomepageLocation": "\$UI_URL",
-  "HomepageIsNewTabPage": true,
+  "HomepageIsNewTabPage": false,
+  "NewTabPageLocation": "\$UI_URL",
   "ShowHomeButton": true,
-  "RestoreOnStartup": 5
+  "RestoreOnStartup": 4,
+  "RestoreOnStartupURLs": ["\$UI_URL"]
 }
 POL
     chmod 644 "\$base/policies/managed/sccs-touchscreen.json"
@@ -6878,7 +6833,7 @@ prompt_reserved_lan_ip() {
 define_touchscreen_from_client() {
     local discovered_ip="$1" mac="$2" hostname="${3:--}"
     local ip="$discovered_ip"
-    local name friendly reed user bright blank icon day evening night
+    local name friendly reed user bright blank icon day evening night follow_phases
     local alias skip_blank blank_path pass="" setup_ssh=1
     local -a REED_NAMES=() REED_LABELS=()
     local i ans def_name def_friendly reserved
@@ -7086,6 +7041,8 @@ PY
     day=100
     evening=30
     night=5
+    # Checkbox on the Touchscreens tile turns this on. Default is full brightness.
+    follow_phases=false
 
     if [[ -z "$mac" || "$mac" == "-" ]]; then
         warn "No MAC learned — DHCP reservation will be skipped until MAC is known"
@@ -7094,7 +7051,7 @@ PY
 
     # Config host = reserved IP (Pi-hole reservation + SCCS SSH target long-term)
     local value_line
-    value_line="${friendly} | ${reed} | ${ip} | ${user} | ${bright} | ${icon} | ${day} | ${evening} | ${night} | ${blank} | ${mac}"
+    value_line="${friendly} | ${reed} | ${ip} | ${user} | ${bright} | ${icon} | ${day} | ${evening} | ${night} | ${blank} | ${mac} | ${follow_phases}"
 
     echo
     info "Display: ${method:-unknown}  bright=${bright}  blank=${blank}"
@@ -7202,7 +7159,7 @@ EOS
 setup_existing_screens_ssh_one() {
     local want_name="$1"
     local row name host user blank mac friendly
-    local pass="" alias skip_blank blank_path reserved bright icon day evening night reed
+    local pass="" alias skip_blank blank_path reserved bright icon day evening night reed follow_phases
     local value_line ssh_target old_host live_ip
     local lan_if_tmp
 
@@ -7317,7 +7274,7 @@ setup_existing_screens_ssh_one() {
 
     # Load remaining fields from conf (do not clobber reserved $host)
     local old_name="$name"
-    reed=""; icon="fa-display"; day=100; evening=30; night=5
+    reed=""; icon="fa-display"; day=100; evening=30; night=5; follow_phases=false
     mapfile -t _scr < <(python3 - "$CONF" "$name" <<'PY'
 import configparser, sys
 cfg = configparser.ConfigParser()
@@ -7325,19 +7282,23 @@ cfg.read(sys.argv[1])
 name = sys.argv[2]
 line = cfg.get("screens", name, fallback="")
 parts = [p.strip() for p in line.split("|")]
-while len(parts) < 11:
+while len(parts) < 12:
     parts.append("")
-print("\t".join(parts[:11]))
+print("\t".join(parts[:12]))
 PY
 )
     if [[ ${#_scr[@]} -gt 0 && -n "${_scr[0]:-}" ]]; then
-        local _f _h _u _b _bl _mac
-        IFS=$'\t' read -r _f reed _h _u _b icon day evening night _bl _mac <<<"${_scr[0]}"
+        local _f _h _u _b _bl _mac _follow
+        IFS=$'\t' read -r _f reed _h _u _b icon day evening night _bl _mac _follow <<<"${_scr[0]}"
         friendly="${friendly:-$_f}"
         icon="${icon:-fa-display}"
         day="${day:-100}"
         evening="${evening:-30}"
         night="${night:-5}"
+        case "${_follow,,}" in
+            true|yes|on|1) follow_phases=true ;;
+            *) follow_phases=false ;;
+        esac
         if [[ -n "${_mac:-}" && "$_mac" != "-" ]]; then
             mac="$_mac"
         fi
@@ -7388,7 +7349,7 @@ PY
     [[ -n "$icon" ]] || icon="fa-display"
 
     # host = new reserved IP (must appear in conf + Pi-hole)
-    value_line="${friendly} | ${reed} | ${host} | ${user} | ${bright} | ${icon} | ${day} | ${evening} | ${night} | ${blank} | ${mac}"
+    value_line="${friendly} | ${reed} | ${host} | ${user} | ${bright} | ${icon} | ${day} | ${evening} | ${night} | ${blank} | ${mac} | ${follow_phases}"
     info "Writing [screens] ${name} with reserved IP ${C_BOLD}${host}${C_RESET}"
     echo "  ${C_DIM}${name} = ${value_line}${C_RESET}"
     conf_upsert_screen "$name" "$value_line"

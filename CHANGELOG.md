@@ -10,6 +10,8 @@ All notable changes to SCCS are documented in this file.
 - Touchscreen setup turns off idle display power saving on Raspberry Pi OS and Armbian. The panel no longer blanks, dims, or sleeps after a period with no input. Brightness from the reed and the time of day is unchanged. Armbian KDE Plasma is included. Menu 8 applies desktop login, the Chromium homepage, and idle-power off to every touchscreen already in the config.
 
 ### Fixed
+- Kitchen touchscreen setup writes `kscreen:HDMI-A-1` as the power path. The panel turns fully on when the kitchen panel reed opens and off when it closes. The installer was storing the KDE brightness control, which only dimmed the screen through the day (100%), evening (30%), and night (5%).
+- Each touchscreen card has a "Change Brightness with Phases" checkbox. Off, an open reed leaves the panel fully on. On, it uses that screen's day, evening, and night levels (kitchen: 100 / 30 / 5). The choice is saved in `sccs.conf`.
 - Kitchen bench night is 10% red. It was off.
 - Dragging a lighting slider thumb no longer opens the browser right-click menu. A press on the thumb is a drag.
 - Neumorphism cards keep the halfway highlight. Panel Chromium composites on the GPU and rasterizes on the CPU, so that gradient stays a smooth ramp and page and fullscreen changes are not a two-frame jump. The Neumorphism tile blur is off; the tiles are already nearly opaque, and the blur was re-painted on every fade.

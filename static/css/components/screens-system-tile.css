@@ -170,7 +170,6 @@
 }
 
 .screens-system-tile__card.is-brightness-fixed .screens-system-tile__controls {
-    /* Awake / Sleep only */
     justify-content: center;
 }
 
@@ -302,6 +301,44 @@
 .screens-system-tile__slider-group > .sonos-tile__volume-wrap {
     grid-area: slider;
     width: 100%;
+}
+
+.screens-system-tile__phase {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 2.75rem;
+    margin: 0;
+    padding: 0.1rem 0.05rem;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text);
+    line-height: 1.25;
+    cursor: pointer;
+    user-select: none;
+}
+
+.screens-system-tile__phase input {
+    flex-shrink: 0;
+    width: 1.15rem;
+    height: 1.15rem;
+    margin: 0;
+    accent-color: var(--color-accent);
+    cursor: pointer;
+}
+
+.screens-system-tile__phase-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.screens-system-tile__phase-hint {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.2;
 }
 
 .screens-system-tile__segmented {

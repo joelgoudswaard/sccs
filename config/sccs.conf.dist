@@ -218,7 +218,7 @@ kitchen_bench = kitchen_panel
 
 [screens]
 # Format:
-# internal_name = Friendly Name | linked_reed | host | username | brightness_path | icon | day | evening | night | blank_path | mac
+# internal_name = Friendly Name | linked_reed | host | username | brightness_path | icon | day | evening | night | blank_path | mac | follow_phases
 #
 # Fields:
 #   linked_reed       → Must exactly match an internal_name from [reeds]
@@ -228,9 +228,15 @@ kitchen_bench = kitchen_panel
 #   username          → SSH username on the remote Pi (required even with passwordless SSH)
 #   brightness_path   → Remote control target (see below)
 #   icon              → Font Awesome icon for the System tab (optional, default fa-display)
-#   day / evening / night → Brightness percent (0–100) while the linked reed is open.
-#                           Defaults: day 100, evening 30, night 5. Reed closed = 0%.
-#   blank_path        → Optional full power-off helper when brightness hits 0%:
+#   day / evening / night → Brightness percent while the linked reed is open,
+#                           used only when follow_phases is true.
+#                           Defaults: day 100, evening 30, night 5.
+#   follow_phases     → true: open reed uses those percents.
+#                       false: open reed is fully on. Reed closed is off either way.
+#                       The Touchscreens tile has a checkbox for this.
+#   blank_path        → Same on/off target when brightness_path already switches
+#                       power (kscreen:HDMI-A-1 or wlr:HDMI-A-1). For a dimmer,
+#                       optional full power-off when brightness hits 0%:
 #                         kscreen:HDMI-A-1 — KDE Wayland DPMS via kscreen-doctor
 #                         /sys/class/graphics/fb0/blank — framebuffer blank (simple fb)
 #                       Brightness 0% alone may leave HDMI panels faintly lit.
@@ -247,13 +253,16 @@ kitchen_bench = kitchen_panel
 # UI dark/light mode also sets each panel's desktop theme to match
 # (KDE Plasma, Raspberry Pi OS, XFCE, or GNOME).
 #
-# brightness_path options:
-#   sysfs blank/backlight — e.g. /sys/class/graphics/fb0/blank
+# brightness_path options (installer picks the first that exists):
+#   kscreen:HDMI-A-1 — KDE Wayland DPMS. Reed open = fully on, closed = off.
+#       Do not use org.kde.ScreenBrightness here. That only dims the panel.
+#   wlr:HDMI-A-1 — labwc / wlroots output power, same on/off behaviour.
+#   sysfs blank — e.g. /sys/class/graphics/fb0/blank
 #       0 = awake, 1 or 4 = blanked (passwordless sudo tee after installer menu 8).
-#   sysfs backlight — e.g. /sys/class/backlight/*/brightness
+#   D-Bus screensaver — dbus:org.freedesktop.ScreenSaver (on/off).
+#   sysfs backlight — e.g. /sys/class/backlight/*/brightness (dims by phase).
 #   D-Bus KDE brightness — dbus:org.kde.ScreenBrightness:/org/kde/ScreenBrightness/display0
-#       Prefer blank_path=kscreen:<connector> for full DPMS off on Wayland HDMI.
-#   D-Bus screensaver — dbus:org.freedesktop.ScreenSaver
+#       Last resort. 0% leaves HDMI panels faintly lit, and phase levels dim the UI.
 #
 # Notes:
 # - Prefer menu 8 to discover panels on the van LAN (or edit this section by hand).
@@ -261,7 +270,7 @@ kitchen_bench = kitchen_panel
 # - Screens tile reports remote state (sysfs, D-Bus brightness, or GetActive).
 #
 # Example (written automatically by menu 8, or uncomment and edit by hand):
-# kitchen          = Kitchen Touchscreen | kitchen_panel | 10.10.10.10 | joel  | dbus:org.kde.ScreenBrightness:/org/kde/ScreenBrightness/display0 | fa-utensils | 100 | 30 | 5 | kscreen:HDMI-A-1 | 02:00:00:00:10:10
+# kitchen          = Kitchen Touchscreen | kitchen_panel | 10.10.10.10 | joel  | kscreen:HDMI-A-1 | fa-utensils | 100 | 30 | 5 | kscreen:HDMI-A-1 | 02:00:00:00:10:10 | false
 
 
 [reed_monitor]

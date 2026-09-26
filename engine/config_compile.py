@@ -214,6 +214,7 @@ def compile_config(cfg) -> CompiledConfig:
                 mac_val = str(parts[10]).strip().lower()
                 if mac_val and mac_val not in ("none", "-"):
                     mac = mac_val
+            follow_raw = parts[11] if len(parts) > 11 else ""
             out.screens[name] = {
                 "friendly": parts[0],
                 "linked_reed": parts[1],
@@ -224,6 +225,7 @@ def compile_config(cfg) -> CompiledConfig:
                 "phase_brightness": phase_brightness,
                 "blank_path": blank_path,
                 "mac": mac,
+                "follow_phases": _parse_screen_flag(follow_raw),
             }
 
     from .config_validate import validate_compiled_config
@@ -233,6 +235,20 @@ def compile_config(cfg) -> CompiledConfig:
         logger.warning(f"Config: {w}")
 
     return out
+
+
+def _parse_screen_flag(value) -> bool:
+    return str(value or "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def screen_line_with_follow_phases(line: str, enabled: bool) -> str:
+    """Return a [screens] value with the follow-phases flag set."""
+    parts = [p.strip() for p in str(line).split("|")]
+    while len(parts) < 12:
+        parts.append("")
+    parts = parts[:12]
+    parts[11] = "true" if enabled else "false"
+    return " | ".join(parts)
 
 
 def _compile_scenes(cfg) -> Dict[str, dict]:

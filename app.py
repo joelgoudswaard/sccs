@@ -516,6 +516,8 @@ def _screen_frontend_item(name: str, conf: dict, conn: dict | None = None) -> di
         "brightness": None,
         "brightness_pct": observed_pct if observed_pct > 0 else None,
         "brightness_adjustable": adjustable,
+        "follow_phases": bool(conf.get("follow_phases")),
+        "phase_brightness": conf.get("phase_brightness") or {},
         "ssh_passwordless": False,
         "ssh_error": None,
     }
@@ -873,6 +875,23 @@ def handle_screen_manual_toggle(data):
         _apply_screen_level(level)
         return
     _apply_screen_level(0)
+
+
+@socketio.on("screen_follow_phases")
+def handle_screen_follow_phases(data):
+    """Per-screen choice: brightness tracks day/evening/night, or stays full on."""
+    if not runtime.screen_actuator:
+        return
+    payload = data or {}
+    name = payload.get("name")
+    if not name:
+        return
+    enabled = payload.get("enabled")
+    if isinstance(enabled, str):
+        enabled = enabled.strip().lower() in ("1", "true", "yes", "on")
+    else:
+        enabled = bool(enabled)
+    runtime.set_screen_follow_phases(name, enabled)
 
 
 @socketio.on("set_global_dark_mode")

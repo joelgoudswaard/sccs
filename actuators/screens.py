@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, Optional, Union
 
+from engine.screen_path import brightness_is_adjustable
+
 logger = logging.getLogger("sccs")
 
 _SCREEN_KNOWN_HOSTS = Path.home() / ".sccs" / "screen_known_hosts"
@@ -335,21 +337,6 @@ def _is_wlr_path(path: str) -> bool:
     return path.startswith("wlr:")
 
 
-def brightness_is_adjustable(path: str) -> bool:
-    """True when brightness_path supports continuous 0–100 levels (not just on/off)."""
-    if not path:
-        return False
-    if path.startswith("wlr:") or path.startswith("kscreen:"):
-        return False
-    if path.startswith("dbus:"):
-        # KDE ScreenBrightness is continuous; ScreenSaver is binary
-        return "org.kde.ScreenBrightness" in path
-    # sysfs blank / graphics fb = binary; other sysfs (backlight) = continuous
-    if _is_blank_path(path):
-        return False
-    return path.startswith("/")
-
-
 def _kscreen_output_name(path: str) -> str:
     return path.split(":", 1)[1]
 
@@ -392,14 +379,16 @@ def _kscreen_env_prefix() -> str:
         "export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus; "
         "export WAYLAND_DISPLAY=wayland-0; "
         "export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+        "export QT_QPA_PLATFORM=wayland; "
     )
 
 
-def _kscreen_set_cmd(
-    output: str,
-    brightness_pct: int,
-    control: Optional[DbusKdeBrightnessControl] = None,
-) -> str:
+def _kscreen_set_cmd(output: str, brightness_pct: int) -> str:
+    """DPMS on/off for a KDE Wayland output.
+
+    A positive level turns the panel on and sets that brightness. Sleep is
+    DPMS off alone: a brightness write in the same call leaves DPMS on.
+    """
     if not re.fullmatch(r"[\w.-]+", output):
         raise ValueError(f"invalid kscreen output: {output!r}")
     env = _kscreen_env_prefix()
@@ -407,18 +396,28 @@ def _kscreen_set_cmd(
     if pct <= 0:
         # Do not use ScreenSaver SetActive — on KDE Wayland it cannot be cleared
         # remotely and leaves the panel stuck black after wake.
-        # Do not set brightness in this same call. kscreen-doctor applies that
-        # as a live output change and leaves DPMS on, so the panel only dims.
         return f"{env}kscreen-doctor --dpms off"
-    parts = [f"{env}kscreen-doctor --dpms on"]
-    if control:
-        parts.append(_dbus_kde_set_brightness_cmd(control, pct))
-    parts.append(f"{env}kscreen-doctor output.{output}.brightness.{pct}")
-    parts.append(
-        f"{env}busctl --user call org.freedesktop.ScreenSaver /org/freedesktop/ScreenSaver "
-        f"org.freedesktop.ScreenSaver SimulateUserActivity"
+    return "; ".join((
+        f"{env}kscreen-doctor --dpms on",
+        f"{env}kscreen-doctor output.{output}.brightness.{pct}",
+        (
+            f"{env}busctl --user call org.freedesktop.ScreenSaver "
+            f"/org/freedesktop/ScreenSaver org.freedesktop.ScreenSaver "
+            f"SimulateUserActivity"
+        ),
+    ))
+
+
+def _kscreen_get_cmd(output: str) -> str:
+    """Print on or off from `kscreen-doctor --dpms show`."""
+    if not re.fullmatch(r"[\w.-]+", output):
+        raise ValueError(f"invalid kscreen output: {output!r}")
+    env = _kscreen_env_prefix()
+    return (
+        f"{env}kscreen-doctor --dpms show 2>/dev/null | "
+        f"awk -v o={shlex.quote(output)} "
+        f"'$0 ~ (\" \" o \":\") {{print $NF; exit}}'"
     )
-    return "; ".join(parts)
 
 
 def _blank_awake_value(awake: bool) -> str:
@@ -522,6 +521,8 @@ def _effective_blank_path(conf: dict, control: ScreenControl) -> Optional[str]:
         return None
     if blank_path:
         return blank_path
+    if isinstance(control, SysfsControl) and _is_kscreen_blank(control.path):
+        return control.path
     if isinstance(control, DbusKdeBrightnessControl):
         return DEFAULT_KDE_BLANK_PATH
     if isinstance(control, SysfsControl) and not _is_blank_path(control.path):
@@ -536,6 +537,8 @@ def _compose_brightness_remote(control: ScreenControl, brightness_pct: int) -> s
     if isinstance(control, DbusScreenSaverControl):
         return _dbus_set_active_cmd(control, pct > 0)
     path = getattr(control, "path", "") or ""
+    if _is_kscreen_blank(path):
+        return _kscreen_set_cmd(_kscreen_output_name(path), pct)
     if _is_wlr_path(path):
         return _wlr_set_cmd(_wlr_output_name(path), pct)
     return _sysfs_write_cmd(control.path, _sysfs_brightness_value(control, pct))
@@ -548,8 +551,7 @@ def _compose_screen_remote(
 ) -> str:
     pct = max(0, min(100, int(brightness_pct)))
     if blank_path and _is_kscreen_blank(blank_path):
-        kde_control = control if isinstance(control, DbusKdeBrightnessControl) else None
-        return _kscreen_set_cmd(_kscreen_output_name(blank_path), pct, kde_control)
+        return _kscreen_set_cmd(_kscreen_output_name(blank_path), pct)
     # Prefer wlr blank path when brightness is not already wlr
     if blank_path and _is_wlr_path(blank_path):
         control_path = getattr(control, "path", "") or ""
@@ -576,11 +578,23 @@ def _remote_set_cmd(
     return _ssh_cmd(username, host, remote, timeout)
 
 
+def _blank_status_remote(blank_path: str) -> Optional[str]:
+    if _is_kscreen_blank(blank_path):
+        return _kscreen_get_cmd(_kscreen_output_name(blank_path))
+    if _is_wlr_path(blank_path):
+        return _wlr_get_cmd(_wlr_output_name(blank_path))
+    if blank_path.startswith("/"):
+        return f"cat {shlex.quote(blank_path)} 2>/dev/null"
+    return None
+
+
 def _remote_read_cmd(username: str, host: str, control: ScreenControl, timeout: int) -> str:
     if isinstance(control, DbusKdeBrightnessControl):
         remote = _dbus_kde_get_brightness_cmd(control)
     elif isinstance(control, DbusScreenSaverControl):
         remote = _dbus_get_active_cmd(control)
+    elif isinstance(control, SysfsControl) and _is_kscreen_blank(control.path):
+        remote = _kscreen_get_cmd(_kscreen_output_name(control.path))
     elif isinstance(control, SysfsControl) and _is_wlr_path(control.path):
         remote = _wlr_get_cmd(_wlr_output_name(control.path))
     else:
@@ -608,13 +622,29 @@ def _brightness_pct_from_raw(
 
 
 def _blanked_from_read(blank_output: str) -> Optional[bool]:
-    if not blank_output:
+    text = (blank_output or "").strip()
+    if not text:
         return None
+    token = text.split()[-1].lower()
+    if token in ("off", "no", "false", "disabled"):
+        return True
+    if token in ("on", "yes", "true", "enabled"):
+        return False
     try:
-        val = int((blank_output or "").strip())
+        val = int(text)
     except ValueError:
         return None
     return not _blank_is_awake(val)
+
+
+def _on_off_from_token(raw_output: str) -> tuple[Optional[bool], Optional[int], Optional[int]]:
+    text = (raw_output or "").strip()
+    token = text.split()[0].lower() if text else ""
+    if token in ("yes", "true", "on", "enabled", "1"):
+        return True, 1, 100
+    if token in ("no", "false", "off", "disabled", "0"):
+        return False, 0, 0
+    return None, None, None
 
 
 def _state_from_read(
@@ -642,14 +672,11 @@ def _state_from_read(
         pct = 0 if active else 100
         return (not active, 1 if active else 0, pct)
 
-    # wlr-randr Enabled: yes/no
-    if isinstance(control, SysfsControl) and _is_wlr_path(control.path):
-        token = (raw_output or "").strip().split()[0].lower() if (raw_output or "").strip() else ""
-        if token in ("yes", "true", "on", "enabled", "1"):
-            return True, 1, 100
-        if token in ("no", "false", "off", "disabled", "0"):
-            return False, 0, 0
-        return None, None, None
+    # wlr-randr Enabled yes/no, or kscreen-doctor DPMS on/off
+    if isinstance(control, SysfsControl) and (
+        _is_wlr_path(control.path) or _is_kscreen_blank(control.path)
+    ):
+        return _on_off_from_token(raw_output)
 
     try:
         val = int((raw_output or "").strip())
@@ -824,11 +851,12 @@ class ScreenActuator:
         cmd = _remote_read_cmd(conf["username"], host, control, int(timeout))
         max_output = ""
         blank_output = ""
-        if blank_path:
+        blank_remote = _blank_status_remote(blank_path) if blank_path else None
+        if blank_remote:
             blank_cmd = _ssh_cmd(
                 conf["username"],
                 host,
-                f"cat {shlex.quote(blank_path)} 2>/dev/null",
+                blank_remote,
                 int(timeout),
             )
             try:

@@ -92,6 +92,14 @@
         return 'Connected';
     }
 
+    function phaseHint(screen) {
+        const levels = screen.phase_brightness || {};
+        const day = levels.day ?? 100;
+        const evening = levels.evening ?? 30;
+        const night = levels.night ?? 5;
+        return `Day ${day}%, evening ${evening}%, night ${night}%`;
+    }
+
     function isBrightnessAdjustable(screen) {
         // Explicit false from API; missing treated as adjustable only for legacy payloads
         return screen.brightness_adjustable !== false;
@@ -294,6 +302,17 @@
                 <div class="screens-system-tile__controls">
                     ${sliderBlock}
 
+                    <label class="screens-system-tile__phase">
+                        <input type="checkbox"
+                               data-screen-follow-phases="${screen.name}"
+                               ${screen.follow_phases ? 'checked' : ''}
+                               aria-label="${screen.label} change brightness with phases. ${phaseHint(screen)}">
+                        <span class="screens-system-tile__phase-copy">
+                            <span>Change Brightness with Phases</span>
+                            <span class="screens-system-tile__phase-hint">${phaseHint(screen)}</span>
+                        </span>
+                    </label>
+
                     <div class="screens-system-tile__segmented" role="group" aria-label="${screen.label} power">
                         <button type="button"
                                 class="screens-system-tile__segment${awake ? ' is-selected' : ''}"
@@ -351,6 +370,9 @@
                 if (Object.prototype.hasOwnProperty.call(screen, 'brightness_pct')) {
                     next.brightness_pct = screen.brightness_pct;
                 }
+                if (Object.prototype.hasOwnProperty.call(screen, 'follow_phases')) {
+                    next.follow_phases = screen.follow_phases;
+                }
                 byName.set(screen.name, next);
                 return;
             }
@@ -401,6 +423,24 @@
         renderSummary();
         socket.emit('screen_manual_toggle', { name, brightness_pct: level });
         setTimeout(() => testScreen(name), 1000);
+    }
+
+    function setFollowPhases(name, enabled) {
+        const screen = getScreen(name);
+        if (!screen) return;
+
+        const previous = Boolean(screen.follow_phases);
+        screen.follow_phases = enabled;
+        render();
+
+        const socket = getSocket();
+        if (!socket?.connected) {
+            console.warn('[SCCS] screen follow-phases skipped — socket unavailable', name);
+            screen.follow_phases = previous;
+            render();
+            return;
+        }
+        socket.emit('screen_follow_phases', { name, enabled });
     }
 
     async function refreshAll() {
@@ -510,6 +550,12 @@
     });
 
     grid.addEventListener('change', (event) => {
+        const phaseBox = event.target.closest('[data-screen-follow-phases]');
+        if (phaseBox) {
+            setFollowPhases(phaseBox.dataset.screenFollowPhases, phaseBox.checked);
+            return;
+        }
+
         const slider = event.target.closest('[data-screen-brightness]');
         if (!slider || slider.disabled) return;
 

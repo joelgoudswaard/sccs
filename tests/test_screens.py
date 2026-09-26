@@ -232,9 +232,82 @@ class ScreenControlTests(unittest.TestCase):
         remote = _compose_screen_remote(control, 30, "kscreen:HDMI-A-1")
         self.assertIn("kscreen-doctor --dpms on", remote)
         self.assertIn("output.HDMI-A-1.brightness.30", remote)
-        self.assertIn("SetBrightness", remote)
+        self.assertNotIn("SetBrightness", remote)
         self.assertIn("SimulateUserActivity", remote)
         self.assertNotIn("SetActive", remote)
+
+    def test_kscreen_path_is_full_on_or_dpms_off(self):
+        control = SysfsControl("kscreen:HDMI-A-1")
+        off = _compose_screen_remote(control, 0, "kscreen:HDMI-A-1")
+        self.assertIn("kscreen-doctor --dpms off", off)
+        self.assertNotIn("brightness", off)
+        on = _compose_screen_remote(control, 5, None)
+        self.assertIn("kscreen-doctor --dpms on", on)
+        self.assertIn("output.HDMI-A-1.brightness.5", on)
+        self.assertNotIn("SetBrightness", on)
+
+    def test_kscreen_dpms_read_is_on_off(self):
+        control = SysfsControl("kscreen:HDMI-A-1")
+        on, _brightness, pct = _state_from_read(control, "on\n")
+        self.assertTrue(on)
+        self.assertEqual(pct, 100)
+        on, _brightness, pct = _state_from_read(control, "off\n")
+        self.assertFalse(on)
+        self.assertEqual(pct, 0)
+
+    def test_pick_display_control_prefers_kscreen_over_kde_brightness(self):
+        from engine.screen_path import pick_display_control
+
+        bright, blank, method, notes = pick_display_control([
+            "KDE_OBJ=/org/kde/ScreenBrightness/display0",
+            "KSCREEN_OUT=HDMI-A-1",
+            "FB_BLANK=/sys/class/graphics/fb0/blank",
+            "HOSTNAME=rock-5c",
+            "DESKTOP=KDE",
+        ])
+        self.assertEqual(bright, "kscreen:HDMI-A-1")
+        self.assertEqual(blank, "kscreen:HDMI-A-1")
+        self.assertEqual(method, "kscreen-dpms")
+        self.assertNotIn("ScreenBrightness", bright)
+        self.assertIn("kde brightness ignored", notes)
+
+    def test_pick_display_control_skips_dimmers_when_blank_exists(self):
+        from engine.screen_path import phase_levels_for_brightness_path, pick_display_control
+
+        bright, blank, method, _notes = pick_display_control([
+            "KDE_OBJ=/org/kde/ScreenBrightness/display0",
+            "BACKLIGHT=/sys/class/backlight/panel/brightness|max=255",
+            "FB_BLANK=/sys/class/graphics/fb0/blank",
+        ])
+        self.assertEqual(bright, "/sys/class/graphics/fb0/blank")
+        self.assertEqual(blank, bright)
+        self.assertEqual(method, "sysfs-fb-blank")
+        self.assertEqual(phase_levels_for_brightness_path(bright), (100, 100, 100))
+
+    def test_screen_line_records_follow_phases_flag(self):
+        from engine.config_compile import screen_line_with_follow_phases
+
+        line = (
+            "Kitchen Touchscreen | kitchen_panel | 10.10.10.10 | joel | "
+            "kscreen:HDMI-A-1 | fa-utensils | 100 | 30 | 5 | "
+            "kscreen:HDMI-A-1 | 52:58:15:8a:56:f6"
+        )
+        updated = screen_line_with_follow_phases(line, True)
+        self.assertTrue(updated.endswith("| true"))
+        self.assertIn("| 30 | 5 |", updated)
+        cleared = screen_line_with_follow_phases(updated, False)
+        self.assertTrue(cleared.endswith("| false"))
+
+    def test_pick_display_control_keeps_backlight_dimmer_as_last_resort(self):
+        from engine.screen_path import phase_levels_for_brightness_path, pick_display_control
+
+        bright, blank, method, _notes = pick_display_control([
+            "BACKLIGHT=/sys/class/backlight/panel/brightness|max=255",
+        ])
+        self.assertEqual(bright, "/sys/class/backlight/panel/brightness")
+        self.assertEqual(blank, "none")
+        self.assertEqual(method, "sysfs-backlight")
+        self.assertEqual(phase_levels_for_brightness_path(bright), (100, 30, 5))
 
 
 class ScreenColorModeTests(unittest.TestCase):

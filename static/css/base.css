@@ -371,6 +371,7 @@ body::-webkit-scrollbar {
 .sonos-system-tile__select:focus-visible,
 .screens-system-tile__segment:focus-visible,
 .screens-system-tile__refresh:focus-visible,
+.screens-system-tile__phase input:focus-visible,
 .reeds-system-tile__segment:focus-visible,
 .reeds-system-tile__clear:focus-visible,
 .phases-tile__segment:focus-visible,

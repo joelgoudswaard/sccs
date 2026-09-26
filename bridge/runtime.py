@@ -137,6 +137,7 @@ class SCCSRuntime:
                 "brightness_adjustable": brightness_is_adjustable(
                     conf.get("brightness_path") or ""
                 ),
+                "follow_phases": bool(conf.get("follow_phases")),
             })
         return screens
 
@@ -170,6 +171,7 @@ class SCCSRuntime:
                 "brightness_adjustable": brightness_is_adjustable(
                     conf.get("brightness_path") or ""
                 ),
+                "follow_phases": bool(conf.get("follow_phases")),
             })
         self._emit_screens_update(screens)
 
@@ -264,6 +266,33 @@ class SCCSRuntime:
         self._emit_screens_preview()
         self.reconcile(ramp_source="phase")
         self.broadcast_ui_state()
+
+    def set_screen_follow_phases(self, name: str, enabled: bool) -> bool:
+        """Remember whether this panel's brightness tracks day/evening/night."""
+        conf = self.compiled.screens.get(name)
+        if not conf:
+            logger.warning("screen follow-phases ignored — unknown screen: %s", name)
+            return False
+        enabled = bool(enabled)
+        conf["follow_phases"] = enabled
+        try:
+            from engine.config_compile import screen_line_with_follow_phases
+            from modules.config import config as sccs_config
+
+            current = sccs_config.get("screens", name, fallback="")
+            if current:
+                sccs_config.set_option(
+                    "screens",
+                    name,
+                    screen_line_with_follow_phases(current, enabled),
+                )
+        except Exception as e:
+            logger.warning("Could not save follow-phases for %s: %s", name, e)
+        if self.reconciler:
+            self.reconciler._commanded_screens.pop(name, None)
+        self._emit_screens_preview()
+        self.reconcile(ramp_source="auto")
+        return True
 
     def set_light_intent(self, name: str, brightness: int, mode: Optional[str] = None):
         self.world.set_light_intent(name, brightness, mode, expires="until_reed_close")
