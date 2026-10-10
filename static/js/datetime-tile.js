@@ -484,7 +484,10 @@
     }
 
     window.SCCS = window.SCCS || {};
-    window.SCCS.datetime = { updatePhaseTimes };
+    window.SCCS.datetime = {
+        updatePhaseTimes,
+        refreshPhaseTimes: loadPhaseTimes,
+    };
 
     window.datetimeTile = { update, setLocation, refresh: tick, updatePhaseTimes };
 })();

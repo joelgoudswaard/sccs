@@ -45,6 +45,11 @@ class PhaseManager:
         self.force_timer = None
         self._last_broadcast_phase = None
         self._cached_phase_times = {}
+        # Inputs that produced _cached_phase_times. The phase check uses live
+        # sun times every loop; this remembers when the displayed schedule
+        # was last built so a long-running process does not keep startup labels.
+        self._schedule_inputs_seen = None
+        self._refreshing_schedule = False
 
         self.running = False
         self.thread = None
@@ -146,32 +151,32 @@ class PhaseManager:
                     if self._using_fallback:
                         logger.info("🌍 GPS fix restored - returning to live sun data")
                         self._using_fallback = False
-                        # Rebuild schedule from live GPS sun times and push to UI.
-                        self._calculate_and_cache_times()
-                        self._broadcast_phase_update()
-                    self._update_phase(use_fallback=False)
                 else:
                     now = time.time()
                     if self._ever_had_gps_fix:
                         loss_age = now - self._last_good_gps_time
-                        if loss_age > self.GPS_LOSS_TIMEOUT:
-                            if not self._using_fallback:
-                                logger.warning(
-                                    f"🌗 GPS fix lost for {int(loss_age)}s → using fallback"
-                                )
-                                self._using_fallback = True
-                                self._calculate_and_cache_times()
-                                self._broadcast_phase_update()
-                            self._update_phase(use_fallback=True)
-                    elif now - self.startup_time > self.GPS_STARTUP_TIMEOUT:
-                        if not self._using_fallback:
+                        if loss_age > self.GPS_LOSS_TIMEOUT and not self._using_fallback:
                             logger.warning(
-                                f"🌗 No GPS fix for {int(now - self.startup_time)}s → using fallback"
+                                f"🌗 GPS fix lost for {int(loss_age)}s → using fallback"
                             )
                             self._using_fallback = True
-                            self._calculate_and_cache_times()
-                            self._broadcast_phase_update()
-                        self._update_phase(use_fallback=True)
+                    elif (
+                        now - self.startup_time > self.GPS_STARTUP_TIMEOUT
+                        and not self._using_fallback
+                    ):
+                        logger.warning(
+                            f"🌗 No GPS fix for {int(now - self.startup_time)}s → using fallback"
+                        )
+                        self._using_fallback = True
+
+                # Sun times move every day. Rebuild the labels when the date
+                # or the GPS sunrise/sunset strings change, then push them.
+                self._refresh_schedule_if_stale()
+
+                if has_real_fix:
+                    self._update_phase(use_fallback=False)
+                elif self._using_fallback:
+                    self._update_phase(use_fallback=True)
 
                 time.sleep(5)
             except Exception as e:
@@ -369,6 +374,72 @@ class PhaseManager:
             bool(state.get("sunset"))
         )
 
+    def _schedule_inputs(self) -> tuple:
+        """What the displayed day/evening/night labels were built from."""
+        try:
+            state = self.gps.get_state() or {}
+        except Exception:
+            state = {}
+        tz = self.fallback_tz
+        if self._has_valid_gps():
+            tz_name = state.get("timezone") or "Australia/Melbourne"
+            try:
+                tz = zoneinfo.ZoneInfo(tz_name)
+            except Exception:
+                tz = self.fallback_tz
+        today = datetime.datetime.now(tz).date().isoformat()
+        return (
+            today,
+            state.get("sunrise"),
+            state.get("sunset"),
+            self._has_valid_gps(),
+            self._using_fallback,
+            int(self.day_offset_minutes),
+            int(self.evening_offset_minutes),
+            int(self.night_start_minutes),
+        )
+
+    def _displayed_times_changed(self, previous: dict) -> bool:
+        return any(
+            self._cached_phase_times.get(key) != previous.get(key)
+            for key in ("day_start", "evening_start", "night_start", "sunrise", "sunset")
+        )
+
+    def _refresh_schedule_if_stale(self) -> None:
+        """Rebuild cached phase labels when the sun schedule moves.
+
+        The phase check already uses the current sunrise and sunset. The
+        labels are cached, and a process that stays up for days would keep
+        showing the start times from the morning it launched.
+        """
+        if self._refreshing_schedule:
+            return
+        inputs = self._schedule_inputs()
+        if inputs == self._schedule_inputs_seen:
+            return
+        self._refreshing_schedule = True
+        try:
+            self._schedule_inputs_seen = inputs
+            previous = dict(self._cached_phase_times)
+            self._calculate_and_cache_times()
+            if (
+                self._cached_phase_times.get("evening_start") == "—"
+                and previous.get("evening_start") not in (None, "", "—")
+            ):
+                self._cached_phase_times = previous
+                return
+            if previous and self._displayed_times_changed(previous):
+                logger.info(
+                    "🌗 Phase times updated → day %s, evening %s, night %s (sunset %s)",
+                    self._cached_phase_times.get("day_start"),
+                    self._cached_phase_times.get("evening_start"),
+                    self._cached_phase_times.get("night_start"),
+                    self._cached_phase_times.get("sunset"),
+                )
+                self._broadcast_phase_update()
+        finally:
+            self._refreshing_schedule = False
+
     def _parse_sun_time(self, time_str: str, tz, now):
         if not time_str:
             raise ValueError("No sun time available")
@@ -475,6 +546,7 @@ class PhaseManager:
             self._night_listeners.remove(callback)
 
     def get_phase_times(self) -> dict:
+        self._refresh_schedule_if_stale()
         if not self._cached_phase_times or len(self._cached_phase_times) < 3:
             self._calculate_and_cache_times()
         return self._cached_phase_times.copy()

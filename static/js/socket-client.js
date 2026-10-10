@@ -39,6 +39,7 @@
             window.SCCS.lightingHome?.refresh?.();
             window.SCCS.lighting?.syncFromServer?.();
             window.SCCS.phases?.refresh?.();
+            window.SCCS.datetime?.refreshPhaseTimes?.();
             window.SCCS.explain?.refresh?.();
             window.SCCS.wifi?.refresh?.({ quiet: true });
             window.sccsCoreTile?.refresh?.();
@@ -80,6 +81,17 @@
         // Phases
         socket.on('phase_update', (data) => {
             window.SCCS.phases?.onPhaseUpdate(data);
+            // The phases tile is only on System. Home still shows the start
+            // times, and it has to apply this push or they stay at page load.
+            if (!window.SCCS.phases?.onPhaseUpdate) {
+                window.SCCS.datetime?.updatePhaseTimes?.(data);
+                if (data && (data.sunrise || data.sunset)) {
+                    window.datetimeTile?.update?.({
+                        sunrise: data.sunrise,
+                        sunset: data.sunset,
+                    });
+                }
+            }
         });
 
         socket.on('phase_diag_update', (data) => {
